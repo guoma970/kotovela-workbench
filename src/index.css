@@ -557,6 +557,121 @@ button.object-badge {
   border-color: rgba(126, 163, 255, 0.28);
 }
 
+.object-popover-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vw, 28px);
+}
+
+.object-popover-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(3, 8, 22, 0.7);
+  cursor: default;
+}
+
+.object-popover-card {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 410px);
+  max-width: 92vw;
+  min-width: min(280px, 90vw);
+  background: linear-gradient(180deg, rgba(16, 29, 60, 0.98), rgba(12, 20, 42, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.object-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.object-popover-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.object-popover-meta strong {
+  color: #f4f7ff;
+  word-break: break-word;
+}
+
+.object-popover-meta p {
+  margin: 0;
+  color: #9cb0d0;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.object-popover-note {
+  margin: 0;
+  color: #aebddd;
+  line-height: 1.5;
+}
+
+.object-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.object-popover-close {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f7ff;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.object-popover-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 960px) {
+  .object-popover-card {
+    width: min(94vw, 360px);
+  }
+}
+
+@media (max-width: 640px) {
+  .object-popover-card {
+    width: min(94vw, 340px);
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .object-popover-close {
+    width: 26px;
+    height: 26px;
+    right: 8px;
+    top: 8px;
+  }
+}
+
+.object-popover-layer .ghost-button {
+  padding: 8px 12px;
+}
+
 .object-badge.is-selected {
   border-color: rgba(126, 163, 255, 0.5);
   background: rgba(91, 140, 255, 0.16);

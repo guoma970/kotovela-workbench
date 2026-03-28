@@ -107,7 +107,7 @@ export function RoomsPage() {
                   <span className="section-label">归属实例</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
-                      <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
+                      <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable openInPanel onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
                     ))}
                   </div>
                 </div>

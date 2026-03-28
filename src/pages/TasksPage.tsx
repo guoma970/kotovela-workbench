@@ -108,7 +108,7 @@ export function TasksPage() {
                       <div className="object-row top-gap">
                         <ObjectBadge kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
-                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
+                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable openInPanel onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
                       </div>
                       <div className="object-row top-gap">
                         {linkedRooms.map((room) => (

@@ -129,6 +129,7 @@ export function ProjectsPage() {
                           name={agent.name}
                           compact
                           clickable
+                          openInPanel
                           onClick={() => linking.select('agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />

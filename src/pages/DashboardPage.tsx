@@ -440,6 +440,7 @@ export function DashboardPage() {
                     name={agent.name}
                     compact
                     clickable
+                    openInPanel
                     onClick={() => linking.select('agent', agent.id)}
                     {...linking.getState('agent', agent.id)}
                   />
@@ -544,6 +545,7 @@ export function DashboardPage() {
                           name={agent.name}
                           compact
                           clickable
+                          openInPanel
                           onClick={() => linking.select('agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />
@@ -606,6 +608,7 @@ export function DashboardPage() {
                             name={relatedAgent.name}
                             compact
                             clickable
+                            openInPanel
                             onClick={() => linking.select('agent', relatedAgent.id)}
                             {...linking.getState('agent', relatedAgent.id)}
                           />
@@ -628,6 +631,7 @@ export function DashboardPage() {
                             name={owner.name}
                             compact
                             clickable
+                            openInPanel
                             onClick={() => linking.select('agent', owner.id)}
                             {...linking.getState('agent', owner.id)}
                           />
@@ -690,6 +694,7 @@ export function DashboardPage() {
                             name={agent.name}
                             compact
                             clickable
+                            openInPanel
                             onClick={() => linking.select('agent', agent.id)}
                             {...linking.getState('agent', agent.id)}
                           />
@@ -770,6 +775,7 @@ export function DashboardPage() {
                           name={agent.name}
                           compact
                           clickable
+                          openInPanel
                           onClick={() => linking.select('agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />
