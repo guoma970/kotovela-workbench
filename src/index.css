@@ -886,3 +886,150 @@ button.object-badge {
 .page-lead-panel .panel-header {
   margin-bottom: 4px;
 }
+
+@media (max-width: 960px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-grid,
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .demo-path-steps {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .demo-step-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .demo-step-divider {
+    display: none;
+  }
+
+  .hero-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-badges {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid,
+  .queue-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-path-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .demo-step-text strong {
+    font-size: 0.9em;
+  }
+
+  .demo-step-text small {
+    font-size: 0.7em;
+  }
+
+  .object-badge .object-name {
+    display: none;
+  }
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 24px 18px;
+  background: rgba(12, 18, 37, 0.92);
+}
+
+.brand p {
+  color: #93a4c3;
+}
+
+.nav-link {
+  color: #aab7d1;
+}
+
+.nav-link:hover,
+.nav-link-active {
+  background: rgba(91, 140, 255, 0.14);
+  color: #fff;
+}
+
+.page-note {
+  color: #97a7c5;
+}
+
+.stat-label {
+  color: #9aa9c3;
+}
+
+.stat-value {
+  color: #f4f7ff;
+}
+
+.panel-header h3 {
+  color: #f5f8ff;
+}
+
+.inline-link-chip {
+  color: #dce8ff;
+}
+
+.ghost-button {
+  color: #dce8ff;
+}
+
+.object-icon {
+  color: #fff;
+}
+
+.object-code {
+  color: #f4f7ff;
+}
+
+.office-seat h3 {
+  color: #f4f7ff;
+}
+
+.office-seat p {
+  color: #97a7c5;
+}
+
+.office-zone {
+  color: #d6e2f8;
+}
+
+.office-meta-row span {
+  color: #9fb2d2;
+}
+
+.office-meta-row strong {
+  color: #f4f7ff;
+}
+
+.office-note {
+  color: #bfd2ef;
+}
