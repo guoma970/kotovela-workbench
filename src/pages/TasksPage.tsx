@@ -6,6 +6,7 @@ import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { TaskStatus } from '../types'
 
 const columns: { key: TaskStatus; label: string }[] = [
+  { key: 'todo', label: 'Todo' },
   { key: 'doing', label: 'Doing' },
   { key: 'blocked', label: 'Blocker' },
   { key: 'done', label: 'Done' },
@@ -56,7 +57,7 @@ export function TasksPage() {
 
       <PageLeadPanel
         heading="Tasks"
-        intro="先看 blocker 再看 doing，确保阻塞项有明确追踪对象。"
+        intro="先看 todo 再看 blocker 与 doing，确保待办和阻塞任务有明确追踪对象。"
         metrics={[
           { label: '任务总数', value: tasks.length },
           { label: 'todo', value: counts.todo },
