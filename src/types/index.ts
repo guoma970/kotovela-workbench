@@ -9,6 +9,7 @@ export interface Agent {
   role: string
   status: AgentStatus
   currentTask: string
+  project: string
   updatedAt: string
 }
 
@@ -18,6 +19,8 @@ export interface Project {
   owner: string
   status: ProjectStatus
   progress: number
+  focus: string
+  blockers: number
 }
 
 export interface Task {
@@ -35,6 +38,7 @@ export interface Room {
   status: RoomStatus
   focus: string
   pending: number
+  channelType: string
 }
 
 export interface UpdateItem {

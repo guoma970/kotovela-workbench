@@ -8,20 +8,29 @@ export function RoomsPage() {
           <p className="eyebrow">Rooms</p>
           <h2>群与通道状态</h2>
         </div>
-        <p className="page-note">先展示房间名称、关注点和待处理量。</p>
+        <p className="page-note">按房间关系看当前协作位置、通道类型和待处理情况。</p>
       </div>
 
-      <div className="panel list-panel">
+      <div className="card-grid">
         {rooms.map((room) => (
-          <article key={room.id} className="list-row stacked-row">
-            <div>
+          <article key={room.id} className="panel info-card">
+            <div className="panel-header">
               <h3>{room.name}</h3>
-              <p>
-                {room.focus} · 待处理：{room.pending}
-              </p>
-            </div>
-            <div className="row-meta">
               <span className={`status-pill status-${room.status}`}>{room.status}</span>
+            </div>
+            <div className="info-pairs">
+              <div>
+                <span>通道类型</span>
+                <strong>{room.channelType}</strong>
+              </div>
+              <div>
+                <span>当前焦点</span>
+                <strong>{room.focus}</strong>
+              </div>
+              <div>
+                <span>待处理项</span>
+                <strong>{room.pending}</strong>
+              </div>
             </div>
           </article>
         ))}

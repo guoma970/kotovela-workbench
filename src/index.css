@@ -124,14 +124,22 @@ button {
 .page h2,
 .panel h3,
 .list-row h3,
-.update-item h4 {
+.update-item h4,
+.compact-item h4,
+.alert-item h4,
+.queue-card h4 {
   margin: 0;
 }
 
 .page-note,
 .list-row p,
 .update-item p,
-.panel-header span {
+.panel-header span,
+.compact-item p,
+.alert-item p,
+.info-pairs span,
+.queue-card p,
+.empty-state {
   margin: 0;
   color: #97a7c5;
 }
@@ -176,22 +184,56 @@ button {
   box-shadow: inset 0 0 0 1px rgba(255, 107, 107, 0.15);
 }
 
+.dashboard-grid,
+.card-grid,
+.queue-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.dashboard-grid {
+  grid-template-columns: 1.1fr 1fr;
+}
+
+.card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.queue-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.panel-alert {
+  border-color: rgba(255, 107, 107, 0.25);
+  background: linear-gradient(180deg, rgba(70, 21, 28, 0.88), rgba(15, 23, 43, 0.88));
+}
+
+.panel-wide {
+  grid-column: 1 / -1;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  gap: 12px;
 }
 
 .update-list,
-.list-panel {
+.list-panel,
+.alert-list,
+.compact-list,
+.project-progress-list,
+.queue-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .update-item,
-.list-row {
+.list-row,
+.compact-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -201,23 +243,79 @@ button {
 }
 
 .update-item:first-child,
-.list-row:first-child {
+.list-row:first-child,
+.compact-item:first-child {
   border-top: 0;
   padding-top: 0;
 }
 
 .update-item:last-child,
-.list-row:last-child {
+.list-row:last-child,
+.compact-item:last-child {
   padding-bottom: 0;
 }
 
+.alert-item,
+.progress-item,
+.queue-card {
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.progress-head,
+.queue-meta,
 .row-meta {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   color: #97a7c5;
   flex-wrap: wrap;
+}
+
+.row-meta {
   justify-content: flex-end;
+}
+
+.progress-bar {
+  margin-top: 10px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5b8cff, #62d2ff);
+}
+
+.info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.info-pairs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.info-pairs div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-pairs strong {
+  font-size: 0.98rem;
+}
+
+.queue-column {
+  min-height: 260px;
 }
 
 .status-pill {
@@ -251,6 +349,19 @@ button {
   color: #ffc062;
 }
 
+@media (max-width: 1100px) {
+  .dashboard-grid,
+  .card-grid,
+  .queue-grid,
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-wide {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -259,10 +370,6 @@ button {
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -274,7 +381,10 @@ button {
 
   .page-header,
   .list-row,
-  .update-item {
+  .update-item,
+  .compact-item,
+  .progress-head,
+  .queue-meta {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -283,7 +393,11 @@ button {
     justify-content: flex-start;
   }
 
-  .stats-grid {
+  .dashboard-grid,
+  .card-grid,
+  .queue-grid,
+  .stats-grid,
+  .info-pairs {
     grid-template-columns: 1fr;
   }
 }
