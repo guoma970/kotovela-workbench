@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { StatCard } from '../components/StatCard'
 import { agents, decisions, projects, rooms, tasks, updates } from '../data/mockData'
@@ -18,9 +19,15 @@ export function DashboardPage() {
   const doingTasks = tasks.filter((item) => item.status === 'doing')
   const blockedTasks = tasks.filter((item) => item.status === 'blocked')
   const activeProjects = projects.filter((item) => item.status === 'active')
+  const doneTasks = tasks.filter((item) => item.status === 'done')
   const topProject = projects.find((item) => item.id === 'project-1')
   const criticalUpdates = updates.slice(0, 3)
   const linking = useWorkbenchLinking(pageData)
+  const keyTask = blockedTasks[0] ?? doingTasks[0]
+  const keyFocusSearch = keyTask
+    ? createFocusSearch(linking.currentSearch, 'task', keyTask.id)
+    : createFocusSearch(linking.currentSearch, 'project', topProject?.id)
+  const keyProjectSearch = topProject ? createFocusSearch(linking.currentSearch, 'project', topProject.id) : createFocusSearch(linking.currentSearch)
 
   const cardClass = (kind: 'project' | 'agent' | 'room' | 'task', id: string, base: string) => {
     const state = linking.getState(kind, id)
@@ -43,6 +50,37 @@ export function DashboardPage() {
         </div>
         <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。</p>
       </div>
+
+      <PageLeadPanel
+        heading="Dashboard"
+        intro="先看全局态势（阻塞与节奏），再点进对应对象确认交付路径。"
+        metrics={[
+          { label: '活跃实例', value: activeAgents.length },
+          { label: '进行中任务', value: doingTasks.length },
+          { label: '阻塞项', value: blockedTasks.length },
+          { label: '已完成任务', value: doneTasks.length },
+          { label: '待拍板', value: decisions.length },
+          { label: '项目总数', value: projects.length },
+        ]}
+        actions={
+          topProject
+            ? [
+                {
+                  label: '先看主项目 · Projects',
+                  to: { pathname: '/projects', search: keyProjectSearch },
+                },
+                {
+                  label: '先看阻塞任务 · Tasks',
+                  to: { pathname: '/tasks', search: keyFocusSearch },
+                },
+                {
+                  label: '回看主线脉络 · Rooms',
+                  to: { pathname: '/rooms', search: keyProjectSearch },
+                },
+              ]
+            : []
+        }
+      />
 
       {topProject && (
         <section className={cardClass('project', topProject.id, 'panel hero-panel strong-card')}>
@@ -110,13 +148,13 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="cross-link-row">
-            <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', topProject.id) }}>
+            <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: keyProjectSearch }}>
               查看相关项 · Projects
             </NavLink>
-            <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, 'project', topProject.id) }}>
+            <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: keyProjectSearch }}>
               查看相关项 · Tasks
             </NavLink>
-            <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: createFocusSearch(linking.currentSearch, 'project', topProject.id) }}>
+            <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: keyProjectSearch }}>
               查看相关项 · Rooms
             </NavLink>
           </div>
