@@ -233,25 +233,29 @@ export function DashboardPage() {
           <div className="office-controls">
             <div className="office-refresh-meta">
               <span className="status-pill status-blue">下一次刷新：{countdown}s</span>
-              <button className="ghost-button" onClick={refreshOffice}>
+              <span className="soft-tag">当前显示：{filteredInstances.length}/{instances.length}</span>
+              <button className="ghost-button" type="button" onClick={refreshOffice}>
                 手动刷新
               </button>
             </div>
             <div className="office-filters">
               <button
                 className={`ghost-button ${filter === 'all' ? 'is-active-filter' : ''}`}
+                type="button"
                 onClick={() => setFilter('all')}
               >
                 全部
               </button>
               <button
                 className={`ghost-button ${filter === 'doing' ? 'is-active-filter' : ''}`}
+                type="button"
                 onClick={() => setFilter('doing')}
               >
                 仅 doing
               </button>
               <button
                 className={`ghost-button ${filter === 'blocker' ? 'is-active-filter' : ''}`}
+                type="button"
                 onClick={() => setFilter('blocker')}
               >
                 仅 blocker
@@ -260,47 +264,56 @@ export function DashboardPage() {
           </div>
 
           <div className="office-floor">
-            {filteredInstances.map((instance) => {
-              const projectRelated = topProject ? `${topProject.name}` : '—'
-              return (
-                <article
-                  key={instance.id}
-                  className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''}`}
-                >
-                  <span className="office-zone">工位图示例</span>
-                  <div className="office-head">
-                    <h3>{instance.name}</h3>
-                    <span className={`status-pill status-${operationStatusTone[instance.status]}`}>{instance.status}</span>
-                  </div>
-                  <div className="office-meta-row">
-                    <span>角色</span>
-                    <strong>{instance.role}</strong>
-                  </div>
-                  <div className="office-meta-row">
-                    <span>状态</span>
-                    <strong>{projectRelated}</strong>
-                  </div>
-                  <div className="office-meta-row">
-                    <span>当前任务</span>
-                    <strong>{instance.task}</strong>
-                  </div>
-                  <div className="office-meta-row">
-                    <span>最近更新时间</span>
-                    <strong>{instance.updatedAt}</strong>
-                  </div>
-                  <p className="office-note">{instance.note}</p>
-                  <div className="office-link-row">
-                    {instance.agentId ? (
-                      <button className="inline-link-chip" onClick={() => linking.select('agent', instance.agentId ?? '')}>
-                        查看实例详情
-                      </button>
-                    ) : (
-                      <span className="soft-tag">当前无任务源，预留工位位</span>
-                    )}
-                  </div>
-                </article>
-              )
-            })}
+            {filteredInstances.length > 0 ? (
+              filteredInstances.map((instance) => {
+                const agent = instance.agentId ? agents.find((item) => item.id === instance.agentId) : undefined
+                const projectRelated = agent ? projects.find((item) => item.id === agent.projectId)?.name : '未绑定项目'
+                return (
+                  <article
+                    key={instance.id}
+                    className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''}`}
+                  >
+                    <span className="office-zone">工位图示例</span>
+                    <div className="office-head">
+                      <h3>{instance.name}</h3>
+                      <span className={`status-pill status-${operationStatusTone[instance.status]}`}>{instance.status}</span>
+                    </div>
+                    <div className="office-meta-row">
+                      <span>角色</span>
+                      <strong>{instance.role}</strong>
+                    </div>
+                    <div className="office-meta-row">
+                      <span>关联项目</span>
+                      <strong>{projectRelated}</strong>
+                    </div>
+                    <div className="office-meta-row">
+                      <span>当前任务</span>
+                      <strong>{instance.task}</strong>
+                    </div>
+                    <div className="office-meta-row">
+                      <span>最近更新时间</span>
+                      <strong>{instance.updatedAt}</strong>
+                    </div>
+                    <p className="office-note">{instance.note}</p>
+                    <div className="office-link-row">
+                      {instance.agentId ? (
+                        <button
+                          className="inline-link-chip"
+                          type="button"
+                          onClick={() => linking.select('agent', instance.agentId ?? '')}
+                        >
+                          查看实例详情
+                        </button>
+                      ) : (
+                        <span className="soft-tag">当前无任务源，预留工位位</span>
+                      )}
+                    </div>
+                  </article>
+                )
+              })
+            ) : (
+              <p className="empty-state">当前筛选无实例，切换为“全部”后可恢复显示。</p>
+            )}
           </div>
         </div>
       </section>

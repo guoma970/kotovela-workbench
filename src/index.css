@@ -655,7 +655,9 @@ button.object-badge {
   color: #8ab0ff;
 }
 
+.status-blocker,
 .status-blocked {
+
   background: rgba(255, 107, 107, 0.15);
   color: #ff8a8a;
 }
