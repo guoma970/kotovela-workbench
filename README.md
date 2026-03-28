@@ -1,4 +1,6 @@
 # KOTOVELA Workbench
+![CI](https://github.com/ztl970/kotovela-workbench/actions/workflows/ci.yml/badge.svg)
+
 
 KOTOVELA Workbench is a lightweight React + TypeScript + Vite front-end for the **言町科技工作台** scenario.
 
