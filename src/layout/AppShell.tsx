@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { FocusSummaryBar } from '../components/FocusSummaryBar'
+import { createFocusSearch } from '../lib/workbenchLinking'
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
@@ -9,6 +11,9 @@ const navItems = [
 ]
 
 export function AppShell() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -24,7 +29,7 @@ export function AppShell() {
           {navItems.map((item) => (
             <NavLink
               key={item.to}
-              to={item.to}
+              to={{ pathname: item.to, search: location.search }}
               end={item.to === '/'}
               className={({ isActive }) =>
                 isActive ? 'nav-link nav-link-active' : 'nav-link'
@@ -37,6 +42,11 @@ export function AppShell() {
       </aside>
 
       <main className="main-content">
+        <FocusSummaryBar
+          pathname={location.pathname}
+          search={location.search}
+          onClear={() => navigate({ search: createFocusSearch(location.search) })}
+        />
         <Outlet />
       </main>
     </div>

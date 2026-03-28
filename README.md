@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# KOTOVELA Workbench
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+KOTOVELA Workbench is a lightweight React + TypeScript + Vite front-end for the **言町科技工作台** scenario.
 
-Currently, two official plugins are available:
+It is designed as a command-and-control style dashboard prototype for coordinating multiple instances:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Dashboard overview (blockers, active instances, pending decisions)
+- Agents / Rooms / Projects / Tasks pages
+- Cross-page linkage by project/agent/task/room identity
+- Demo data only (mock only, no real API integration yet)
 
-## React Compiler
+## Goals (当前版本)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 完成可演示的产品雏形（可浏览页面）
+- 保持统一视觉层级，支持中枢感强的主界面信息展示
+- 限定“原型演示”边界：不接真实 API，不做生产后台
 
-## Expanding the ESLint configuration
+## Run
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# install
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# dev
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# verify
+npm run lint
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Tech Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- React 19
+- TypeScript
+- Vite
+- React Router
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Directory Layout
+
+- `src/`：前端源码
+  - `components/`：通用展示组件
+  - `layout/`：页面布局
+  - `pages/`：五大主页面（Dashboard / Agents / Projects / Rooms / Tasks）
+  - `data/`：mock 数据定义
+  - `lib/`：联动与聚焦逻辑
+  - `types/`：数据类型
+- `docs/`：文档与任务记录
+- `.github/`：CI 与 PR 模板

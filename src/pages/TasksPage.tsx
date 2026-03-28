@@ -1,4 +1,7 @@
-import { tasks } from '../data/mockData'
+import { NavLink } from 'react-router-dom'
+import { ObjectBadge } from '../components/ObjectBadge'
+import { agents, projects, rooms, tasks } from '../data/mockData'
+import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { TaskStatus } from '../types'
 
 const columns: { key: TaskStatus; label: string }[] = [
@@ -7,7 +10,23 @@ const columns: { key: TaskStatus; label: string }[] = [
   { key: 'done', label: 'Done' },
 ]
 
+const pageData = { projects, agents, rooms, tasks }
+
 export function TasksPage() {
+  const linking = useWorkbenchLinking(pageData)
+
+  const cardClass = (id: string) => {
+    const state = linking.getState('task', id)
+    return [
+      'queue-card panel-surface',
+      state.isSelected ? 'surface-selected' : '',
+      !state.isSelected && state.isRelated ? 'surface-related' : '',
+      state.isDimmed ? 'surface-dimmed' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
+
   return (
     <section className="page">
       <div className="page-header">
@@ -15,7 +34,7 @@ export function TasksPage() {
           <p className="eyebrow">Tasks</p>
           <h2>任务队列</h2>
         </div>
-        <p className="page-note">补齐优先级、项目标识、执行实例和更新时间，让队列更像真实工作流。</p>
+        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个统一识别点，并接入轻联动高亮。</p>
       </div>
 
       <div className="queue-grid">
@@ -28,22 +47,44 @@ export function TasksPage() {
                 <span>{items.length} 条</span>
               </div>
               <div className="queue-list">
-                {items.map((task) => (
-                  <article key={task.id} className="queue-card">
-                    <div className="item-head">
-                      <h4>{task.title}</h4>
-                      <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
-                    </div>
-                    <div className="item-tags">
-                      <span className="soft-tag">项目：{task.project}</span>
-                      <span className="soft-tag">实例：{task.executor}</span>
-                    </div>
-                    <div className="queue-meta dense-meta">
-                      <span>负责人：{task.assignee}</span>
-                      <span>更新时间：{task.updatedAt}</span>
-                    </div>
-                  </article>
-                ))}
+                {items.map((task) => {
+                  const project = projects.find((item) => item.id === task.projectId)
+                  const agent = agents.find((item) => item.id === task.executorAgentId)
+                  const linkedRooms = rooms.filter(
+                    (room) => room.mainProjectId === task.projectId || room.instanceIds.includes(task.executorAgentId),
+                  )
+                  const focusSearch = createFocusSearch(linking.currentSearch, 'task', task.id)
+                  return (
+                    <article key={task.id} className={cardClass(task.id)} onClick={() => linking.select('task', task.id)}>
+                      <div className="item-head">
+                        <h4>{task.title}</h4>
+                        <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                      </div>
+                      <div className="object-row top-gap">
+                        <ObjectBadge kind="task" code={task.code} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
+                        {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
+                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
+                      </div>
+                      <div className="object-row top-gap">
+                        {linkedRooms.map((room) => (
+                          <ObjectBadge key={room.id} kind="room" code={room.code} name={room.name} compact clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
+                        ))}
+                      </div>
+                      <div className="cross-link-row">
+                        <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                          查看相关项 · Projects
+                        </NavLink>
+                        <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                          查看相关项 · Rooms
+                        </NavLink>
+                      </div>
+                      <div className="queue-meta dense-meta">
+                        <span>负责人：{task.assignee}</span>
+                        <span>更新时间：{task.updatedAt}</span>
+                      </div>
+                    </article>
+                  )
+                })}
                 {items.length === 0 && <p className="empty-state">当前没有任务。</p>}
               </div>
             </section>
