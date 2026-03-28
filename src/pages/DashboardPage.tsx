@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
@@ -18,38 +18,56 @@ const pageData = { projects, agents, rooms, tasks }
 type OperationStatus = 'doing' | 'done' | 'blocker'
 type FilterMode = 'all' | 'doing' | 'blocker'
 
+type ApiOfficeInstance = {
+  key?: string
+  name?: string
+  role?: string
+  status?: string
+  task?: string
+  currentTask?: string
+  updatedAt?: string
+  ageMs?: number
+  ageText?: string
+  note?: string
+  projectRelated?: string
+}
+
 type OfficeInstance = {
   id: string
+  key: string
   name: string
   role: string
   status: OperationStatus
   task: string
   updatedAt: string
+  ageMs: number
   note: string
+  projectRelated: string
   agentId: string
 }
 
-const REFRESH_INTERVAL_SECONDS = 20
+type DataSource = 'real' | 'mock'
 
 type OfficeSeat = {
   id: string
+  key: string
   name: string
   role: string
   agentId: string
 }
 
-const officeBlueprint: OfficeSeat[] = agents.map((agent) => ({
-  id: `seat-${agent.id}`,
-  name: agent.name,
-  role: agent.role,
-  agentId: agent.id,
-}))
+const OFFICE_SEAT_MAP: OfficeSeat[] = [
+  { id: 'seat-main', key: 'main', name: '小树', role: '中枢调度', agentId: 'agent-1' },
+  { id: 'seat-zhu', key: 'builder', name: '小筑', role: '研发执行', agentId: 'agent-2' },
+  { id: 'seat-guo', key: 'media', name: '小果', role: '内容助手', agentId: 'agent-3' },
+  { id: 'seat-xi', key: 'family', name: '小羲', role: '家庭助手', agentId: 'agent-4' },
+  { id: 'seat-yan', key: 'business', name: '小言', role: '业务助手', agentId: 'agent-5' },
+  { id: 'seat-qi', key: 'ztl970', name: '小柒', role: '个人助手', agentId: 'agent-6' },
+]
 
-const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
-  doing: 'doing',
-  blocker: 'blocker',
-  done: 'done',
-}
+const officeBlueprint: OfficeSeat[] = OFFICE_SEAT_MAP
+
+const REFRESH_INTERVAL_SECONDS = 20
 
 const statusSentence: Record<OperationStatus, string> = {
   doing: '正在推进关键动作，等待下游确认。',
@@ -57,59 +75,104 @@ const statusSentence: Record<OperationStatus, string> = {
   done: '当前未有阻塞，任务链路平稳。',
 }
 
-const getAgentStatus = (agent: (typeof agents)[number] | undefined, executorTasks: typeof tasks): OperationStatus => {
-  if (!agent) {
-    return 'done'
+const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
+  doing: 'doing',
+  blocker: 'blocker',
+  done: 'done',
+}
+
+const normalizeStatus = (value?: string): OperationStatus => {
+  if (value === 'blocker' || value === 'doing' || value === 'done') {
+    return value
   }
-  if (agent.status === 'blocked' || executorTasks.some((task) => task.status === 'blocked')) {
-    return 'blocker'
+
+  if (value === 'blocked' || value === 'active' || value === 'idle') {
+    return value === 'blocked' ? 'blocker' : value === 'active' ? 'doing' : 'done'
   }
-  if (agent.status === 'active' || executorTasks.some((task) => task.status === 'doing')) {
-    return 'doing'
-  }
+
   return 'done'
 }
 
-const buildOfficeInstances = (tick: number): OfficeInstance[] => {
+const normalizeApiInstances = (apiInstances: ApiOfficeInstance[]): OfficeInstance[] => {
+  return officeBlueprint.map((seat) => {
+    const raw = apiInstances.find((item) => item.key === seat.key)
+    const agent = agents.find((item) => item.id === seat.agentId)
+    const relatedProject = agent ? (projects.find((project) => project.id === agent.projectId)?.name ?? '未绑定项目') : '待启用席位'
+
+    const status = normalizeStatus(raw?.status)
+
+    return {
+      id: seat.id,
+      key: seat.key,
+      name: seat.name,
+      role: raw?.role || seat.role,
+      status,
+      task: raw?.task || raw?.currentTask || agent?.currentTask || '暂无任务',
+      updatedAt: raw?.ageText || raw?.updatedAt || '刚刚',
+      ageMs: typeof raw?.ageMs === 'number' ? Math.max(0, raw.ageMs) : 0,
+      note: raw?.note || statusSentence[status],
+      projectRelated: raw?.projectRelated || relatedProject,
+      agentId: seat.agentId,
+    }
+  })
+}
+
+const fetchOfficeInstances = async (): Promise<OfficeInstance[]> => {
+  const response = await fetch('/api/office-instances')
+
+  if (!response.ok) {
+    throw new Error(`请求失败：${response.status}`)
+  }
+
+  const payload = (await response.json()) as { instances?: ApiOfficeInstance[] }
+  const raw = Array.isArray(payload?.instances) ? payload.instances : []
+
+  return normalizeApiInstances(raw)
+}
+
+const buildOfficeFallback = (): OfficeInstance[] => {
   return officeBlueprint.map((seat) => {
     const agent = agents.find((item) => item.id === seat.agentId)
     const relatedTasks = agent ? tasks.filter((task) => task.executorAgentId === agent.id) : []
-    const base = getAgentStatus(agent, relatedTasks)
-    const pulse = tick % 3
-    const status: OperationStatus =
-      pulse === 0
-        ? base
-        : pulse === 1
-          ? 'doing'
-          : base === 'done'
-            ? 'blocker'
-            : 'done'
-
+    const projectRelated = agent ? (projects.find((project) => project.id === agent.projectId)?.name ?? '未绑定项目') : '待启用席位'
     const taskSource =
       relatedTasks.find((task) => task.status === 'doing') ||
       relatedTasks.find((task) => task.status === 'blocked') ||
       relatedTasks[0] ||
-      { title: agent?.currentTask || '暂无新任务' }
+      { title: agent?.currentTask || '暂无任务' }
+
+    const status: OperationStatus =
+      relatedTasks.some((task) => task.status === 'blocked') || agent?.status === 'blocked'
+        ? 'blocker'
+        : relatedTasks.some((task) => task.status === 'doing') || agent?.status === 'active'
+          ? 'doing'
+          : 'done'
 
     return {
       id: seat.id,
+      key: seat.key,
       name: seat.name,
       role: seat.role,
       status,
       task: taskSource.title,
-      updatedAt: `${tick * 10}秒前`,
+      updatedAt: agent?.updatedAt || '刚刚',
+      ageMs: 0,
       note: statusSentence[status],
+      projectRelated,
       agentId: seat.agentId,
     }
   })
 }
 
 export function DashboardPage() {
-  const [refreshTick, setRefreshTick] = useState(0)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
   const [filter, setFilter] = useState<FilterMode>('all')
-  const [instances, setInstances] = useState<OfficeInstance[]>(() => buildOfficeInstances(0))
+  const [instances, setInstances] = useState<OfficeInstance[]>(buildOfficeFallback)
   const [pulseIds, setPulseIds] = useState<string[]>([])
+  const [dataSource, setDataSource] = useState<DataSource>('mock')
+  const [isFetching, setIsFetching] = useState(false)
+  const [error, setError] = useState('')
+  const instancesRef = useRef(instances)
 
   const activeAgents = agents.filter((item) => item.status === 'active')
   const doingTasks = tasks.filter((item) => item.status === 'doing')
@@ -132,27 +195,55 @@ export function DashboardPage() {
     return instances.filter((instance) => instance.status === filter)
   }, [instances, filter])
 
-  const refreshOffice = useCallback(() => {
-    const nextTick = refreshTick + 1
-    const next = buildOfficeInstances(nextTick)
-    const changed = instances
-      .filter((item) => {
-        const current = next.find((n) => n.id === item.id)
-        return !current || current.status !== item.status || current.task !== item.task
-      })
-      .map((item) => item.id)
+  useEffect(() => {
+    instancesRef.current = instances
+  }, [instances])
 
-    setInstances(next)
-    setPulseIds(changed)
-    setRefreshTick(nextTick)
-    setCountdown(REFRESH_INTERVAL_SECONDS)
-  }, [instances, refreshTick])
+  const refreshOffice = useCallback(async () => {
+    setIsFetching(true)
+    setError('')
+
+    try {
+      const next = await fetchOfficeInstances()
+      const previous = instancesRef.current
+      const changed = previous
+        .filter((item) => {
+          const current = next.find((n) => n.id === item.id)
+          return !current || current.status !== item.status || current.task !== item.task || current.ageMs !== item.ageMs
+        })
+        .map((item) => item.id)
+
+      setInstances(next)
+      setDataSource('real')
+      setPulseIds(changed)
+      setCountdown(REFRESH_INTERVAL_SECONDS)
+    } catch {
+      const next = buildOfficeFallback()
+      const previous = instancesRef.current
+      const changed = previous
+        .filter((item) => {
+          const current = next.find((n) => n.id === item.id)
+          return !current || current.status !== item.status || current.task !== item.task
+        })
+        .map((item) => item.id)
+
+      setInstances(next)
+      setDataSource('mock')
+      setError('实时接口不可用，已回退至本地 mock 数据')
+      setPulseIds(changed)
+      setCountdown(REFRESH_INTERVAL_SECONDS)
+    } finally {
+      setIsFetching(false)
+    }
+  }, [])
 
   useEffect(() => {
+    void refreshOffice()
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          refreshOffice()
+          void refreshOffice()
           return REFRESH_INTERVAL_SECONDS
         }
         return prev - 1
@@ -232,14 +323,15 @@ export function DashboardPage() {
               <p className="eyebrow">Office Board</p>
               <h2>KOTOVELA 实例工位图</h2>
             </div>
-            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。</p>
+            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。 {dataSource === 'real' ? '(实时源已接入)' : '(已回退至 mock)'}{isFetching ? ' · 刷新中' : ''}</p>
           </div>
 
           <div className="office-controls">
             <div className="office-refresh-meta">
               <span className="status-pill status-blue">下一次刷新：{countdown}s</span>
               <span className="soft-tag">当前显示：{filteredInstances.length}/{instances.length}</span>
-              <button className="ghost-button" type="button" onClick={refreshOffice}>
+              {error ? <span className="soft-tag">{error}</span> : null}
+              <button className="ghost-button" type="button" onClick={() => { void refreshOffice() }}>
                 手动刷新
               </button>
             </div>
@@ -271,8 +363,6 @@ export function DashboardPage() {
           <div className="office-floor">
             {filteredInstances.length > 0 ? (
               filteredInstances.map((instance) => {
-                const agent = instance.agentId ? agents.find((item) => item.id === instance.agentId) : undefined
-                const projectRelated = agent ? (projects.find((item) => item.id === agent.projectId)?.name ?? '未绑定项目') : '待启用席位'
                 return (
                   <article
                     key={instance.id}
@@ -289,7 +379,7 @@ export function DashboardPage() {
                     </div>
                     <div className="office-meta-row">
                       <span>关联项目</span>
-                      <strong>{projectRelated}</strong>
+                      <strong>{instance.projectRelated}</strong>
                     </div>
                     <div className="office-meta-row">
                       <span>当前任务</span>
