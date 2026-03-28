@@ -843,3 +843,46 @@ button.object-badge {
 .page-lead-panel p {
   margin-top: 0;
 }
+
+
+.hero-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: radial-gradient(circle at 120% -10%, rgba(91, 140, 255, 0.22), transparent 45%);
+  pointer-events: none;
+}
+
+.hero-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.focus-summary-bar {
+  border: 1px solid rgba(126, 163, 255, 0.18);
+}
+
+.panel {
+  transform: translateY(0);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.panel:hover {
+  transform: translateY(-1px);
+  border-color: rgba(126, 163, 255, 0.22);
+  box-shadow: 0 10px 24px rgba(19, 34, 71, 0.22);
+}
+
+.page-lead-panel {
+  border-left: 3px solid rgba(111, 177, 255, 0.6);
+}
+
+.page-lead-panel .panel-header {
+  margin-bottom: 4px;
+}
