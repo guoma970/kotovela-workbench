@@ -27,8 +27,10 @@ type RawSessionItem = {
 type RawSessionResponse = {
   data?: {
     instances?: RawSessionItem[]
+    sessions?: RawSessionItem[]
   }
   instances?: RawSessionItem[]
+  sessions?: RawSessionItem[]
 }
 
 const toMs = (value: unknown): number | undefined => {
@@ -44,18 +46,62 @@ const toMs = (value: unknown): number | undefined => {
   return undefined
 }
 
+const normalizeSessionKey = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const parts = trimmed.split(':')
+  if (parts[0] === 'agent' && parts.length >= 2) {
+    return parts[1]
+  }
+
+  return trimmed
+}
+
 const parseSessionOutput = (raw: unknown): RawSessionItem[] => {
   if (!raw || typeof raw !== 'object') {
     return []
   }
 
   const obj = raw as RawSessionResponse
-  const list = obj.data?.instances ?? obj.instances
-  if (Array.isArray(list)) {
-    return list.filter((item): item is RawSessionItem => typeof item === 'object' && item !== null)
+  const rawList = obj.data?.instances ?? obj.instances
+  const sessionList = obj.data?.sessions ?? obj.sessions
+
+  const list = Array.isArray(rawList) ? rawList : Array.isArray(sessionList) ? sessionList : []
+  if (!Array.isArray(list)) {
+    return []
   }
 
-  return []
+  const mapped = list
+    .filter((item): item is RawSessionItem => typeof item === 'object' && item !== null)
+    .map((item) => ({
+      ...item,
+      key: normalizeSessionKey(item.key),
+      updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
+    }))
+
+  const deduped: Record<string, RawSessionItem> = {}
+  for (const item of mapped) {
+    if (!item.key) {
+      continue
+    }
+
+    const existing = deduped[item.key]
+    const currentAge = toMs(item.ageMs)
+    const existingAge = toMs(existing?.ageMs)
+
+    if (!existing || (currentAge !== undefined && (existingAge === undefined || currentAge < existingAge))) {
+      deduped[item.key] = item
+    }
+  }
+
+  return Object.values(deduped)
 }
 
 const buildFallbackSession = (session: RawSessionItem) => {
