@@ -37,7 +37,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
   return (
     <section className="panel focus-banner focus-summary-bar strong-card">
       <div className="focus-summary-main">
-        <div>
+        <div className="focus-summary-meta">
           <p className="eyebrow">Cross-page Focus</p>
           <h3>
             {summary.label}：{summary.value}
@@ -86,8 +86,17 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
           })}
         </div>
 
-        <button type="button" className="ghost-button" onClick={onClear}>
-          清除联动
+        <button
+          type="button"
+          className="ghost-button focus-clear-button"
+          onClick={onClear}
+          aria-label="清除联动"
+          title="清除联动"
+        >
+          <span className="focus-clear-icon" aria-hidden>
+            ×
+          </span>
+          <span className="focus-clear-label">清除联动</span>
         </button>
       </div>
     </section>
