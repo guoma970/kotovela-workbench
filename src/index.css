@@ -1011,10 +1011,6 @@ button.object-badge {
   .demo-step-text small {
     font-size: 0.7em;
   }
-
-  .object-badge .object-name {
-    display: none;
-  }
 }
 
 .app-shell {
