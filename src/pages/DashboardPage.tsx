@@ -34,10 +34,10 @@ const REFRESH_INTERVAL_SECONDS = 20
 const officeBlueprint: Array<{ id: string; name: string; role: string; agentId?: string }> = [
   { id: 'seat-tree', name: '小树', role: '中枢调度', agentId: 'agent-1' },
   { id: 'seat-zhu', name: '小筑', role: '研发执行', agentId: 'agent-2' },
-  { id: 'seat-guo', name: '小果', role: '演示联动', agentId: 'agent-3' },
-  { id: 'seat-xi', name: '小羲', role: '流程协调', agentId: 'agent-4' },
-  { id: 'seat-yan', name: '小言', role: '内容同步', agentId: 'agent-5' },
-  { id: 'seat-qi', name: '小柒', role: '系统观测' },
+  { id: 'seat-guo', name: '小果', role: '内容助手', agentId: 'agent-3' },
+  { id: 'seat-xi', name: '小羲', role: '家庭助手', agentId: 'agent-4' },
+  { id: 'seat-yan', name: '小言', role: '业务助手', agentId: 'agent-5' },
+  { id: 'seat-qi', name: '小柒', role: '个人助手' },
 ]
 
 const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
