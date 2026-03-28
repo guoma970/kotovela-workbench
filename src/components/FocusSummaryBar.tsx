@@ -96,19 +96,6 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
             )
           })}
         </div>
-
-        <button
-          type="button"
-          className="ghost-button focus-clear-button"
-          onClick={onClear}
-          aria-label="清除联动"
-          title="清除联动"
-        >
-          <span className="focus-clear-icon" aria-hidden>
-            ×
-          </span>
-          <span className="focus-clear-label">清除联动</span>
-        </button>
       </div>
     </section>
   )
