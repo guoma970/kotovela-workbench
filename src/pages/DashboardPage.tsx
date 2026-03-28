@@ -32,12 +32,13 @@ type OfficeInstance = {
 const REFRESH_INTERVAL_SECONDS = 20
 
 const officeBlueprint: Array<{ id: string; name: string; role: string; agentId?: string }> = [
-  { id: 'seat-tree', name: '小树', role: '中枢调度', agentId: 'agent-1' },
-  { id: 'seat-zhu', name: '小筑', role: '研发执行', agentId: 'agent-2' },
-  { id: 'seat-guo', name: '小果', role: '演示联动', agentId: 'agent-3' },
-  { id: 'seat-xi', name: '小羲', role: '流程协调', agentId: 'agent-4' },
-  { id: 'seat-yan', name: '小言', role: '内容同步', agentId: 'agent-5' },
-  { id: 'seat-qi', name: '小柒', role: '系统观测' },
+  ...agents.map((agent, index) => ({
+    id: `seat-${index + 1}`,
+    name: agent.name,
+    role: agent.role,
+    agentId: agent.id,
+  })),
+  { id: 'seat-extra', name: '待启用席位', role: '预留', agentId: undefined },
 ]
 
 const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
@@ -267,13 +268,13 @@ export function DashboardPage() {
             {filteredInstances.length > 0 ? (
               filteredInstances.map((instance) => {
                 const agent = instance.agentId ? agents.find((item) => item.id === instance.agentId) : undefined
-                const projectRelated = agent ? projects.find((item) => item.id === agent.projectId)?.name : '未绑定项目'
+                const projectRelated = agent ? (projects.find((item) => item.id === agent.projectId)?.name ?? '未绑定项目') : '待启用席位'
                 return (
                   <article
                     key={instance.id}
                     className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''}`}
                   >
-                    <span className="office-zone">工位图示例</span>
+                    <span className="office-zone">工位示例</span>
                     <div className="office-head">
                       <h3>{instance.name}</h3>
                       <span className={`status-pill status-${operationStatusTone[instance.status]}`}>{instance.status}</span>
