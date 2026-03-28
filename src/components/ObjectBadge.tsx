@@ -11,6 +11,7 @@ interface ObjectBadgeProps {
   dimmed?: boolean
   onClick?: () => void
   suffix?: ReactNode
+  title?: string
 }
 
 const kindLabel = {
@@ -18,6 +19,18 @@ const kindLabel = {
   agent: '实',
   room: '群',
   task: '单',
+}
+
+const scopeLabel = {
+  project: '项目',
+  agent: '实例',
+  room: '群组',
+  task: '任务',
+}
+
+const titleFor = (kind: ObjectBadgeProps['kind'], code: string, name?: string, customTitle?: string) => {
+  if (customTitle) return customTitle
+  return `${scopeLabel[kind]} ${code}${name ? `：${name}` : ''}`
 }
 
 export function ObjectBadge({
@@ -31,6 +44,7 @@ export function ObjectBadge({
   dimmed = false,
   onClick,
   suffix,
+  title,
 }: ObjectBadgeProps) {
   const className = [
     'object-badge',
@@ -53,13 +67,19 @@ export function ObjectBadge({
     </>
   )
 
+  const hint = titleFor(kind, code, name, title)
+
   if (clickable) {
     return (
-      <button type="button" className={className} onClick={onClick}>
+      <button type="button" className={className} onClick={onClick} title={hint} aria-label={hint}>
         {content}
       </button>
     )
   }
 
-  return <span className={className}>{content}</span>
+  return (
+    <span className={className} title={hint}>
+      {content}
+    </span>
+  )
 }
