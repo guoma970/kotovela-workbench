@@ -36,6 +36,17 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
 
   return (
     <section className="panel focus-banner focus-summary-bar strong-card">
+      {onClear && (
+        <button
+          type="button"
+          className="focus-close-action"
+          onClick={onClear}
+          aria-label="关闭联动卡片"
+          title="关闭联动卡片"
+        >
+          ×
+        </button>
+      )}
       <div className="focus-summary-main">
         <div className="focus-summary-meta">
           <p className="eyebrow">Cross-page Focus</p>

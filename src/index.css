@@ -203,6 +203,29 @@ button,
   top: 20px;
   z-index: 5;
   background: linear-gradient(180deg, rgba(24, 34, 63, 0.96), rgba(14, 21, 41, 0.96));
+  position: relative;
+}
+
+.focus-close-action {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 163, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f7ff;
+  font-size: 0.96rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.focus-close-action:hover {
+  background: rgba(126, 163, 255, 0.22);
 }
 
 .focus-summary-main,
