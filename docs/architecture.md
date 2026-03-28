@@ -2,7 +2,7 @@
 
 ## 1. 总体
 
-KOTOVELA Workbench is a single-page app with internal route-based pages and shared mock data.
+OpenClaw Workbench is a single-page app with internal route-based pages and shared mock data for the KOTOVELA scenario.
 
 - Router: `src/App.tsx`
 - Layout: `src/layout/AppShell.tsx`

@@ -1,8 +1,8 @@
-# KOTOVELA Workbench
+# OpenClaw Workbench (KOTOVELA Scenario)
 ![CI](https://github.com/ztl970/kotovela-workbench/actions/workflows/ci.yml/badge.svg)
 
 
-KOTOVELA Workbench is a lightweight React + TypeScript + Vite front-end for the **KOTOVELA** scenario.
+OpenClaw Workbench is a lightweight React + TypeScript + Vite front-end for the **KOTOVELA** coordination scenario.
 
 It is designed as a command-and-control style dashboard prototype for coordinating multiple instances:
 
