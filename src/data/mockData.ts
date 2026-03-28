@@ -63,6 +63,17 @@ export const agents: Agent[] = [
     projectId: 'project-3',
     updatedAt: '27 分钟前',
   },
+  {
+    id: 'agent-6',
+    code: 'INS-06',
+    name: '小柒',
+    role: '个人助手',
+    status: 'idle',
+    currentTask: '待分配，保持观测位随时接手任务',
+    project: 'KOTOVELA',
+    projectId: 'project-1',
+    updatedAt: '刚刚',
+  },
 ]
 
 export const projects: Project[] = [

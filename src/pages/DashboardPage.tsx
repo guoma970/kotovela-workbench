@@ -26,19 +26,24 @@ type OfficeInstance = {
   task: string
   updatedAt: string
   note: string
-  agentId?: string
+  agentId: string
 }
 
 const REFRESH_INTERVAL_SECONDS = 20
 
-const officeBlueprint: Array<{ id: string; name: string; role: string; agentId?: string }> = [
-  { id: 'seat-tree', name: '小树', role: '中枢调度', agentId: 'agent-1' },
-  { id: 'seat-zhu', name: '小筑', role: '研发执行', agentId: 'agent-2' },
-  { id: 'seat-guo', name: '小果', role: '内容助手', agentId: 'agent-3' },
-  { id: 'seat-xi', name: '小羲', role: '家庭助手', agentId: 'agent-4' },
-  { id: 'seat-yan', name: '小言', role: '业务助手', agentId: 'agent-5' },
-  { id: 'seat-qi', name: '小柒', role: '个人助手' },
-]
+type OfficeSeat = {
+  id: string
+  name: string
+  role: string
+  agentId: string
+}
+
+const officeBlueprint: OfficeSeat[] = agents.map((agent) => ({
+  id: `seat-${agent.id}`,
+  name: agent.name,
+  role: agent.role,
+  agentId: agent.id,
+}))
 
 const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
   doing: 'doing',
@@ -227,7 +232,7 @@ export function DashboardPage() {
               <p className="eyebrow">Office Board</p>
               <h2>KOTOVELA 实例工位图</h2>
             </div>
-            <p className="page-note">6 个实例工位固定展示，支持 20s 自动刷新与手动刷新。</p>
+            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。</p>
           </div>
 
           <div className="office-controls">
