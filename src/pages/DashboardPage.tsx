@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
@@ -14,7 +15,97 @@ const updateTypeLabel = {
 
 const pageData = { projects, agents, rooms, tasks }
 
+type OperationStatus = 'doing' | 'done' | 'blocker'
+type FilterMode = 'all' | 'doing' | 'blocker'
+
+type OfficeInstance = {
+  id: string
+  name: string
+  role: string
+  status: OperationStatus
+  task: string
+  updatedAt: string
+  note: string
+  agentId?: string
+}
+
+const REFRESH_INTERVAL_SECONDS = 20
+
+const officeBlueprint: Array<{ id: string; name: string; role: string; agentId?: string }> = [
+  { id: 'seat-tree', name: '小树', role: '中枢调度', agentId: 'agent-1' },
+  { id: 'seat-zhu', name: '小筑', role: '研发执行', agentId: 'agent-2' },
+  { id: 'seat-guo', name: '小果', role: '演示联动', agentId: 'agent-3' },
+  { id: 'seat-xi', name: '小羲', role: '流程协调', agentId: 'agent-4' },
+  { id: 'seat-yan', name: '小言', role: '内容同步', agentId: 'agent-5' },
+  { id: 'seat-qi', name: '小柒', role: '系统观测' },
+]
+
+const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
+  doing: 'doing',
+  blocker: 'blocker',
+  done: 'done',
+}
+
+const statusSentence: Record<OperationStatus, string> = {
+  doing: '正在推进关键动作，等待下游确认。',
+  blocker: '检测到阻塞信号，等待状态回归。',
+  done: '当前未有阻塞，任务链路平稳。',
+}
+
+const getAgentStatus = (agent: (typeof agents)[number] | undefined, executorTasks: typeof tasks): OperationStatus => {
+  if (!agent) {
+    return 'done'
+  }
+  if (agent.status === 'blocked' || executorTasks.some((task) => task.status === 'blocked')) {
+    return 'blocker'
+  }
+  if (agent.status === 'active' || executorTasks.some((task) => task.status === 'doing')) {
+    return 'doing'
+  }
+  return 'done'
+}
+
+const buildOfficeInstances = (tick: number): OfficeInstance[] => {
+  return officeBlueprint.map((seat) => {
+    const agent = agents.find((item) => item.id === seat.agentId)
+    const relatedTasks = agent ? tasks.filter((task) => task.executorAgentId === agent.id) : []
+    const base = getAgentStatus(agent, relatedTasks)
+    const pulse = tick % 3
+    const status: OperationStatus =
+      pulse === 0
+        ? base
+        : pulse === 1
+          ? 'doing'
+          : base === 'done'
+            ? 'blocker'
+            : 'done'
+
+    const taskSource =
+      relatedTasks.find((task) => task.status === 'doing') ||
+      relatedTasks.find((task) => task.status === 'blocked') ||
+      relatedTasks[0] ||
+      { title: agent?.currentTask || '暂无新任务' }
+
+    return {
+      id: seat.id,
+      name: seat.name,
+      role: seat.role,
+      status,
+      task: taskSource.title,
+      updatedAt: `${tick * 10}秒前`,
+      note: statusSentence[status],
+      agentId: seat.agentId,
+    }
+  })
+}
+
 export function DashboardPage() {
+  const [refreshTick, setRefreshTick] = useState(0)
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
+  const [filter, setFilter] = useState<FilterMode>('all')
+  const [instances, setInstances] = useState<OfficeInstance[]>(() => buildOfficeInstances(0))
+  const [pulseIds, setPulseIds] = useState<string[]>([])
+
   const activeAgents = agents.filter((item) => item.status === 'active')
   const doingTasks = tasks.filter((item) => item.status === 'doing')
   const blockedTasks = tasks.filter((item) => item.status === 'blocked')
@@ -28,6 +119,52 @@ export function DashboardPage() {
     ? createFocusSearch(linking.currentSearch, 'task', keyTask.id)
     : createFocusSearch(linking.currentSearch, 'project', topProject?.id)
   const keyProjectSearch = topProject ? createFocusSearch(linking.currentSearch, 'project', topProject.id) : createFocusSearch(linking.currentSearch)
+
+  const filteredInstances = useMemo(() => {
+    if (filter === 'all') {
+      return instances
+    }
+    return instances.filter((instance) => instance.status === filter)
+  }, [instances, filter])
+
+  const refreshOffice = useCallback(() => {
+    const nextTick = refreshTick + 1
+    const next = buildOfficeInstances(nextTick)
+    const changed = instances
+      .filter((item) => {
+        const current = next.find((n) => n.id === item.id)
+        return !current || current.status !== item.status || current.task !== item.task
+      })
+      .map((item) => item.id)
+
+    setInstances(next)
+    setPulseIds(changed)
+    setRefreshTick(nextTick)
+    setCountdown(REFRESH_INTERVAL_SECONDS)
+  }, [instances, refreshTick])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          refreshOffice()
+          return REFRESH_INTERVAL_SECONDS
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [refreshOffice])
+
+  useEffect(() => {
+    if (!pulseIds.length) {
+      return
+    }
+
+    const t = setTimeout(() => setPulseIds([]), 1100)
+    return () => clearTimeout(t)
+  }, [pulseIds])
 
   const cardClass = (kind: 'project' | 'agent' | 'room' | 'task', id: string, base: string) => {
     const state = linking.getState(kind, id)
@@ -81,6 +218,92 @@ export function DashboardPage() {
             : []
         }
       />
+
+
+      <section className="office-shell">
+        <div className="panel strong-card office-board">
+          <div className="page-header">
+            <div>
+              <p className="eyebrow">Office Board</p>
+              <h2>KOTOVELA 实例工位图</h2>
+            </div>
+            <p className="page-note">6 个实例工位固定展示，支持 20s 自动刷新与手动刷新。</p>
+          </div>
+
+          <div className="office-controls">
+            <div className="office-refresh-meta">
+              <span className="status-pill status-blue">下一次刷新：{countdown}s</span>
+              <button className="ghost-button" onClick={refreshOffice}>
+                手动刷新
+              </button>
+            </div>
+            <div className="office-filters">
+              <button
+                className={`ghost-button ${filter === 'all' ? 'is-active-filter' : ''}`}
+                onClick={() => setFilter('all')}
+              >
+                全部
+              </button>
+              <button
+                className={`ghost-button ${filter === 'doing' ? 'is-active-filter' : ''}`}
+                onClick={() => setFilter('doing')}
+              >
+                仅 doing
+              </button>
+              <button
+                className={`ghost-button ${filter === 'blocker' ? 'is-active-filter' : ''}`}
+                onClick={() => setFilter('blocker')}
+              >
+                仅 blocker
+              </button>
+            </div>
+          </div>
+
+          <div className="office-floor">
+            {filteredInstances.map((instance) => {
+              const projectRelated = topProject ? `${topProject.name}` : '—'
+              return (
+                <article
+                  key={instance.id}
+                  className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''}`}
+                >
+                  <span className="office-zone">工位图示例</span>
+                  <div className="office-head">
+                    <h3>{instance.name}</h3>
+                    <span className={`status-pill status-${operationStatusTone[instance.status]}`}>{instance.status}</span>
+                  </div>
+                  <div className="office-meta-row">
+                    <span>角色</span>
+                    <strong>{instance.role}</strong>
+                  </div>
+                  <div className="office-meta-row">
+                    <span>状态</span>
+                    <strong>{projectRelated}</strong>
+                  </div>
+                  <div className="office-meta-row">
+                    <span>当前任务</span>
+                    <strong>{instance.task}</strong>
+                  </div>
+                  <div className="office-meta-row">
+                    <span>最近更新时间</span>
+                    <strong>{instance.updatedAt}</strong>
+                  </div>
+                  <p className="office-note">{instance.note}</p>
+                  <div className="office-link-row">
+                    {instance.agentId ? (
+                      <button className="inline-link-chip" onClick={() => linking.select('agent', instance.agentId ?? '')}>
+                        查看实例详情
+                      </button>
+                    ) : (
+                      <span className="soft-tag">当前无任务源，预留工位位</span>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      </section>
 
       {topProject && (
         <section className={cardClass('project', topProject.id, 'panel hero-panel strong-card')}>
