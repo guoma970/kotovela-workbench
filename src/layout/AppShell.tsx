@@ -20,7 +20,7 @@ export function AppShell() {
         <div className="brand">
           <div className="brand-mark">言</div>
           <div>
-            <h1>言町科技工作台</h1>
+            <h1>KOTOVELA</h1>
             <p>OpenClaw 协作驾驶舱</p>
           </div>
         </div>
