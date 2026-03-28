@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { agents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
@@ -7,6 +8,16 @@ const pageData = { projects, agents, rooms, tasks }
 
 export function RoomsPage() {
   const linking = useWorkbenchLinking(pageData)
+
+  const activeRooms = rooms.filter((room) => room.status === 'active')
+  const quietRooms = rooms.filter((room) => room.status === 'quiet')
+  const blockedRooms = rooms.filter((room) => room.status === 'blocked')
+  const pendingTotal = rooms.reduce((sum, room) => sum + room.pending, 0)
+
+  const targetRoom = [...rooms].sort((a, b) => b.pending - a.pending)[0]
+  const targetFocusSearch = targetRoom
+    ? createFocusSearch(linking.currentSearch, 'room', targetRoom.id)
+    : createFocusSearch(linking.currentSearch)
 
   const cardClass = (id: string) => {
     const state = linking.getState('room', id)
@@ -29,6 +40,33 @@ export function RoomsPage() {
         </div>
         <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。</p>
       </div>
+
+      <PageLeadPanel
+        heading="Rooms"
+        intro="先看待处理总量和阻塞房间，再确认任务承接方向。"
+        metrics={[
+          { label: '房间总数', value: rooms.length },
+          { label: '活跃', value: activeRooms.length },
+          { label: '静默', value: quietRooms.length },
+          { label: '阻塞', value: blockedRooms.length },
+          { label: '待处理总数', value: pendingTotal },
+          { label: '最高待处理房间', value: targetRoom?.name ?? '暂无' },
+        ]}
+        actions={
+          targetRoom
+            ? [
+                {
+                  label: `先处理 · ${targetRoom.name}`,
+                  to: { pathname: '/tasks', search: targetFocusSearch },
+                },
+                {
+                  label: `看其承接项目 · ${targetRoom.name}`,
+                  to: { pathname: '/projects', search: targetFocusSearch },
+                },
+              ]
+            : []
+        }
+      />
 
       <div className="card-grid">
         {rooms.map((room) => {

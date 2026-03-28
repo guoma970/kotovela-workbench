@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { agents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
@@ -7,6 +8,15 @@ const pageData = { projects, agents, rooms, tasks }
 
 export function AgentsPage() {
   const linking = useWorkbenchLinking(pageData)
+
+  const activeAgents = agents.filter((agent) => agent.status === 'active')
+  const idleAgents = agents.filter((agent) => agent.status === 'idle')
+  const blockedAgents = agents.filter((agent) => agent.status === 'blocked')
+
+  const targetAgent = agents.find((agent) => agent.status === 'blocked') ?? agents[0]
+  const targetFocusSearch = targetAgent
+    ? createFocusSearch(linking.currentSearch, 'agent', targetAgent.id)
+    : createFocusSearch(linking.currentSearch)
 
   const cardClass = (id: string) => {
     const state = linking.getState('agent', id)
@@ -29,6 +39,38 @@ export function AgentsPage() {
         </div>
         <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。</p>
       </div>
+
+      <PageLeadPanel
+        heading="Agents"
+        intro="优先处理阻塞实例，接着确认活跃实例能否快速串起任务链路。"
+        metrics={[
+          { label: '实例总数', value: agents.length },
+          { label: '活跃中', value: activeAgents.length },
+          { label: '待命中', value: idleAgents.length },
+          { label: '阻塞', value: blockedAgents.length },
+          {
+            label: '平均挂载任务',
+            value:
+              agents.length > 0
+                ? `${Math.round(tasks.length / agents.length * 100) / 100} 条/实例`
+                : '0 条/实例',
+          },
+        ]}
+        actions={
+          targetAgent
+            ? [
+                {
+                  label: `优先查看阻塞实例 · ${targetAgent.name}`,
+                  to: { pathname: '/tasks', search: targetFocusSearch },
+                },
+                {
+                  label: '回到 Dashboard 的阻塞焦点',
+                  to: { pathname: '/', search: targetFocusSearch },
+                },
+              ]
+            : []
+        }
+      />
 
       <div className="card-grid">
         {agents.map((agent) => {

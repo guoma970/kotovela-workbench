@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { agents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
@@ -7,6 +8,17 @@ const pageData = { projects, agents, rooms, tasks }
 
 export function ProjectsPage() {
   const linking = useWorkbenchLinking(pageData)
+
+  const totalTaskCount = tasks.length
+  const activeProjects = projects.filter((project) => project.status === 'active')
+  const blockedProjects = projects.filter((project) => project.status === 'blocked')
+  const planningProjects = projects.filter((project) => project.status === 'planning')
+
+  const topFocusProject = [...projects].sort((a, b) => b.blockers - a.blockers || b.progress - a.progress)[0]
+  const topFocusSearch = topFocusProject
+    ? createFocusSearch(linking.currentSearch, 'project', topFocusProject.id)
+    : createFocusSearch(linking.currentSearch)
+  const keyProject = topFocusProject?.name ?? '暂无主项目'
 
   const cardClass = (id: string) => {
     const state = linking.getState('project', id)
@@ -29,6 +41,33 @@ export function ProjectsPage() {
         </div>
         <p className="page-note">统一展示项目主标识、实例承接、关联群和任务量，跟 Dashboard / Tasks / Rooms 保持同一识别方式。</p>
       </div>
+
+      <PageLeadPanel
+        heading="Projects"
+        intro="先看主项目、阻塞项目与任务总量，确认下一步演示切口。"
+        metrics={[
+          { label: '项目总数', value: projects.length },
+          { label: '进行中', value: activeProjects.length },
+          { label: '待拍板', value: blockedProjects.length },
+          { label: '待执行', value: planningProjects.length },
+          { label: '任务总量', value: totalTaskCount },
+          { label: '当前主航道', value: keyProject },
+        ]}
+        actions={
+          topFocusProject
+            ? [
+                {
+                  label: `查看主项目相关任务 · ${topFocusProject.name}`,
+                  to: { pathname: '/tasks', search: topFocusSearch },
+                },
+                {
+                  label: `看主项目承接群 · ${topFocusProject.name}`,
+                  to: { pathname: '/rooms', search: topFocusSearch },
+                },
+              ]
+            : []
+        }
+      />
 
       <div className="card-grid project-grid">
         {projects.map((project) => {
@@ -57,7 +96,7 @@ export function ProjectsPage() {
                   <strong>{project.stage}</strong>
                 </div>
                 <div>
-                  <span>负责实例</span>
+                  <span>负责人</span>
                   <strong>{project.owner}</strong>
                 </div>
                 <div>
@@ -143,13 +182,25 @@ export function ProjectsPage() {
                 </div>
               </div>
               <div className="cross-link-row">
-                <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                <NavLink
+                  className="inline-link-chip"
+                  to={{ pathname: '/tasks', search: focusSearch }}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   查看相关项 · Tasks
                 </NavLink>
-                <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                <NavLink
+                  className="inline-link-chip"
+                  to={{ pathname: '/rooms', search: focusSearch }}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   查看相关项 · Rooms
                 </NavLink>
-                <NavLink className="inline-link-chip" to={{ pathname: '/agents', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                <NavLink
+                  className="inline-link-chip"
+                  to={{ pathname: '/agents', search: focusSearch }}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   查看相关项 · Agents
                 </NavLink>
               </div>

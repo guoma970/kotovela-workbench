@@ -826,3 +826,20 @@ button.object-badge {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.page-lead-panel .info-pairs {
+  margin-top: 8px;
+}
+
+.page-lead-panel .info-pairs .context-strip {
+  min-width: 160px;
+}
+
+.page-lead-panel .info-pairs strong {
+  color: #f4f7ff;
+  font-size: 1.2rem;
+}
+
+.page-lead-panel p {
+  margin-top: 0;
+}

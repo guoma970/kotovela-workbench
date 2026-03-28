@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { agents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
@@ -14,6 +15,22 @@ const pageData = { projects, agents, rooms, tasks }
 
 export function TasksPage() {
   const linking = useWorkbenchLinking(pageData)
+
+  const allColumns = ['todo', 'doing', 'blocked', 'done'] as const
+  const counts = allColumns.reduce(
+    (acc, status) => {
+      acc[status] = tasks.filter((task) => task.status === status).length
+      return acc
+    },
+    { todo: 0, doing: 0, blocked: 0, done: 0 } as Record<'todo' | 'doing' | 'blocked' | 'done', number>,
+  )
+
+  const overdueTask = tasks.find((task) => task.status === 'blocked')
+  const overdueSearch = overdueTask
+    ? createFocusSearch(linking.currentSearch, 'task', overdueTask.id)
+    : createFocusSearch(linking.currentSearch)
+
+  const highPriorityTasks = tasks.filter((task) => task.priority === 'high').length
 
   const cardClass = (id: string) => {
     const state = linking.getState('task', id)
@@ -36,6 +53,33 @@ export function TasksPage() {
         </div>
         <p className="page-note">每条任务都挂上任务单、项目、执行实例三个统一识别点，并接入轻联动高亮。</p>
       </div>
+
+      <PageLeadPanel
+        heading="Tasks"
+        intro="先看 blocker 再看 doing，确保阻塞项有明确追踪对象。"
+        metrics={[
+          { label: '任务总数', value: tasks.length },
+          { label: 'todo', value: counts.todo },
+          { label: 'doing', value: counts.doing },
+          { label: 'blocker', value: counts.blocked },
+          { label: 'done', value: counts.done },
+          { label: '高优先级', value: highPriorityTasks },
+        ]}
+        actions={
+          overdueTask
+            ? [
+                {
+                  label: `先打通阻塞项 · ${overdueTask.code}`,
+                  to: { pathname: '/', search: overdueSearch },
+                },
+                {
+                  label: '查看该任务下的实例',
+                  to: { pathname: '/agents', search: overdueSearch },
+                },
+              ]
+            : []
+        }
+      />
 
       <div className="queue-grid">
         {columns.map((column) => {
