@@ -127,7 +127,8 @@ button {
 .update-item h4,
 .compact-item h4,
 .alert-item h4,
-.queue-card h4 {
+.queue-card h4,
+.progress-item h4 {
   margin: 0;
 }
 
@@ -139,7 +140,8 @@ button {
 .alert-item p,
 .info-pairs span,
 .queue-card p,
-.empty-state {
+.empty-state,
+.info-block span {
   margin: 0;
   color: #97a7c5;
 }
@@ -156,6 +158,10 @@ button {
   background: rgba(15, 23, 43, 0.82);
   border-radius: 18px;
   padding: 18px;
+}
+
+.strong-card {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 }
 
 .stat-label {
@@ -196,6 +202,10 @@ button {
 }
 
 .card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -242,6 +252,13 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.compact-card {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .update-item:first-child,
 .list-row:first-child,
 .compact-item:first-child {
@@ -263,19 +280,55 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.item-head,
 .progress-head,
 .queue-meta,
-.row-meta {
+.row-meta,
+.item-tags {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: #97a7c5;
   flex-wrap: wrap;
 }
 
 .row-meta {
+  color: #97a7c5;
   justify-content: flex-end;
+}
+
+.item-tags {
+  margin-top: 10px;
+  justify-content: flex-start;
+}
+
+.soft-tag,
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.soft-tag {
+  background: rgba(255, 255, 255, 0.08);
+  color: #bfd0f5;
+}
+
+.priority-high {
+  background: rgba(255, 107, 107, 0.16);
+  color: #ff9c9c;
+}
+
+.priority-medium {
+  background: rgba(255, 167, 38, 0.16);
+  color: #ffc877;
+}
+
+.priority-low {
+  background: rgba(91, 140, 255, 0.16);
+  color: #9ab9ff;
 }
 
 .progress-bar {
@@ -304,18 +357,32 @@ button {
   gap: 14px;
 }
 
-.info-pairs div {
+.info-pairs div,
+.info-block {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.info-pairs strong {
+.info-pairs strong,
+.info-block strong {
   font-size: 0.98rem;
+}
+
+.info-block {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .queue-column {
   min-height: 260px;
+}
+
+.dense-meta {
+  margin-top: 10px;
+  color: #97a7c5;
+  justify-content: flex-start;
 }
 
 .status-pill {
@@ -352,6 +419,7 @@ button {
 @media (max-width: 1100px) {
   .dashboard-grid,
   .card-grid,
+  .project-grid,
   .queue-grid,
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -384,7 +452,9 @@ button {
   .update-item,
   .compact-item,
   .progress-head,
-  .queue-meta {
+  .queue-meta,
+  .item-head,
+  .item-tags {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -395,6 +465,7 @@ button {
 
   .dashboard-grid,
   .card-grid,
+  .project-grid,
   .queue-grid,
   .stats-grid,
   .info-pairs {

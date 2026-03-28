@@ -1,5 +1,11 @@
 import { StatCard } from '../components/StatCard'
-import { agents, projects, tasks, updates } from '../data/mockData'
+import { agents, decisions, projects, tasks, updates } from '../data/mockData'
+
+const updateTypeLabel = {
+  task: '任务更新',
+  project: '项目更新',
+  agent: '实例状态更新',
+}
 
 export function DashboardPage() {
   const activeAgents = agents.filter((item) => item.status === 'active')
@@ -15,7 +21,7 @@ export function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>中枢总览</h2>
         </div>
-        <p className="page-note">先把当前工作状态看清楚，再决定下一步推进。</p>
+        <p className="page-note">把阻塞、优先级、更新类型和待拍板事项放到同一张驾驶舱里。</p>
       </div>
 
       <div className="stats-grid strong-grid">
@@ -35,10 +41,14 @@ export function DashboardPage() {
             <div className="alert-list">
               {blockedTasks.map((task) => (
                 <article key={task.id} className="alert-item">
-                  <h4>{task.title}</h4>
+                  <div className="item-head">
+                    <h4>{task.title}</h4>
+                    <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                  </div>
                   <p>
-                    {task.project} · {task.assignee} · 优先级：{task.priority}
+                    来源：{task.project} · 执行实例：{task.executor}
                   </p>
+                  <p>最近更新时间：{task.updatedAt}</p>
                 </article>
               ))}
             </div>
@@ -49,12 +59,32 @@ export function DashboardPage() {
 
         <div className="panel">
           <div className="panel-header">
+            <h3>待拍板事项</h3>
+            <span>{decisions.length} 项</span>
+          </div>
+          <div className="compact-list">
+            {decisions.map((decision) => (
+              <article key={decision.id} className="compact-item compact-card">
+                <div>
+                  <h4>{decision.title}</h4>
+                  <p>
+                    {decision.project} · {decision.owner}
+                  </p>
+                </div>
+                <span className={`priority-badge priority-${decision.priority}`}>{decision.priority}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
             <h3>当前活跃实例</h3>
             <span>{activeAgents.length} 个</span>
           </div>
           <div className="compact-list">
             {activeAgents.map((agent) => (
-              <article key={agent.id} className="compact-item">
+              <article key={agent.id} className="compact-item compact-card">
                 <div>
                   <h4>{agent.name}</h4>
                   <p>
@@ -80,6 +110,10 @@ export function DashboardPage() {
                   <span>{project.progress}%</span>
                 </div>
                 <p>{project.focus}</p>
+                <div className="item-tags">
+                  <span className={`status-pill status-${project.status}`}>{project.status}</span>
+                  <span className="soft-tag">任务 {project.taskCount}</span>
+                </div>
                 <div className="progress-bar">
                   <div style={{ width: `${project.progress}%` }} />
                 </div>
@@ -95,9 +129,12 @@ export function DashboardPage() {
           </div>
           <div className="update-list">
             {updates.map((item) => (
-              <article key={item.id} className={`update-item update-${item.type}`}>
+              <article key={item.id} className={`update-item update-${item.level}`}>
                 <div>
-                  <h4>{item.title}</h4>
+                  <div className="item-head">
+                    <h4>{item.title}</h4>
+                    <span className="soft-tag">{updateTypeLabel[item.type]}</span>
+                  </div>
                   <p>
                     {item.source} · {item.time}
                   </p>

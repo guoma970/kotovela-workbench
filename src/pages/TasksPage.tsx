@@ -15,14 +15,14 @@ export function TasksPage() {
           <p className="eyebrow">Tasks</p>
           <h2>任务队列</h2>
         </div>
-        <p className="page-note">按 doing / blocker / done 拆开，先把任务流看清楚。</p>
+        <p className="page-note">补齐优先级、项目标识、执行实例和更新时间，让队列更像真实工作流。</p>
       </div>
 
       <div className="queue-grid">
         {columns.map((column) => {
           const items = tasks.filter((task) => task.status === column.key)
           return (
-            <section key={column.key} className="panel queue-column">
+            <section key={column.key} className="panel queue-column strong-card">
               <div className="panel-header">
                 <h3>{column.label}</h3>
                 <span>{items.length} 条</span>
@@ -30,11 +30,17 @@ export function TasksPage() {
               <div className="queue-list">
                 {items.map((task) => (
                   <article key={task.id} className="queue-card">
-                    <h4>{task.title}</h4>
-                    <p>{task.project}</p>
-                    <div className="queue-meta">
-                      <span>{task.assignee}</span>
-                      <span>优先级：{task.priority}</span>
+                    <div className="item-head">
+                      <h4>{task.title}</h4>
+                      <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                    </div>
+                    <div className="item-tags">
+                      <span className="soft-tag">项目：{task.project}</span>
+                      <span className="soft-tag">实例：{task.executor}</span>
+                    </div>
+                    <div className="queue-meta dense-meta">
+                      <span>负责人：{task.assignee}</span>
+                      <span>更新时间：{task.updatedAt}</span>
                     </div>
                   </article>
                 ))}
