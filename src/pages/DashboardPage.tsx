@@ -32,13 +32,12 @@ type OfficeInstance = {
 const REFRESH_INTERVAL_SECONDS = 20
 
 const officeBlueprint: Array<{ id: string; name: string; role: string; agentId?: string }> = [
-  ...agents.map((agent, index) => ({
-    id: `seat-${index + 1}`,
-    name: agent.name,
-    role: agent.role,
-    agentId: agent.id,
-  })),
-  { id: 'seat-extra', name: '待启用席位', role: '预留', agentId: undefined },
+  { id: 'seat-tree', name: '小树', role: '中枢调度', agentId: 'agent-1' },
+  { id: 'seat-zhu', name: '小筑', role: '研发执行', agentId: 'agent-2' },
+  { id: 'seat-guo', name: '小果', role: '演示联动', agentId: 'agent-3' },
+  { id: 'seat-xi', name: '小羲', role: '流程协调', agentId: 'agent-4' },
+  { id: 'seat-yan', name: '小言', role: '内容同步', agentId: 'agent-5' },
+  { id: 'seat-qi', name: '小柒', role: '系统观测' },
 ]
 
 const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
@@ -306,7 +305,7 @@ export function DashboardPage() {
                           查看实例详情
                         </button>
                       ) : (
-                        <span className="soft-tag">当前无任务源，预留工位位</span>
+                        <span className="soft-tag">当前无任务源，预留工位</span>
                       )}
                     </div>
                   </article>
