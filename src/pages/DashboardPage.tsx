@@ -520,6 +520,7 @@ export function DashboardPage() {
                       <ObjectBadge
                         kind="task"
                         code={task.code}
+                        name={task.title}
                         compact
                         clickable
                         onClick={() => linking.select('task', task.id)}

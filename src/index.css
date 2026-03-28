@@ -589,8 +589,16 @@ button.object-badge {
   letter-spacing: 0.02em;
 }
 
+.object-name {
+  display: inline-block;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .object-compact .object-name {
-  display: none;
+  max-width: 12ch;
 }
 
 .object-project .object-icon {

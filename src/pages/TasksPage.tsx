@@ -106,7 +106,7 @@ export function TasksPage() {
                         <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
                       </div>
                       <div className="object-row top-gap">
-                        <ObjectBadge kind="task" code={task.code} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
+                        <ObjectBadge kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
                         {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
                       </div>
