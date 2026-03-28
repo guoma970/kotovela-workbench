@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { DemoPathBar } from '../components/DemoPathBar'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
 
@@ -31,9 +32,7 @@ export function AppShell() {
               key={item.to}
               to={{ pathname: item.to, search: location.search }}
               end={item.to === '/'}
-              className={({ isActive }) =>
-                isActive ? 'nav-link nav-link-active' : 'nav-link'
-              }
+              className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
             >
               {item.label}
             </NavLink>
@@ -47,6 +46,7 @@ export function AppShell() {
           search={location.search}
           onClear={() => navigate({ search: createFocusSearch(location.search) })}
         />
+        <DemoPathBar />
         <Outlet />
       </main>
     </div>
