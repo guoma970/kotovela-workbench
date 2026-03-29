@@ -1,4 +1,7 @@
 import { exec as execCommand } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'ztl970'] as const
 
@@ -31,6 +34,15 @@ type SessionResponse = {
   instances?: SessionItem[]
   sessions?: SessionItem[]
 }
+
+type OfficeSnapshotPayload = {
+  generatedAt?: string
+  source?: string
+  instances?: ReturnType<typeof buildFallbackSession>[]
+}
+
+const serverDir = path.dirname(fileURLToPath(import.meta.url))
+const snapshotPath = path.resolve(serverDir, '../data/office-instances.snapshot.json')
 
 const toMs = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -164,10 +176,22 @@ const commandToOfficeResponse = async (): Promise<ReturnType<typeof buildFallbac
     )
   })
 
+const readSnapshotPayload = async (): Promise<OfficeSnapshotPayload | null> => {
+  try {
+    const raw = await readFile(snapshotPath, 'utf8')
+    const parsed = JSON.parse(raw) as OfficeSnapshotPayload
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
 export const fetchOfficeInstancesPayload = async () => {
   const sessions = await commandToOfficeResponse()
+  const snapshot = sessions.length === 0 ? await readSnapshotPayload() : null
   const now = Date.now()
-  const normalized = sessions.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
+  const sourceItems = sessions.length > 0 ? sessions : Array.isArray(snapshot?.instances) ? snapshot.instances : []
+  const normalized = sourceItems.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
 
   const instances = OFFICE_TARGET_KEYS.map((key) => {
     const found = normalized.find((item) => item.key === key)
@@ -191,7 +215,9 @@ export const fetchOfficeInstancesPayload = async () => {
   })
 
   return {
+    source: sessions.length > 0 ? 'live' : snapshot?.source || 'snapshot',
     generatedAt: new Date(now).toISOString(),
+    snapshotGeneratedAt: snapshot?.generatedAt,
     instances,
   }
 }

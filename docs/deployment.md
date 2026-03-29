@@ -31,6 +31,34 @@ npm run build
 - 不依赖本地 `localhost`
 - 仍保留实例状态接口的预发布版本
 
+## 实例状态同步（远程查看）
+
+本地开发环境可以直接通过 `openclaw sessions` 读到实时状态。  
+远程预发布环境（例如 Vercel）读不到你本机的 OpenClaw 运行态，所以需要一份最近同步的快照作为 fallback。
+
+### 手动同步一次状态快照
+
+```bash
+npm run sync:office-snapshot
+```
+
+这会更新：
+
+```text
+data/office-instances.snapshot.json
+```
+
+建议节奏：
+- 每次准备发布/推送前，先跑一次 `npm run sync:office-snapshot`
+- 然后再 `git add` / `commit` / `push`
+- Vercel 发布后，远程页会优先读本机实时数据；拿不到时自动退回到这份最近同步的快照
+
+### 当前策略
+
+- 本机打开：优先实时
+- 远程预发布打开：优先实时接口，失败时退回快照
+- 下一步如果要做到真正“持续实时”，再补本机到云端的自动状态同步
+
 ## 飞书内访问建议
 
 - 预发布阶段：直接把 Vercel 预发布链接放进飞书群 / 文档 / 知识库
