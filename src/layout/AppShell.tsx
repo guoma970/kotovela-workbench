@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { DemoPathBar } from '../components/DemoPathBar'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
@@ -14,17 +15,26 @@ const navItems = [
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-sidebar-open', sidebarOpen)
+
+    return () => {
+      document.body.classList.remove('mobile-sidebar-open')
+    }
+  }, [sidebarOpen])
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={sidebarOpen ? 'app-shell app-shell-sidebar-open' : 'app-shell'}>
+      <aside className={sidebarOpen ? 'sidebar sidebar-open' : 'sidebar'}>
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/yanting-logo.png" alt="言町科技" />
+            <img className="brand-logo" src="/yanting-logo-tight.png" alt="言町科技" />
           </div>
-          <div>
-            <h1>言町科技</h1>
-            <p>言町科技协作驾驶舱</p>
+          <div className="brand-copy">
+            <h1>言町科技 KOTOVELA</h1>
+            <p>OpenClaw协作驾驶舱</p>
           </div>
         </div>
 
@@ -34,6 +44,7 @@ export function AppShell() {
               key={item.to}
               to={{ pathname: item.to, search: location.search }}
               end={item.to === '/'}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
             >
               {item.label}
@@ -41,8 +52,31 @@ export function AppShell() {
           ))}
         </nav>
       </aside>
+      <button
+        type="button"
+        className={sidebarOpen ? 'sidebar-backdrop sidebar-backdrop-visible' : 'sidebar-backdrop'}
+        aria-label="关闭侧边菜单"
+        onClick={() => setSidebarOpen(false)}
+      />
 
       <main className="main-content">
+        <div className="mobile-nav-bar">
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div className="mobile-nav-label">
+            <strong>言町科技 KOTOVELA</strong>
+            <span>OpenClaw协作驾驶舱</span>
+          </div>
+        </div>
         <FocusSummaryBar
           pathname={location.pathname}
           search={location.search}

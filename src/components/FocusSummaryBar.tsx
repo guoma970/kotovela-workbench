@@ -75,7 +75,9 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
   if (!summary) return null
 
   return (
-    <section className="panel focus-banner focus-summary-bar strong-card focus-summary-dock">
+    <section
+      className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''}`}
+    >
       <header className="focus-summary-header focus-summary-header-compact">
         <div className="focus-summary-title-block">
           <p className="eyebrow">联动导航条</p>
@@ -114,11 +116,8 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
             >
               {expanded ? '收起详情' : '展开详情'}
             </button>
-            <button type="button" className="ghost-button focus-header-button" onClick={() => navigate(-1)}>
-              返回上一步
-            </button>
             <button type="button" className="ghost-button focus-header-button" onClick={onClear}>
-              清除联动
+              关闭导航
             </button>
           </div>
         </div>

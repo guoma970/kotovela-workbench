@@ -27,6 +27,10 @@ body.focus-overlay-open {
   overflow: hidden;
 }
 
+body.mobile-sidebar-open {
+  overflow: hidden;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -52,6 +56,11 @@ button,
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   padding: 24px 18px;
   background: rgba(12, 18, 37, 0.92);
@@ -60,46 +69,56 @@ button,
 
 .brand {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: 16px;
+  align-items: flex-start;
   margin-bottom: 28px;
+}
+
+.brand-copy {
+  min-width: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
 .brand p {
   margin: 2px 0 0;
   color: #93a4c3;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 124px;
+  height: 124px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, #5b8cff, #6a5cff);
   font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .brand-logo-wrap {
-  padding: 0;
+  padding: 6px;
   overflow: hidden;
   background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.96), rgba(244, 247, 255, 0.92)),
-    rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(73, 201, 191, 0.24);
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.98), rgba(236, 249, 247, 0.96)),
+    rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(73, 201, 191, 0.32);
+  box-shadow:
+    0 10px 24px rgba(4, 9, 22, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58);
 }
 
 .brand-logo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  filter: saturate(1.04) contrast(1.02);
 }
 
 .nav {
@@ -119,6 +138,59 @@ button,
 .nav-link-active {
   background: rgba(91, 140, 255, 0.14);
   color: #fff;
+}
+
+.mobile-nav-bar,
+.sidebar-backdrop {
+  display: none;
+}
+
+.mobile-nav-bar {
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.mobile-nav-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(126, 163, 255, 0.22);
+  background: rgba(15, 23, 43, 0.88);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #f4f8ff;
+  box-shadow: 0 10px 28px rgba(4, 9, 22, 0.24);
+}
+
+.mobile-nav-toggle span {
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.mobile-nav-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.mobile-nav-label strong {
+  color: #f5f8ff;
+  font-size: 0.94rem;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.mobile-nav-label span {
+  color: #93a4c3;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
 }
 
 .main-content {
@@ -266,6 +338,10 @@ button,
   gap: 14px;
 }
 
+.focus-summary-dock-expanded {
+  overflow: hidden;
+}
+
 .focus-summary-header h3 {
   margin: 0;
 }
@@ -349,6 +425,7 @@ button,
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding-top: 8px;
+  min-height: 0;
 }
 
 .focus-summary-meta {
@@ -504,8 +581,24 @@ button,
 }
 
 @media (max-width: 960px) {
+  .focus-history-button {
+    display: none;
+  }
+
+  .focus-summary-dock {
+    top: 10px;
+  }
+
+  .focus-summary-dock-expanded {
+    max-height: calc(100svh - 20px);
+  }
+
   .focus-summary-main-area {
     grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 2px;
   }
 
   .focus-summary-header-compact {
@@ -1071,9 +1164,55 @@ button.object-badge {
     grid-template-columns: 1fr;
   }
 
+  .mobile-nav-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(11, 18, 38, 0.92);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 12px 28px rgba(4, 9, 22, 0.18);
+  }
+
   .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 120;
+    width: min(82vw, 320px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 0;
+    transform: translateX(-108%);
+    transition: transform 180ms ease;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+  }
+
+  .sidebar-open,
+  .app-shell-sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    border: 0;
+    background: rgba(2, 8, 22, 0.56);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .sidebar-backdrop-visible,
+  .app-shell-sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .hero-main,
@@ -1108,6 +1247,35 @@ button.object-badge {
   .main-content,
   .sidebar {
     padding: 18px;
+  }
+
+  .brand {
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+  }
+
+  .mobile-nav-bar {
+    padding: 7px 9px;
+    border-radius: 14px;
+  }
+
+  .mobile-nav-toggle {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .mobile-nav-label span {
+    font-size: 0.68rem;
+  }
+
+  .mobile-nav-label strong {
+    font-size: 0.82rem;
   }
 
   .dashboard-grid,
