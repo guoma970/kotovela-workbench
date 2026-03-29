@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { DemoPathBar } from '../components/DemoPathBar'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/agents', label: 'Agents' },
-  { to: '/projects', label: 'Projects' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/rooms', label: 'Rooms' },
+  { to: '/', step: 1, label: 'Dashboard', note: '总览（中枢状态）' },
+  { to: '/projects', step: 2, label: 'Projects', note: '项目地图（跟踪与承接）' },
+  { to: '/rooms', step: 3, label: 'Rooms', note: '协作通道（执行牵引）' },
+  { to: '/tasks', step: 4, label: 'Tasks', note: '任务流水（阻塞与待办）' },
+  { to: '/agents', step: 5, label: 'Agents', note: '实例状态（指挥与分派）' },
 ]
 
 export function AppShell() {
@@ -56,11 +55,14 @@ export function AppShell() {
               onClick={handleNavClick}
               className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
             >
-              {item.label}
+              <span className="nav-link-step">{item.step}</span>
+              <span className="nav-link-copy">
+                <strong>{item.label}</strong>
+                <small>{item.note}</small>
+              </span>
             </NavLink>
           ))}
         </nav>
-        <DemoPathBar mode="sidebar" />
       </aside>
       <button
         type="button"

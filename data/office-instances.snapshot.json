@@ -1,6 +1,6 @@
 {
   "source": "snapshot",
-  "generatedAt": "2026-03-29T18:54:33.906Z",
+  "generatedAt": "2026-03-29T19:48:28.798Z",
   "instances": [
     {
       "key": "main",
@@ -8,9 +8,9 @@
       "role": "中枢调度",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 94 秒",
-      "ageMs": 94224,
-      "ageText": "最近 94 秒"
+      "updatedAt": "最近 37 秒",
+      "ageMs": 37468,
+      "ageText": "最近 37 秒"
     },
     {
       "key": "builder",
@@ -18,9 +18,9 @@
       "role": "研发执行",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 98 秒",
-      "ageMs": 97674,
-      "ageText": "最近 98 秒"
+      "updatedAt": "最近 42 秒",
+      "ageMs": 42120,
+      "ageText": "最近 42 秒"
     },
     {
       "key": "media",
@@ -28,9 +28,9 @@
       "role": "内容助手",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 1312 秒",
-      "ageMs": 1312033,
-      "ageText": "最近 1312 秒"
+      "updatedAt": "最近 928 秒",
+      "ageMs": 927539,
+      "ageText": "最近 928 秒"
     },
     {
       "key": "family",
@@ -38,9 +38,9 @@
       "role": "家庭助手",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 1324 秒",
-      "ageMs": 1323829,
-      "ageText": "最近 1324 秒"
+      "updatedAt": "最近 940 秒",
+      "ageMs": 940158,
+      "ageText": "最近 940 秒"
     },
     {
       "key": "business",
@@ -48,9 +48,9 @@
       "role": "业务助手",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 1345 秒",
-      "ageMs": 1344781,
-      "ageText": "最近 1345 秒"
+      "updatedAt": "最近 980 秒",
+      "ageMs": 979546,
+      "ageText": "最近 980 秒"
     }
   ]
 }
