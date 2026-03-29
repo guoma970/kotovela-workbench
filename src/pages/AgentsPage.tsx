@@ -70,7 +70,7 @@ export function AgentsPage() {
           <p className="eyebrow">Agents</p>
           <h2>实例状态</h2>
         </div>
-        <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
+        <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
       </div>
 
       <PageLeadPanel

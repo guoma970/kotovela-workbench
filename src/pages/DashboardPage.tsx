@@ -317,7 +317,7 @@ export function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>中枢总览</h2>
         </div>
-        <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
+        <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。数据来源：优先读取最新状态，接口不可用时自动回退到本地快照。</p>
       </div>
 
       <PageLeadPanel
@@ -359,7 +359,7 @@ export function DashboardPage() {
               <p className="eyebrow">Office Board</p>
               <h2>言町科技实例工位图</h2>
             </div>
-            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。 {dataSource === 'real' ? '(实时源已接入)' : '(已回退至 mock)'}{isFetching ? ' · 刷新中' : ''}</p>
+            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。 {dataSource === 'real' ? '(实时源已接入)' : '(已回退至本地快照)'}{isFetching ? ' · 刷新中' : ''}</p>
           </div>
 
           <div className="office-controls">

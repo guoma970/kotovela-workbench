@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { DemoPathHint } from '../components/DemoPathHint'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { syncProjectsFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
@@ -61,11 +60,9 @@ export function ProjectsPage() {
         </div>
         <p className="page-note">
           统一展示项目主标识、实例承接、关联群和任务量，跟 Dashboard / Tasks / Rooms 保持同一识别方式。<br />
-          数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。
+          数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。
         </p>
       </div>
-
-      <DemoPathHint />
 
       <PageLeadPanel
         heading="Projects"

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { DemoPathHint } from '../components/DemoPathHint'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { syncRoomsFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
@@ -59,10 +58,8 @@ export function RoomsPage() {
           <p className="eyebrow">Rooms</p>
           <h2>群与通道状态</h2>
         </div>
-        <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
+        <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
       </div>
-
-      <DemoPathHint />
 
       <PageLeadPanel
         heading="Rooms"

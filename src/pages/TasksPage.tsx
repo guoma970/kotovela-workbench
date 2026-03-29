@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useSearchParams } from 'react-router-dom'
-import { DemoPathHint } from '../components/DemoPathHint'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { syncTasksFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
@@ -70,10 +69,8 @@ export function TasksPage() {
           <p className="eyebrow">Tasks</p>
           <h2>任务队列</h2>
         </div>
-        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个识别点，并接入轻联动高亮。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
+        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个识别点，并接入轻联动高亮。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
       </div>
-
-      <DemoPathHint />
 
       <PageLeadPanel
         heading="Tasks"

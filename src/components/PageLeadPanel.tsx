@@ -23,7 +23,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
     <section className="panel strong-card page-lead-panel">
       <div className="panel-header">
         <h3>页面速览 · {heading}</h3>
-        <span>演示状态</span>
+        <span>当前视角</span>
       </div>
       <p className="page-note">{intro}</p>
       <div className="info-pairs">
