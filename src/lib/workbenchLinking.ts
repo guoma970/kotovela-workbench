@@ -165,11 +165,17 @@ export function useWorkbenchLinking(data: {
   }
 
   const select = (kind: FocusKind, id: string) => {
-    navigate({ search: createFocusSearch(searchParams, kind, id) })
+    navigate(
+      { search: createFocusSearch(searchParams, kind, id) },
+      { replace: true, preventScrollReset: true },
+    )
   }
 
   const clear = () => {
-    navigate({ search: createFocusSearch(searchParams) })
+    navigate(
+      { search: createFocusSearch(searchParams) },
+      { replace: true, preventScrollReset: true },
+    )
   }
 
   return { focus, relationScope, hasFocus, getState, select, clear, currentSearch: createFocusSearch(searchParams) }

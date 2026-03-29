@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { StatCard } from '../components/StatCard'
 import { agents, decisions, projects, rooms, tasks, updates } from '../data/mockData'
-import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
+import { createFocusSearch, getFocusTarget, parseFocusFromSearchParams, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 const updateTypeLabel = {
   task: '任务更新',
@@ -47,6 +47,13 @@ type OfficeInstance = {
 }
 
 type DataSource = 'real' | 'mock'
+
+type InstanceMetrics = {
+  activeInstances: number
+  doingInstances: number
+  blockedInstances: number
+  doneInstances: number
+}
 
 type OfficeSeat = {
   id: string
@@ -165,6 +172,8 @@ const buildOfficeFallback = (): OfficeInstance[] => {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
   const [filter, setFilter] = useState<FilterMode>('all')
   const [instances, setInstances] = useState<OfficeInstance[]>(buildOfficeFallback)
@@ -172,21 +181,43 @@ export function DashboardPage() {
   const [dataSource, setDataSource] = useState<DataSource>('mock')
   const [isFetching, setIsFetching] = useState(false)
   const [error, setError] = useState('')
+  const [instanceMetrics, setInstanceMetrics] = useState<InstanceMetrics>({
+    activeInstances: 0,
+    doingInstances: 0,
+    blockedInstances: 0,
+    doneInstances: 0,
+  })
   const instancesRef = useRef(instances)
 
   const activeAgents = agents.filter((item) => item.status === 'active')
   const doingTasks = tasks.filter((item) => item.status === 'doing')
   const blockedTasks = tasks.filter((item) => item.status === 'blocked')
-  const activeProjects = projects.filter((item) => item.status === 'active')
   const doneTasks = tasks.filter((item) => item.status === 'done')
+
+  const fallbackInstanceMetrics: InstanceMetrics = {
+    activeInstances: activeAgents.length,
+    doingInstances: doingTasks.length,
+    blockedInstances: blockedTasks.length,
+    doneInstances: doneTasks.length,
+  }
   const topProject = projects.find((item) => item.id === 'project-1')
   const criticalUpdates = updates.slice(0, 3)
   const linking = useWorkbenchLinking(pageData)
+  const hasFocusOverlay = Boolean(getFocusTarget(parseFocusFromSearchParams(searchParams)))
   const keyTask = blockedTasks[0] ?? doingTasks[0]
   const keyFocusSearch = keyTask
     ? createFocusSearch(linking.currentSearch, 'task', keyTask.id)
     : createFocusSearch(linking.currentSearch, 'project', topProject?.id)
   const keyProjectSearch = topProject ? createFocusSearch(linking.currentSearch, 'project', topProject.id) : createFocusSearch(linking.currentSearch)
+
+  const deriveMetricsFromInstances = (items: OfficeInstance[]): InstanceMetrics => ({
+    activeInstances: items.length,
+    doingInstances: items.filter((item) => item.status === 'doing').length,
+    blockedInstances: items.filter((item) => item.status === 'blocker').length,
+    doneInstances: items.filter((item) => item.status === 'done').length,
+  })
+
+  const instanceStats = dataSource === 'real' ? instanceMetrics : fallbackInstanceMetrics
 
   const filteredInstances = useMemo(() => {
     if (filter === 'all') {
@@ -215,6 +246,7 @@ export function DashboardPage() {
 
       setInstances(next)
       setDataSource('real')
+      setInstanceMetrics(deriveMetricsFromInstances(next))
       setPulseIds(changed)
       setCountdown(REFRESH_INTERVAL_SECONDS)
     } catch {
@@ -229,6 +261,7 @@ export function DashboardPage() {
 
       setInstances(next)
       setDataSource('mock')
+      setInstanceMetrics(deriveMetricsFromInstances(next))
       setError('实时接口不可用，已回退至本地 mock 数据')
       setPulseIds(changed)
       setCountdown(REFRESH_INTERVAL_SECONDS)
@@ -241,6 +274,9 @@ export function DashboardPage() {
     void refreshOffice()
 
     const timer = setInterval(() => {
+      if (hasFocusOverlay) {
+        return
+      }
       setCountdown((prev) => {
         if (prev <= 1) {
           void refreshOffice()
@@ -251,7 +287,7 @@ export function DashboardPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [refreshOffice])
+  }, [hasFocusOverlay, refreshOffice])
 
   useEffect(() => {
     if (!pulseIds.length) {
@@ -281,19 +317,19 @@ export function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>中枢总览</h2>
         </div>
-        <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。</p>
+        <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
       </div>
 
       <PageLeadPanel
         heading="Dashboard"
         intro="先看全局态势（阻塞与节奏），再点进对应对象确认交付路径。"
         metrics={[
-          { label: '活跃实例', value: activeAgents.length },
-          { label: '进行中任务', value: doingTasks.length },
-          { label: '阻塞项', value: blockedTasks.length },
-          { label: '已完成任务', value: doneTasks.length },
+          { label: '活跃实例', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: '进行中任务', value: doingTasks.length, to: { pathname: '/tasks', search: '?status=doing' } },
+          { label: '阻塞项', value: blockedTasks.length, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: '已完成任务', value: doneTasks.length, to: { pathname: '/tasks', search: '?status=done' } },
           { label: '待拍板', value: decisions.length },
-          { label: '项目总数', value: projects.length },
+          { label: '项目总数', value: projects.length, to: { pathname: '/projects' } },
         ]}
         actions={
           topProject
@@ -321,7 +357,7 @@ export function DashboardPage() {
           <div className="page-header">
             <div>
               <p className="eyebrow">Office Board</p>
-              <h2>KOTOVELA 实例工位图</h2>
+              <h2>言町科技实例工位图</h2>
             </div>
             <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。 {dataSource === 'real' ? '(实时源已接入)' : '(已回退至 mock)'}{isFetching ? ' · 刷新中' : ''}</p>
           </div>
@@ -331,6 +367,9 @@ export function DashboardPage() {
               <span className="status-pill status-blue">下一次刷新：{countdown}s</span>
               <span className="soft-tag">当前显示：{filteredInstances.length}/{instances.length}</span>
               {error ? <span className="soft-tag">{error}</span> : null}
+              <button className="ghost-button" type="button" onClick={() => navigate(-1)}>
+                返回上一步
+              </button>
               <button className="ghost-button" type="button" onClick={() => { void refreshOffice() }}>
                 手动刷新
               </button>
@@ -363,27 +402,106 @@ export function DashboardPage() {
           <div className="office-floor">
             {filteredInstances.length > 0 ? (
               filteredInstances.map((instance) => {
+                const linkedAgent = agents.find((agent) => agent.id === instance.agentId)
+                const linkedProject = linkedAgent
+                  ? projects.find((project) => project.id === linkedAgent.projectId)
+                  : undefined
+                const linkedTask = tasks.find((task) => task.executorAgentId === instance.agentId && task.title === instance.task)
+                  ?? tasks.find((task) => task.executorAgentId === instance.agentId)
+
                 return (
                   <article
                     key={instance.id}
-                    className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''}`}
+                    className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''} ${instance.agentId ? 'office-seat-clickable' : ''}`}
+                    onClick={() => {
+                      if (instance.agentId) {
+                        linking.select('agent', instance.agentId)
+                      }
+                    }}
                   >
                     <span className="office-zone">工位示例</span>
                     <div className="office-head">
-                      <h3>{instance.name}</h3>
-                      <span className={`status-pill status-${operationStatusTone[instance.status]}`}>{instance.status}</span>
+                      {instance.agentId ? (
+                        <button
+                          className="office-title-link"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
+                          }}
+                        >
+                          <h3>{instance.name}</h3>
+                        </button>
+                      ) : (
+                        <h3>{instance.name}</h3>
+                      )}
+                      <button
+                        className={`status-pill status-${operationStatusTone[instance.status]} office-status-button`}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setFilter(instance.status === 'done' ? 'all' : instance.status)
+                        }}
+                      >
+                        {instance.status}
+                      </button>
                     </div>
                     <div className="office-meta-row">
                       <span>角色</span>
-                      <strong>{instance.role}</strong>
+                      <strong className={instance.agentId ? 'office-metric-value' : ''}>
+                        {instance.agentId ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
+                            }}
+                          >
+                            {instance.role}
+                          </button>
+                        ) : (
+                          instance.role
+                        )}
+                      </strong>
                     </div>
                     <div className="office-meta-row">
                       <span>关联项目</span>
-                      <strong>{instance.projectRelated}</strong>
+                      <strong className={linkedProject ? 'office-metric-value' : ''}>
+                        {linkedProject ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', linkedProject.id) })
+                            }}
+                          >
+                            {instance.projectRelated}
+                          </button>
+                        ) : (
+                          instance.projectRelated
+                        )}
+                      </strong>
                     </div>
                     <div className="office-meta-row">
                       <span>当前任务</span>
-                      <strong>{instance.task}</strong>
+                      <strong className={linkedTask ? 'office-metric-value' : ''}>
+                        {linkedTask ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, 'task', linkedTask.id) })
+                            }}
+                          >
+                            {instance.task}
+                          </button>
+                        ) : (
+                          instance.task
+                        )}
+                      </strong>
                     </div>
                     <div className="office-meta-row">
                       <span>最近更新时间</span>
@@ -395,7 +513,10 @@ export function DashboardPage() {
                         <button
                           className="inline-link-chip"
                           type="button"
-                          onClick={() => linking.select('agent', instance.agentId ?? '')}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId ?? '') })
+                          }}
                         >
                           查看实例详情
                         </button>
@@ -440,7 +561,7 @@ export function DashboardPage() {
                     name={agent.name}
                     compact
                     clickable
-                    openInPanel
+                   
                     onClick={() => linking.select('agent', agent.id)}
                     {...linking.getState('agent', agent.id)}
                   />
@@ -494,10 +615,10 @@ export function DashboardPage() {
       )}
 
       <div className="stats-grid strong-grid">
-        <StatCard label="活跃实例数" value={activeAgents.length} tone="blue" />
-        <StatCard label="进行中任务数" value={doingTasks.length} tone="green" />
-        <StatCard label="blocker 数" value={blockedTasks.length} tone="red" />
-        <StatCard label="活跃项目数" value={activeProjects.length} tone="orange" />
+        <StatCard label="活跃实例数" value={instanceStats.activeInstances} tone="blue" />
+        <StatCard label="进行中实例数" value={instanceStats.doingInstances} tone="green" />
+        <StatCard label="阻塞实例数" value={instanceStats.blockedInstances} tone="red" />
+        <StatCard label="完成实例数" value={instanceStats.doneInstances} tone="orange" />
       </div>
 
       <div className="dashboard-grid dashboard-priority-grid">
@@ -545,7 +666,7 @@ export function DashboardPage() {
                           name={agent.name}
                           compact
                           clickable
-                          openInPanel
+                         
                           onClick={() => linking.select('agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />
@@ -608,7 +729,7 @@ export function DashboardPage() {
                             name={relatedAgent.name}
                             compact
                             clickable
-                            openInPanel
+                           
                             onClick={() => linking.select('agent', relatedAgent.id)}
                             {...linking.getState('agent', relatedAgent.id)}
                           />
@@ -631,7 +752,7 @@ export function DashboardPage() {
                             name={owner.name}
                             compact
                             clickable
-                            openInPanel
+                           
                             onClick={() => linking.select('agent', owner.id)}
                             {...linking.getState('agent', owner.id)}
                           />
@@ -694,7 +815,7 @@ export function DashboardPage() {
                             name={agent.name}
                             compact
                             clickable
-                            openInPanel
+                           
                             onClick={() => linking.select('agent', agent.id)}
                             {...linking.getState('agent', agent.id)}
                           />
@@ -775,7 +896,7 @@ export function DashboardPage() {
                           name={agent.name}
                           compact
                           clickable
-                          openInPanel
+                         
                           onClick={() => linking.select('agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />

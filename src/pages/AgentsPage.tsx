@@ -1,17 +1,50 @@
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
+import { loadOfficeInstances, syncOfficeInstancesToAgents } from '../data/officeInstancesAdapter'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { agents, projects, rooms, tasks } from '../data/mockData'
+import { agents as mockAgents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
-const pageData = { projects, agents, rooms, tasks }
+function useAgentsData() {
+  const [agents, setAgents] = useState(mockAgents)
+
+  useEffect(() => {
+    let isActive = true
+
+    loadOfficeInstances()
+      .then((instances) => {
+        if (!isActive) return
+        const synced = syncOfficeInstancesToAgents(instances, mockAgents)
+        setAgents(synced.agents)
+      })
+      .catch(() => {
+        setAgents(mockAgents)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  return agents
+}
 
 export function AgentsPage() {
+  const agents = useAgentsData()
+  const [searchParams] = useSearchParams()
+  const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
+  const statusFilter = searchParams.get('status')
 
   const activeAgents = agents.filter((agent) => agent.status === 'active')
   const idleAgents = agents.filter((agent) => agent.status === 'idle')
   const blockedAgents = agents.filter((agent) => agent.status === 'blocked')
+  const filteredAgents =
+    statusFilter && ['active', 'idle', 'blocked'].includes(statusFilter)
+      ? agents.filter((agent) => agent.status === statusFilter)
+      : agents
 
   const targetAgent = agents.find((agent) => agent.status === 'blocked') ?? agents[0]
   const targetFocusSearch = targetAgent
@@ -37,17 +70,17 @@ export function AgentsPage() {
           <p className="eyebrow">Agents</p>
           <h2>实例状态</h2>
         </div>
-        <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。</p>
+        <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
       </div>
 
       <PageLeadPanel
         heading="Agents"
         intro="优先处理阻塞实例，接着确认活跃实例能否快速串起任务链路。"
         metrics={[
-          { label: '实例总数', value: agents.length },
-          { label: '活跃中', value: activeAgents.length },
-          { label: '待命中', value: idleAgents.length },
-          { label: '阻塞', value: blockedAgents.length },
+          { label: '实例总数', value: agents.length, to: { pathname: '/agents' } },
+          { label: '活跃中', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: '待命中', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: '阻塞', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
           {
             label: '平均挂载任务',
             value:
@@ -59,6 +92,10 @@ export function AgentsPage() {
         actions={
           targetAgent
             ? [
+                {
+                  label: '查看全部实例',
+                  to: { pathname: '/agents' },
+                },
                 {
                   label: `优先查看阻塞实例 · ${targetAgent.name}`,
                   to: { pathname: '/tasks', search: targetFocusSearch },
@@ -73,7 +110,7 @@ export function AgentsPage() {
       />
 
       <div className="card-grid">
-        {agents.map((agent) => {
+        {filteredAgents.map((agent) => {
           const project = projects.find((item) => item.id === agent.projectId)
           const linkedTasks = tasks.filter((task) => task.executorAgentId === agent.id)
           const linkedRooms = rooms.filter((room) => room.instanceIds.includes(agent.id))
@@ -81,7 +118,7 @@ export function AgentsPage() {
           return (
             <article key={agent.id} className={cardClass(agent.id)} onClick={() => linking.select('agent', agent.id)}>
               <div className="panel-header align-start">
-                <ObjectBadge kind="agent" code={agent.code} name={agent.name} clickable openInPanel onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
+                <ObjectBadge kind="agent" code={agent.code} name={agent.name} clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
                 <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
               </div>
               <div className="context-strip">

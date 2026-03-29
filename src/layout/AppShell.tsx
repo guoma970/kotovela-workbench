@@ -19,10 +19,12 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">言</div>
+          <div className="brand-mark brand-logo-wrap">
+            <img className="brand-logo" src="/yanting-logo.png" alt="言町科技" />
+          </div>
           <div>
-            <h1>KOTOVELA</h1>
-            <p>OpenClaw 协作驾驶舱</p>
+            <h1>言町科技</h1>
+            <p>言町科技协作驾驶舱</p>
           </div>
         </div>
 

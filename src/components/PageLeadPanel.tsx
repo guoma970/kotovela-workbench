@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 interface PageLeadPanelMetric {
   label: string
   value: string | number
+  to?: { pathname: string; search?: string }
 }
 
 interface PageLeadPanelAction {
@@ -27,10 +28,17 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
       <p className="page-note">{intro}</p>
       <div className="info-pairs">
         {metrics.map((item) => (
-          <div key={item.label} className="context-strip">
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
+          item.to ? (
+            <NavLink key={item.label} className="context-strip context-strip-link" to={item.to}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </NavLink>
+          ) : (
+            <div key={item.label} className="context-strip">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          )
         ))}
       </div>
       {actions.length > 0 && (

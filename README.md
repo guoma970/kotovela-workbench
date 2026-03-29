@@ -1,23 +1,23 @@
-# OpenClaw Workbench (KOTOVELA Scenario)
+# 言町科技协作驾驶舱（项目代号：KOTOVELA）
 ![CI](https://github.com/ztl970/kotovela-workbench/actions/workflows/ci.yml/badge.svg)
 
 
-OpenClaw Workbench is a lightweight React + TypeScript + Vite front-end for the **KOTOVELA** coordination scenario.
+言町科技协作驾驶舱是一个轻量的 React + TypeScript + Vite 前端原型，用于承载言町科技内部的多实例协同场景；当前主线项目代号为 **KOTOVELA**。
 
-It is designed as a command-and-control style dashboard prototype for coordinating multiple instances:
+它被设计成一个偏指挥台风格的协作驾驶舱，用来协调多个实例：
 
 - Dashboard overview (blockers, active instances, pending decisions)
 - Agents / Rooms / Projects / Tasks pages
 - Cross-page linkage by project/agent/task/room identity
 - Demo data only (mock only, no real API integration yet)
 
-## Goals (当前版本)
+## 当前目标
 
-- 完成可演示的产品雏形（可浏览页面）
+- 完成可演示的产品雏形（可浏览、可联动、可远程预发布）
 - 保持统一视觉层级，支持中枢感强的主界面信息展示
 - 限定“原型演示”边界：不接真实 API，不做生产后台
 
-## Run
+## 运行
 
 ```bash
 # install
@@ -31,14 +31,14 @@ npm run lint
 npm run build
 ```
 
-## Tech Stack
+## 技术栈
 
 - React 19
 - TypeScript
 - Vite
 - React Router
 
-## Directory Layout
+## 目录结构
 
 - `src/`：前端源码
   - `components/`：通用展示组件

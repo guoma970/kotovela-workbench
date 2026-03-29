@@ -1,23 +1,44 @@
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { PageLeadPanel } from '../components/PageLeadPanel'
+import { DemoPathHint } from '../components/DemoPathHint'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { agents, projects, rooms, tasks } from '../data/mockData'
+import { PageLeadPanel } from '../components/PageLeadPanel'
+import { syncRoomsFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
+import { agents, projects, rooms as mockRooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
+import type { Room } from '../types'
 
-const pageData = { projects, agents, rooms, tasks }
+function useRoomsData() {
+  const [rooms, setRooms] = useState<Room[]>(mockRooms)
+
+  useEffect(() => {
+    let isActive = true
+
+    loadOfficeInstances()
+      .then((instances) => {
+        if (!isActive) return
+
+        const synced = syncRoomsFromInstances(instances, mockRooms)
+        setRooms(synced.rooms)
+      })
+      .catch(() => {
+        if (!isActive) return
+        setRooms(mockRooms)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  return rooms
+}
 
 export function RoomsPage() {
+  const rooms = useRoomsData()
+  const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
-
-  const activeRooms = rooms.filter((room) => room.status === 'active')
-  const quietRooms = rooms.filter((room) => room.status === 'quiet')
-  const blockedRooms = rooms.filter((room) => room.status === 'blocked')
-  const pendingTotal = rooms.reduce((sum, room) => sum + room.pending, 0)
-
-  const targetRoom = [...rooms].sort((a, b) => b.pending - a.pending)[0]
-  const targetFocusSearch = targetRoom
-    ? createFocusSearch(linking.currentSearch, 'room', targetRoom.id)
-    : createFocusSearch(linking.currentSearch)
+  const pendingCount = rooms.reduce((sum, room) => sum + room.pending, 0)
 
   const cardClass = (id: string) => {
     const state = linking.getState('room', id)
@@ -38,34 +59,25 @@ export function RoomsPage() {
           <p className="eyebrow">Rooms</p>
           <h2>群与通道状态</h2>
         </div>
-        <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。</p>
+        <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
       </div>
+
+      <DemoPathHint />
 
       <PageLeadPanel
         heading="Rooms"
-        intro="先看待处理总量和阻塞房间，再确认任务承接方向。"
+        intro="先看房间承接量和待处理规模，再顺着数字跳到 Tasks / Projects / Agents，保持从通道继续往下走。"
         metrics={[
-          { label: '房间总数', value: rooms.length },
-          { label: '活跃', value: activeRooms.length },
-          { label: '静默', value: quietRooms.length },
-          { label: '阻塞', value: blockedRooms.length },
-          { label: '待处理总数', value: pendingTotal },
-          { label: '最高待处理房间', value: targetRoom?.name ?? '暂无' },
+          { label: '房间总数', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: '活跃房间', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
+          { label: '待处理总量', value: pendingCount, to: { pathname: '/tasks' } },
+          { label: '承接实例', value: agents.length, to: { pathname: '/agents' } },
         ]}
-        actions={
-          targetRoom
-            ? [
-                {
-                  label: `先处理 · ${targetRoom.name}`,
-                  to: { pathname: '/tasks', search: targetFocusSearch },
-                },
-                {
-                  label: `看其承接项目 · ${targetRoom.name}`,
-                  to: { pathname: '/projects', search: targetFocusSearch },
-                },
-              ]
-            : []
-        }
+        actions={[
+          { label: '下一步看任务流水', to: { pathname: '/tasks' } },
+          { label: '下一步看项目地图', to: { pathname: '/projects' } },
+          { label: '下一步看实例状态', to: { pathname: '/agents' } },
+        ]}
       />
 
       <div className="card-grid">
@@ -89,7 +101,15 @@ export function RoomsPage() {
                 </div>
                 <div>
                   <span>待处理项</span>
-                  <strong>{room.pending}</strong>
+                  <strong>
+                    <NavLink
+                      className="context-strip-metric-link"
+                      to={{ pathname: '/tasks', search: focusSearch }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {room.pending}
+                    </NavLink>
+                  </strong>
                 </div>
               </div>
               <div className="info-block emphasis-block">
@@ -107,12 +127,12 @@ export function RoomsPage() {
                   <span className="section-label">归属实例</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
-                      <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable openInPanel onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
+                      <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
                     ))}
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">牵动任务</span>
+                  <span className="section-label">关联任务</span>
                   <div className="object-row top-gap">
                     {linkedTasks.map((task) => (
                       <ObjectBadge key={task.id} kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />

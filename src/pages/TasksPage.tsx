@@ -1,37 +1,55 @@
-import { NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, useSearchParams } from 'react-router-dom'
+import { DemoPathHint } from '../components/DemoPathHint'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { agents, projects, rooms, tasks } from '../data/mockData'
+import { syncTasksFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
+import { agents, projects, rooms, tasks as mockTasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
-import type { TaskStatus } from '../types'
+import type { Task, TaskStatus } from '../types'
 
 const columns: { key: TaskStatus; label: string }[] = [
-  { key: 'todo', label: 'Todo' },
   { key: 'doing', label: 'Doing' },
   { key: 'blocked', label: 'Blocker' },
   { key: 'done', label: 'Done' },
 ]
 
-const pageData = { projects, agents, rooms, tasks }
+function useTasksData() {
+  const [tasks, setTasks] = useState<Task[]>(mockTasks)
+
+  useEffect(() => {
+    let isActive = true
+
+    loadOfficeInstances()
+      .then((instances) => {
+        if (!isActive) return
+
+        const synced = syncTasksFromInstances(instances, mockTasks)
+        setTasks(synced.tasks)
+      })
+      .catch(() => {
+        if (!isActive) return
+        setTasks(mockTasks)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  return tasks
+}
 
 export function TasksPage() {
+  const tasks = useTasksData()
+  const [searchParams] = useSearchParams()
+  const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
-
-  const allColumns = ['todo', 'doing', 'blocked', 'done'] as const
-  const counts = allColumns.reduce(
-    (acc, status) => {
-      acc[status] = tasks.filter((task) => task.status === status).length
-      return acc
-    },
-    { todo: 0, doing: 0, blocked: 0, done: 0 } as Record<'todo' | 'doing' | 'blocked' | 'done', number>,
-  )
-
-  const overdueTask = tasks.find((task) => task.status === 'blocked')
-  const overdueSearch = overdueTask
-    ? createFocusSearch(linking.currentSearch, 'task', overdueTask.id)
-    : createFocusSearch(linking.currentSearch)
-
-  const highPriorityTasks = tasks.filter((task) => task.priority === 'high').length
+  const statusFilter = searchParams.get('status')
+  const filteredTasks =
+    statusFilter && ['doing', 'blocked', 'done'].includes(statusFilter)
+      ? tasks.filter((task) => task.status === statusFilter)
+      : tasks
 
   const cardClass = (id: string) => {
     const state = linking.getState('task', id)
@@ -52,30 +70,26 @@ export function TasksPage() {
           <p className="eyebrow">Tasks</p>
           <h2>任务队列</h2>
         </div>
-        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个统一识别点，并接入轻联动高亮。</p>
+        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个识别点，并接入轻联动高亮。数据来源：当前列表以演示态（mock）为主，相关实例状态与面板支持真实源回传。</p>
       </div>
+
+      <DemoPathHint />
 
       <PageLeadPanel
         heading="Tasks"
-        intro="先看 todo 再看 blocker 与 doing，确保待办和阻塞任务有明确追踪对象。"
+        intro="先按状态筛选任务，再进到项目、实例、房间链路里核对执行归属。"
         metrics={[
-          { label: '任务总数', value: tasks.length },
-          { label: 'todo', value: counts.todo },
-          { label: 'doing', value: counts.doing },
-          { label: 'blocker', value: counts.blocked },
-          { label: 'done', value: counts.done },
-          { label: '高优先级', value: highPriorityTasks },
+          { label: '任务总数', value: tasks.length, to: { pathname: '/tasks' } },
+          { label: 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },
+          { label: 'Blocker', value: tasks.filter((task) => task.status === 'blocked').length, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: 'Done', value: tasks.filter((task) => task.status === 'done').length, to: { pathname: '/tasks', search: '?status=done' } },
         ]}
         actions={
-          overdueTask
+          statusFilter
             ? [
                 {
-                  label: `先打通阻塞项 · ${overdueTask.code}`,
-                  to: { pathname: '/', search: overdueSearch },
-                },
-                {
-                  label: '查看该任务下的实例',
-                  to: { pathname: '/agents', search: overdueSearch },
+                  label: '返回全部任务',
+                  to: { pathname: '/tasks' },
                 },
               ]
             : []
@@ -84,7 +98,7 @@ export function TasksPage() {
 
       <div className="queue-grid">
         {columns.map((column) => {
-          const items = tasks.filter((task) => task.status === column.key)
+          const items = filteredTasks.filter((task) => task.status === column.key)
           return (
             <section key={column.key} className="panel queue-column strong-card">
               <div className="panel-header">
@@ -106,9 +120,9 @@ export function TasksPage() {
                         <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
                       </div>
                       <div className="object-row top-gap">
-                        <ObjectBadge kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
+                        <ObjectBadge kind="task" code={task.code} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
-                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable openInPanel onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
+                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
                       </div>
                       <div className="object-row top-gap">
                         {linkedRooms.map((room) => (

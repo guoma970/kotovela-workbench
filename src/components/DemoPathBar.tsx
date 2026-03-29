@@ -1,11 +1,11 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 
 const demoPath = [
-  { to: '/', label: 'Dashboard', note: '中枢总览与 blocker 检查' },
-  { to: '/projects', label: 'Projects', note: '确认主项目与承接对象' },
-  { to: '/rooms', label: 'Rooms', note: '核对房间/群与参与实例' },
-  { to: '/tasks', label: 'Tasks', note: '看任务流与优先级' },
-  { to: '/agents', label: 'Agents', note: '追踪实例执行状态' },
+  { to: '/', label: 'Dashboard', note: '当前聚焦：总览（中枢状态）' },
+  { to: '/projects', label: 'Projects', note: '当前聚焦：项目地图（跟踪与承接）' },
+  { to: '/rooms', label: 'Rooms', note: '当前聚焦：协作通道（执行牵引）' },
+  { to: '/tasks', label: 'Tasks', note: '当前聚焦：任务流水（阻塞与待办）' },
+  { to: '/agents', label: 'Agents', note: '当前聚焦：实例状态（指挥与分派）' },
 ]
 
 export function DemoPathBar() {
