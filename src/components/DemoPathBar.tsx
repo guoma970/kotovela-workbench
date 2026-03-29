@@ -8,11 +8,43 @@ const demoPath = [
   { to: '/agents', label: 'Agents', note: '当前聚焦：实例状态（指挥与分派）' },
 ]
 
-export function DemoPathBar() {
+export function DemoPathBar({ mode = 'inline' }: { mode?: 'inline' | 'sidebar' }) {
   const location = useLocation()
   const activeIndex = demoPath.findIndex((item) => item.to === location.pathname)
 
   const currentPathText = location.pathname === '/' ? 'Dashboard' : location.pathname.replace('/', '')
+
+  if (mode === 'sidebar') {
+    return (
+      <section className="demo-sidebar">
+        <div className="demo-sidebar-head">
+          <p className="eyebrow">使用路径</p>
+          <strong>{currentPathText}</strong>
+        </div>
+        <p className="demo-sidebar-note">先看总览，再顺着项目、房间、任务、实例一路追进去。</p>
+        <div className="demo-sidebar-links">
+          {demoPath.map((item, index) => {
+            const isActive = index === activeIndex
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive: navActive }) =>
+                  `demo-sidebar-link ${navActive || isActive ? 'demo-sidebar-link-active' : ''}`
+                }
+              >
+                <span className="demo-sidebar-step">{index + 1}</span>
+                <span className="demo-sidebar-copy">
+                  <strong>{item.label}</strong>
+                  <small>{item.note}</small>
+                </span>
+              </NavLink>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="panel demo-path">

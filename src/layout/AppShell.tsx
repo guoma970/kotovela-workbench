@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { DemoPathBar } from '../components/DemoPathBar'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
@@ -16,6 +16,15 @@ export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const mainRef = useRef<HTMLElement | null>(null)
+
+  const handleNavClick = () => {
+    setSidebarOpen(false)
+    window.requestAnimationFrame(() => {
+      mainRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    })
+  }
 
   useEffect(() => {
     document.body.classList.toggle('mobile-sidebar-open', sidebarOpen)
@@ -44,13 +53,14 @@ export function AppShell() {
               key={item.to}
               to={{ pathname: item.to, search: location.search }}
               end={item.to === '/'}
-              onClick={() => setSidebarOpen(false)}
+              onClick={handleNavClick}
               className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
             >
               {item.label}
             </NavLink>
           ))}
         </nav>
+        <DemoPathBar mode="sidebar" />
       </aside>
       <button
         type="button"
@@ -59,7 +69,7 @@ export function AppShell() {
         onClick={() => setSidebarOpen(false)}
       />
 
-      <main className="main-content">
+      <main ref={mainRef} className="main-content">
         <div className="mobile-nav-bar">
           <button
             type="button"
@@ -82,7 +92,6 @@ export function AppShell() {
           search={location.search}
           onClear={() => navigate({ search: createFocusSearch(location.search) })}
         />
-        <DemoPathBar />
         <Outlet />
       </main>
     </div>

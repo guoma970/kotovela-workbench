@@ -446,45 +446,7 @@ export function DashboardPage() {
                         {instance.status}
                       </button>
                     </div>
-                    <div className="office-meta-row">
-                      <span>角色</span>
-                      <strong className={instance.agentId ? 'office-metric-value' : ''}>
-                        {instance.agentId ? (
-                          <button
-                            className="office-metric-link office-metric-link-block"
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
-                            }}
-                          >
-                            {instance.role}
-                          </button>
-                        ) : (
-                          instance.role
-                        )}
-                      </strong>
-                    </div>
-                    <div className="office-meta-row">
-                      <span>关联项目</span>
-                      <strong className={linkedProject ? 'office-metric-value' : ''}>
-                        {linkedProject ? (
-                          <button
-                            className="office-metric-link office-metric-link-block"
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              navigate({ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', linkedProject.id) })
-                            }}
-                          >
-                            {instance.projectRelated}
-                          </button>
-                        ) : (
-                          instance.projectRelated
-                        )}
-                      </strong>
-                    </div>
-                    <div className="office-meta-row">
+                    <div className="office-meta-row office-meta-row-primary">
                       <span>当前任务</span>
                       <strong className={linkedTask ? 'office-metric-value' : ''}>
                         {linkedTask ? (
@@ -503,9 +465,49 @@ export function DashboardPage() {
                         )}
                       </strong>
                     </div>
-                    <div className="office-meta-row">
-                      <span>最近更新时间</span>
-                      <strong>{instance.updatedAt}</strong>
+                    <div className="office-meta-row office-meta-row-project">
+                      <span>关联项目</span>
+                      <strong className={linkedProject ? 'office-metric-value' : ''}>
+                        {linkedProject ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', linkedProject.id) })
+                            }}
+                          >
+                            {instance.projectRelated}
+                          </button>
+                        ) : (
+                          instance.projectRelated
+                        )}
+                      </strong>
+                    </div>
+                    <div className="office-foot-grid">
+                      <div className="office-meta-row office-meta-row-compact">
+                        <span>角色</span>
+                        <strong className={instance.agentId ? 'office-metric-value' : ''}>
+                          {instance.agentId ? (
+                            <button
+                              className="office-metric-link office-metric-link-block"
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
+                              }}
+                            >
+                              {instance.role}
+                            </button>
+                          ) : (
+                            instance.role
+                          )}
+                        </strong>
+                      </div>
+                      <div className="office-meta-row office-meta-row-compact">
+                        <span>最近更新时间</span>
+                        <strong>{instance.updatedAt}</strong>
+                      </div>
                     </div>
                     <p className="office-note">{instance.note}</p>
                     <div className="office-link-row">

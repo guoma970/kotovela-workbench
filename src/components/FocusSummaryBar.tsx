@@ -27,6 +27,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
   const baseSearch = createFocusSearch(searchParams)
   const summaryKey = summary ? `${summary.label}:${summary.value}` : null
   const expanded = summaryKey !== null && expandedKey === summaryKey
+  const [isScrolled, setIsScrolled] = useState(false)
 
   const withExtraSearch = (extra: Record<string, string>) => {
     const params = new URLSearchParams(baseSearch.startsWith('?') ? baseSearch.slice(1) : baseSearch)
@@ -52,6 +53,29 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
     }
   }, [summary, onClear])
 
+  useEffect(() => {
+    const updateScrolled = () => {
+      setIsScrolled(window.scrollY > 8)
+    }
+
+    updateScrolled()
+    window.addEventListener('scroll', updateScrolled, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', updateScrolled)
+    }
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 960px)')
+    const shouldLock = expanded && media.matches
+    document.body.classList.toggle('focus-nav-expanded-mobile', shouldLock)
+
+    return () => {
+      document.body.classList.remove('focus-nav-expanded-mobile')
+    }
+  }, [expanded])
+
   const relationScope = buildRelationScope(focus, pageData)
   const blockerCount = tasks.filter((task) => relationScope.taskIds.has(task.id) && task.status === 'blocked').length
   const criticalUpdateCount = updates.filter(
@@ -76,15 +100,17 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
 
   return (
     <section
-      className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''}`}
+      className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''} ${isScrolled ? 'focus-summary-dock-scrolled' : ''}`}
     >
+      <button type="button" className="focus-close-action" aria-label="关闭导航" onClick={onClear}>
+        ×
+      </button>
       <header className="focus-summary-header focus-summary-header-compact">
         <div className="focus-summary-title-block">
           <p className="eyebrow">联动导航条</p>
           <h3>
             {summary.label}：{summary.value}
           </h3>
-          <p className="page-note">保留上下文，优先用于持续导航，不打断当前页面。</p>
         </div>
         <div className="focus-summary-toolbar">
           <div className="focus-summary-chip-row">
@@ -111,13 +137,11 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
           <div className="focus-summary-header-actions">
             <button
               type="button"
-              className="ghost-button focus-header-button"
+              className="ghost-button focus-header-button focus-expand-button"
               onClick={() => setExpandedKey((value) => (value === summaryKey ? null : summaryKey))}
+              aria-expanded={expanded}
             >
-              {expanded ? '收起详情' : '展开详情'}
-            </button>
-            <button type="button" className="ghost-button focus-header-button" onClick={onClear}>
-              关闭导航
+              {expanded ? '详情 ˄' : '详情 ˅'}
             </button>
           </div>
         </div>
