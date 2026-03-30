@@ -1,36 +1,16 @@
 {
   "source": "snapshot",
-  "generatedAt": "2026-03-29T20:03:51.659Z",
+  "generatedAt": "2026-03-30T03:32:07.316Z",
   "instances": [
-    {
-      "key": "media",
-      "name": "media",
-      "role": "内容助手",
-      "status": "active",
-      "task": "暂无任务",
-      "updatedAt": "最近 56 秒",
-      "ageMs": 56163,
-      "ageText": "最近 56 秒"
-    },
-    {
-      "key": "family",
-      "name": "family",
-      "role": "家庭助手",
-      "status": "active",
-      "task": "暂无任务",
-      "updatedAt": "最近 63 秒",
-      "ageMs": 62519,
-      "ageText": "最近 63 秒"
-    },
     {
       "key": "business",
       "name": "business",
       "role": "业务助手",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 93 秒",
-      "ageMs": 92931,
-      "ageText": "最近 93 秒"
+      "updatedAt": "最近 1 秒",
+      "ageMs": 546,
+      "ageText": "最近 1 秒"
     },
     {
       "key": "main",
@@ -38,9 +18,9 @@
       "role": "中枢调度",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 519 秒",
-      "ageMs": 518642,
-      "ageText": "最近 519 秒"
+      "updatedAt": "最近 1 秒",
+      "ageMs": 1272,
+      "ageText": "最近 1 秒"
     },
     {
       "key": "builder",
@@ -48,9 +28,29 @@
       "role": "研发执行",
       "status": "active",
       "task": "暂无任务",
-      "updatedAt": "最近 872 秒",
-      "ageMs": 872358,
-      "ageText": "最近 872 秒"
+      "updatedAt": "最近 87 秒",
+      "ageMs": 87289,
+      "ageText": "最近 87 秒"
+    },
+    {
+      "key": "media",
+      "name": "media",
+      "role": "内容助手",
+      "status": "active",
+      "task": "暂无任务",
+      "updatedAt": "最近 738 秒",
+      "ageMs": 738359,
+      "ageText": "最近 738 秒"
+    },
+    {
+      "key": "family",
+      "name": "family",
+      "role": "家庭助手",
+      "status": "active",
+      "task": "暂无任务",
+      "updatedAt": "最近 1719 秒",
+      "ageMs": 1718857,
+      "ageText": "最近 1719 秒"
     }
   ]
 }

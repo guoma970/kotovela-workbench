@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
@@ -16,26 +16,119 @@ export function AppShell() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const mainRef = useRef<HTMLElement | null>(null)
+  const sidebarRef = useRef<HTMLElement | null>(null)
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  // State for swipe-to-close gesture
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchDelta, setTouchDelta] = useState(0)
 
   const handleNavClick = () => {
     setSidebarOpen(false)
+    menuButtonRef.current?.focus()
     window.requestAnimationFrame(() => {
       mainRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
       window.scrollTo({ top: 0, behavior: 'auto' })
     })
   }
 
+  // Focus Management & Body Class
   useEffect(() => {
     document.body.classList.toggle('mobile-sidebar-open', sidebarOpen)
 
-    return () => {
-      document.body.classList.remove('mobile-sidebar-open')
+    if (sidebarOpen) {
+      const focusableElements = sidebarRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, textarea, select, details, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusableElements && focusableElements.length > 0) {
+        focusableElements[0].focus()
+      }
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Tab') {
+          if (!sidebarRef.current?.contains(document.activeElement)) {
+            focusableElements?.[0]?.focus()
+            e.preventDefault()
+            return
+          }
+          const first = focusableElements?.[0]
+          const last = focusableElements?.[focusableElements.length - 1]
+
+          if (e.shiftKey && document.activeElement === first) {
+            last?.focus()
+            e.preventDefault()
+          } else if (!e.shiftKey && document.activeElement === last) {
+            first?.focus()
+            e.preventDefault()
+          }
+        }
+
+        if (e.key === 'Escape') {
+          setSidebarOpen(false)
+          menuButtonRef.current?.focus()
+        }
+      }
+
+      document.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown)
+        document.body.classList.remove('mobile-sidebar-open')
+      }
+    } else {
+      // This part handles returning focus when sidebar is closed via methods other than nav click
+      if (document.activeElement && sidebarRef.current?.contains(document.activeElement)) {
+        menuButtonRef.current?.focus()
+      }
     }
   }, [sidebarOpen])
 
+  // Swipe gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition = 'none'
+    }
+    setTouchStart(e.targetTouches[0].clientX)
+    setTouchDelta(0)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const delta = e.targetTouches[0].clientX - touchStart
+    if (delta < 0) {
+      setTouchDelta(delta)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition = '' // Restore transitions
+    }
+    if (sidebarRef.current && Math.abs(touchDelta) > sidebarRef.current.offsetWidth / 3) {
+      setSidebarOpen(false)
+      menuButtonRef.current?.focus()
+    }
+    setTouchDelta(0)
+  }
+
+  const sidebarStyle: CSSProperties = touchDelta !== 0
+    ? {
+        transform: `translateX(${Math.min(0, touchDelta)}px)`,
+        boxShadow: `0 24px 60px rgba(0, 0, 0, ${0.38 - Math.abs(touchDelta) * 0.001})`,
+      }
+    : {}
+
+
   return (
     <div className={sidebarOpen ? 'app-shell app-shell-sidebar-open' : 'app-shell'}>
-      <aside className={sidebarOpen ? 'sidebar sidebar-open' : 'sidebar'}>
+      <aside
+        ref={sidebarRef}
+        className={sidebarOpen ? 'sidebar sidebar-open' : 'sidebar'}
+        style={sidebarStyle}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        aria-modal="true"
+        role="dialog"
+      >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
             <img className="brand-logo" src="/yanting-logo-tight.png" alt="言町科技" />
@@ -68,12 +161,17 @@ export function AppShell() {
         type="button"
         className={sidebarOpen ? 'sidebar-backdrop sidebar-backdrop-visible' : 'sidebar-backdrop'}
         aria-label="关闭侧边菜单"
-        onClick={() => setSidebarOpen(false)}
+        onClick={() => {
+          setSidebarOpen(false)
+          menuButtonRef.current?.focus()
+        }}
+        tabIndex={-1}
       />
 
       <main ref={mainRef} className="main-content">
         <div className="mobile-nav-bar">
           <button
+            ref={menuButtonRef}
             type="button"
             className="mobile-nav-toggle"
             aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
