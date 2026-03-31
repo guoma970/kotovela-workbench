@@ -1,40 +1,11 @@
-import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
-import { syncRoomsFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
-import { agents, projects, rooms as mockRooms, tasks } from '../data/mockData'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
-import type { Room } from '../types'
-
-function useRoomsData() {
-  const [rooms, setRooms] = useState<Room[]>(mockRooms)
-
-  useEffect(() => {
-    let isActive = true
-
-    loadOfficeInstances()
-      .then((instances) => {
-        if (!isActive) return
-
-        const synced = syncRoomsFromInstances(instances, mockRooms)
-        setRooms(synced.rooms)
-      })
-      .catch(() => {
-        if (!isActive) return
-        setRooms(mockRooms)
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  return rooms
-}
 
 export function RoomsPage() {
-  const rooms = useRoomsData()
+  const { rooms, projects, agents, tasks } = useOfficeInstances()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const pendingCount = rooms.reduce((sum, room) => sum + room.pending, 0)

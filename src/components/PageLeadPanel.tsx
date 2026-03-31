@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 interface PageLeadPanelMetric {
@@ -18,16 +19,57 @@ interface PageLeadPanelProps {
   actions?: PageLeadPanelAction[]
 }
 
+const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
+
+const getIsCompactViewport = () =>
+  typeof window !== 'undefined' ? window.matchMedia(MOBILE_PAGE_LEAD_MEDIA).matches : false
+
 export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLeadPanelProps) {
+  const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactViewport)
+  const [expanded, setExpanded] = useState(() => !getIsCompactViewport())
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_PAGE_LEAD_MEDIA)
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsCompactViewport(event.matches)
+      if (!event.matches) {
+        setExpanded(true)
+      }
+    }
+
+    media.addEventListener('change', handleChange)
+    return () => {
+      media.removeEventListener('change', handleChange)
+    }
+  }, [])
+
+  const collapsed = isCompactViewport && !expanded
+  const visibleMetrics = collapsed ? metrics.slice(0, 3) : metrics
+  const visibleActions = collapsed ? actions.slice(0, 1) : actions
+  const hiddenMetricCount = metrics.length - visibleMetrics.length
+  const hiddenActionCount = actions.length - visibleActions.length
+
   return (
-    <section className="panel strong-card page-lead-panel">
+    <section className={`panel strong-card page-lead-panel ${collapsed ? 'page-lead-panel-collapsed' : ''}`}>
       <div className="panel-header">
         <h3>页面速览 · {heading}</h3>
-        <span>当前视角</span>
+        <div className="page-lead-toolbar">
+          <span>{collapsed ? '精简视角' : '当前视角'}</span>
+          {isCompactViewport && (
+            <button
+              type="button"
+              className="ghost-button page-lead-toggle"
+              onClick={() => setExpanded((value) => !value)}
+              aria-expanded={expanded}
+            >
+              {expanded ? '收起速览' : '展开速览'}
+            </button>
+          )}
+        </div>
       </div>
-      <p className="page-note">{intro}</p>
+      <p className={`page-note ${collapsed ? 'page-lead-intro-compact' : ''}`}>{intro}</p>
       <div className="info-pairs">
-        {metrics.map((item) => (
+        {visibleMetrics.map((item) => (
           item.to ? (
             <NavLink key={item.label} className="context-strip context-strip-link" to={item.to}>
               <span>{item.label}</span>
@@ -41,9 +83,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
           )
         ))}
       </div>
-      {actions.length > 0 && (
+      {visibleActions.length > 0 && (
         <div className="cross-link-row top-gap">
-          {actions.map((action) => (
+          {visibleActions.map((action) => (
             <NavLink
               key={action.label}
               className="inline-link-chip"
@@ -53,6 +95,11 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
             </NavLink>
           ))}
         </div>
+      )}
+      {collapsed && (hiddenMetricCount > 0 || hiddenActionCount > 0) && (
+        <button type="button" className="page-lead-peek" onClick={() => setExpanded(true)}>
+          还有 {hiddenMetricCount} 个指标、{hiddenActionCount} 个下一步
+        </button>
       )}
     </section>
   )

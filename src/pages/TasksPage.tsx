@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
-import { NavLink, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { syncTasksFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
-import { agents, projects, rooms, tasks as mockTasks } from '../data/mockData'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
-import type { Task, TaskStatus } from '../types'
+import type { TaskStatus } from '../types'
 
 const columns: { key: TaskStatus; label: string }[] = [
   { key: 'doing', label: 'Doing' },
@@ -13,34 +12,8 @@ const columns: { key: TaskStatus; label: string }[] = [
   { key: 'done', label: 'Done' },
 ]
 
-function useTasksData() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks)
-
-  useEffect(() => {
-    let isActive = true
-
-    loadOfficeInstances()
-      .then((instances) => {
-        if (!isActive) return
-
-        const synced = syncTasksFromInstances(instances, mockTasks)
-        setTasks(synced.tasks)
-      })
-      .catch(() => {
-        if (!isActive) return
-        setTasks(mockTasks)
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  return tasks
-}
-
 export function TasksPage() {
-  const tasks = useTasksData()
+  const { tasks, projects, agents, rooms } = useOfficeInstances()
   const [searchParams] = useSearchParams()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)

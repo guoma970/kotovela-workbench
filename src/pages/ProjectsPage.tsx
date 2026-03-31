@@ -1,40 +1,11 @@
-import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
-import { syncProjectsFromInstances, loadOfficeInstances } from '../data/officeInstancesAdapter'
-import { agents, projects as mockProjects, rooms, tasks } from '../data/mockData'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
-import type { Project } from '../types'
-
-function useProjectsData() {
-  const [projects, setProjects] = useState<Project[]>(mockProjects)
-
-  useEffect(() => {
-    let isActive = true
-
-    loadOfficeInstances()
-      .then((instances) => {
-        if (!isActive) return
-
-        const synced = syncProjectsFromInstances(instances, mockProjects)
-        setProjects(synced.projects)
-      })
-      .catch(() => {
-        if (!isActive) return
-        setProjects(mockProjects)
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  return projects
-}
 
 export function ProjectsPage() {
-  const projects = useProjectsData()
+  const { projects, agents, rooms, tasks } = useOfficeInstances()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const blockedCount = projects.reduce((sum, project) => sum + project.blockers, 0)

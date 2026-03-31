@@ -12,6 +12,24 @@ export type OfficeInstanceStatus = 'doing' | 'done' | 'blocker' | 'idle' | 'acti
  * - idle/offline -> idle
  * - 兜底 -> idle，避免将未知状态误判为 blocker
  */
+
+/** Fallback status sentences keyed by normalized status. */
+const STATUS_SENTENCE: Record<string, string> = {
+  doing: '正在推进关键动作，等待下游确认。',
+  blocker: '检测到阻塞信号，等待状态回归。',
+  done: '当前未有阻塞，任务链路平稳。',
+  active: '正在推进关键动作，等待下游确认。',
+  idle: '当前未有阻塞，任务链路平稳。',
+  blocked: '检测到阻塞信号，等待状态回归。',
+}
+
+const unknownStatusSentence = '当前未有阻塞，任务链路平稳。'
+
+export function getStatusSentence(status: string): string {
+  const key = status?.toLowerCase()
+  return key && STATUS_SENTENCE[key] ? STATUS_SENTENCE[key] : unknownStatusSentence
+}
+
 export interface OfficeInstanceItem {
   key: string
   name?: string
@@ -20,7 +38,10 @@ export interface OfficeInstanceItem {
   task?: string
   currentTask?: string
   updatedAt?: string
+  ageMs?: number | string
   ageText?: string
+  note?: string
+  projectRelated?: string
   [key: string]: unknown
 }
 
@@ -744,7 +765,7 @@ export async function loadOfficeInstances(): Promise<OfficeInstanceItem[]> {
   })
 
   if (!response.ok) {
-    return []
+    throw new Error(`Office instances request failed: ${response.status}`)
   }
 
   const payload = (await response.json()) as OfficeInstancesResponse

@@ -53,6 +53,43 @@ data/office-instances.snapshot.json
 - 然后再 `git add` / `commit` / `push`
 - Vercel 发布后，远程页会优先读本机实时数据；拿不到时自动退回到这份最近同步的快照
 
+### 每 10 分钟自动同步一次（推荐）
+
+仓库已提供：
+
+```text
+.github/workflows/sync-office-snapshot.yml
+```
+
+这个 workflow 会：
+
+- 每 10 分钟执行一次
+- 在 runner 上运行 `npm run sync:office-snapshot`
+- 仅当 `data/office-instances.snapshot.json` 发生变化时自动提交并推送
+- 借助现有 GitHub + Vercel 链路把远程页更新出去
+
+前提：
+
+- 必须使用 `self-hosted runner`
+- runner 所在机器要能直接执行 `openclaw sessions`
+- runner 需要挂在这个仓库上，并且常驻在线
+
+如果没有 self-hosted runner，当前仍以“手动同步 snapshot”作为远程更新方式。
+
+### 本机定时同步（macOS launchd）
+
+如果你更希望直接在本机自动跑，而不是先接 GitHub runner，仓库还提供了 `launchd` 方案，见：
+
+```text
+docs/ops/office-snapshot-sync.md
+```
+
+这套方案适合：
+
+- 你本机就是 OpenClaw 运行机
+- 你希望每 10 分钟自动生成并推送 snapshot
+- 你愿意用一个“专门用于同步的干净 clone”来执行自动任务
+
 ### 当前策略
 
 - 本机打开：优先实时
@@ -74,6 +111,7 @@ data/office-instances.snapshot.json
 
 - CI 配置文件：`.github/workflows/ci.yml`
 - 触发：`push` / `pull_request`
+- 定时 snapshot 同步：`.github/workflows/sync-office-snapshot.yml`
 
 ## 分支约定
 

@@ -25,6 +25,13 @@ const focusParamMap: Record<FocusKind, keyof FocusState> = {
   task: 'taskId',
 }
 
+const relationScopeKeyMap: Record<FocusKind, keyof RelationScope> = {
+  project: 'projectIds',
+  agent: 'agentIds',
+  room: 'roomIds',
+  task: 'taskIds',
+}
+
 export function parseFocusFromSearchParams(searchParams: URLSearchParams): FocusState {
   const focusType = searchParams.get('focusType') as FocusKind | null
   const focusId = searchParams.get('focusId') ?? undefined
@@ -157,9 +164,7 @@ export function useWorkbenchLinking(data: {
   const getState = (kind: FocusKind, id: string) => {
     const paramKey = focusParamMap[kind]
     const isSelected = focus[paramKey] === id
-    const isRelated = relationScope[`${kind}Ids` as keyof RelationScope] instanceof Set
-      ? (relationScope[`${kind}Ids` as keyof RelationScope] as Set<string>).has(id)
-      : false
+    const isRelated = relationScope[relationScopeKeyMap[kind]].has(id)
     const isDimmed = hasFocus && !isSelected && !isRelated
     return { isSelected, isRelated, isDimmed }
   }

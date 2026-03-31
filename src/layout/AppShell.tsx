@@ -14,6 +14,17 @@ const navItems = [
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+  const currentNavItem =
+    navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
+  const focusSearchParams = new URLSearchParams(location.search)
+  const hasLinkedFocus = Boolean(
+    focusSearchParams.get('focusType') ||
+    focusSearchParams.get('focusId') ||
+    focusSearchParams.get('project') ||
+    focusSearchParams.get('agent') ||
+    focusSearchParams.get('room') ||
+    focusSearchParams.get('task'),
+  )
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const mainRef = useRef<HTMLElement | null>(null)
   const sidebarRef = useRef<HTMLElement | null>(null)
@@ -33,6 +44,8 @@ export function AppShell() {
   }
 
   // Focus Management & Body Class
+  const sidebarFocusablesRef = useRef<HTMLElement[]>([])
+
   useEffect(() => {
     document.body.classList.toggle('mobile-sidebar-open', sidebarOpen)
 
@@ -40,19 +53,23 @@ export function AppShell() {
       const focusableElements = sidebarRef.current?.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input, textarea, select, details, [tabindex]:not([tabindex="-1"])'
       )
+      sidebarFocusablesRef.current = focusableElements ? Array.from(focusableElements) : []
+
       if (focusableElements && focusableElements.length > 0) {
         focusableElements[0].focus()
       }
 
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Tab') {
+          const focusables = sidebarFocusablesRef.current
+          const first = focusables[0]
+          const last = focusables[focusables.length - 1]
+
           if (!sidebarRef.current?.contains(document.activeElement)) {
-            focusableElements?.[0]?.focus()
+            first?.focus()
             e.preventDefault()
             return
           }
-          const first = focusableElements?.[0]
-          const last = focusableElements?.[focusableElements.length - 1]
 
           if (e.shiftKey && document.activeElement === first) {
             last?.focus()
@@ -182,9 +199,17 @@ export function AppShell() {
             <span />
             <span />
           </button>
-          <div className="mobile-nav-label">
-            <strong>言町科技 KOTOVELA</strong>
-            <span>OpenClaw协作驾驶舱</span>
+          <div className="mobile-nav-copy">
+            <div className="mobile-nav-label">
+              <strong>{currentNavItem.label}</strong>
+              <span>{currentNavItem.note}</span>
+            </div>
+            <div className="mobile-nav-meta">
+              <span>言町科技 KOTOVELA</span>
+              <span className={hasLinkedFocus ? 'mobile-nav-pill' : 'mobile-nav-pill mobile-nav-pill-muted'}>
+                {hasLinkedFocus ? '联动中' : '当前页'}
+              </span>
+            </div>
           </div>
         </div>
         <FocusSummaryBar

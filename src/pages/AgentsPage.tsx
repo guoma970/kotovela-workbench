@@ -1,38 +1,12 @@
-import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
-import { loadOfficeInstances, syncOfficeInstancesToAgents } from '../data/officeInstancesAdapter'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { agents as mockAgents, projects, rooms, tasks } from '../data/mockData'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
-function useAgentsData() {
-  const [agents, setAgents] = useState(mockAgents)
-
-  useEffect(() => {
-    let isActive = true
-
-    loadOfficeInstances()
-      .then((instances) => {
-        if (!isActive) return
-        const synced = syncOfficeInstancesToAgents(instances, mockAgents)
-        setAgents(synced.agents)
-      })
-      .catch(() => {
-        setAgents(mockAgents)
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  return agents
-}
-
 export function AgentsPage() {
-  const agents = useAgentsData()
+  const { agents, projects, rooms, tasks } = useOfficeInstances()
   const [searchParams] = useSearchParams()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)

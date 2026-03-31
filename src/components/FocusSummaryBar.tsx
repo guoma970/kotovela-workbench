@@ -1,14 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { agents, projects, rooms, tasks, updates } from '../data/mockData'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 import {
   buildRelationScope,
   createFocusSearch,
+  getFocusTarget,
   getFocusSummary,
   parseFocusFromSearchParams,
 } from '../lib/workbenchLinking'
-
-const pageData = { projects, agents, rooms, tasks }
 
 const pageLinks = [
   { to: '/', label: 'Dashboard' },
@@ -19,9 +18,12 @@ const pageLinks = [
 ]
 
 export function FocusSummaryBar({ search, pathname, onClear }: { search: string; pathname: string; onClear?: () => void }) {
+  const { agents, projects, rooms, tasks, updates } = useOfficeInstances()
   const navigate = useNavigate()
   const searchParams = new URLSearchParams(search)
+  const pageData = { projects, agents, rooms, tasks }
   const focus = parseFocusFromSearchParams(searchParams)
+  const focusTarget = getFocusTarget(focus)
   const summary = getFocusSummary(focus, pageData)
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const baseSearch = createFocusSearch(searchParams)
@@ -85,6 +87,22 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
       (item.roomId && relationScope.roomIds.has(item.roomId)) ||
       (item.taskId && relationScope.taskIds.has(item.taskId)),
   ).length
+  const relatedSnapshot = [
+    `项目 ${relationScope.projectIds.size}`,
+    `实例 ${relationScope.agentIds.size}`,
+    `房间 ${relationScope.roomIds.size}`,
+    `任务 ${relationScope.taskIds.size}`,
+  ].join(' · ')
+  const primaryFocusPath =
+    focusTarget?.type === 'project'
+      ? '/projects'
+      : focusTarget?.type === 'agent'
+        ? '/agents'
+        : focusTarget?.type === 'room'
+          ? '/rooms'
+          : focusTarget?.type === 'task'
+            ? '/tasks'
+            : pathname
 
   const listSearch = (kind: 'project' | 'agent' | 'room' | 'task', id: string) =>
     createFocusSearch(searchParams, kind, id)
@@ -102,8 +120,8 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
     <section
       className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''} ${isScrolled ? 'focus-summary-dock-scrolled' : ''}`}
     >
-      <button type="button" className="focus-close-action" aria-label="关闭导航" onClick={onClear}>
-        ×
+      <button type="button" className="focus-close-action" aria-label="清除联动" onClick={onClear}>
+        清除
       </button>
       <header className="focus-summary-header focus-summary-header-compact">
         <div className="focus-summary-title-block">
@@ -111,6 +129,9 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
           <h3>
             {summary.label}：{summary.value}
           </h3>
+          <p className="focus-summary-inline-meta">
+            {relatedSnapshot} · blocker {blockerCount}
+          </p>
         </div>
         <div className="focus-summary-toolbar">
           <div className="focus-summary-chip-row">
@@ -118,11 +139,11 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
               <span>任务</span>
               <strong>{relationScope.taskIds.size}</strong>
             </NavLink>
-            <NavLink className="focus-metric focus-metric-link focus-metric-mini" to={{ pathname: '/rooms', search: baseSearch }}>
+            <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/rooms', search: baseSearch }}>
               <span>房间</span>
               <strong>{relationScope.roomIds.size}</strong>
             </NavLink>
-            <NavLink className="focus-metric focus-metric-link focus-metric-mini" to={{ pathname: '/agents', search: baseSearch }}>
+            <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/agents', search: baseSearch }}>
               <span>实例</span>
               <strong>{relationScope.agentIds.size}</strong>
             </NavLink>
@@ -135,6 +156,9 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
             </NavLink>
           </div>
           <div className="focus-summary-header-actions">
+            <NavLink className="ghost-button focus-header-button focus-header-link" to={{ pathname: primaryFocusPath, search: baseSearch }}>
+              打开对象页
+            </NavLink>
             <button
               type="button"
               className="ghost-button focus-header-button focus-expand-button"
