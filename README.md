@@ -1,72 +1,117 @@
-# 言町科技协作驾驶舱（项目代号：KOTOVELA）
-![CI](https://github.com/ztl970/kotovela-workbench/actions/workflows/ci.yml/badge.svg)
+# Kotovela Workbench
 
+**A visual cockpit for multi-agent collaboration.**
 
-言町科技协作驾驶舱是一个轻量的 React + TypeScript + Vite 前端原型，用于承载言町科技内部的多实例协同场景；当前主线项目代号为 **KOTOVELA**。
+Track agent status, blockers, task flows, project routing, and collaboration rooms in one place.
 
-它被设计成一个偏指挥台风格的协作驾驶舱，用来协调多个实例：
+面向多实例协作的可视化驾驶舱：看状态、看阻塞、看动态、看承接关系。
 
-- Dashboard overview (blockers, active instances, pending decisions)
-- Agents / Rooms / Projects / Tasks pages
-- Cross-page linkage by project/agent/task/room identity
-- Local live office status + remote snapshot fallback
+---
 
-## 当前目标
+![Kotovela Workbench](screenshots/dashboard.png)
 
-- 完成可演示的产品雏形（可浏览、可联动、可远程预发布）
-- 保持统一视觉层级，支持中枢感强的主界面信息展示
-- 限定“轻量驾驶舱”边界：优先本地实时与远程快照同步，不做生产后台
+---
 
-## 运行
+## Why this project
+
+When multiple agents collaborate, it becomes hard to answer:
+
+- **Which agent is currently blocked?**
+- **What is actively moving?**
+- **Which task belongs to which project?**
+- **Where is collaboration actually happening?**
+- **What should be handled next?**
+
+Kotovela Workbench exists to make the invisible visible — giving you a single pane of glass over a living system of agents, tasks, rooms, and projects.
+
+---
+
+## Core Views
+
+| View | What it answers |
+|------|----------------|
+| **Dashboard** | Global situation — blockers, active agents, recent updates |
+| **Projects** | Project routing and ownership — who owns what |
+| **Rooms** | Collaboration channels and active contexts |
+| **Tasks** | Execution units and blocker tracking |
+| **Agents** | Agent status, assignment, and availability |
+
+---
+
+## Screenshots
+
+### Dashboard
+*See blockers, active agents, and recent updates at a glance.*
+
+![Dashboard](screenshots/dashboard.png)
+
+### Agents
+*Track who is doing what, who is blocked, and who is available.*
+
+![Agents](screenshots/agents.png)
+
+### Tasks
+*Inspect execution details and blocker reasons.*
+
+![Tasks](screenshots/tasks.png)
+
+### Projects
+*Understand project routing, ownership, and current focus.*
+
+### Rooms
+*Follow where collaboration is happening and what each room is carrying.*
+
+---
+
+## Design Principles
+
+- **Agent-first** — agents are the primary unit, not tasks or projects
+- **Blocker-first** — surface what's stuck before what's moving
+- **Linked context** — clicking anything cross-links to related agents, tasks, rooms, and projects
+- **Fast scanning** — dense but hierarchical; status visible at a glance
+- **Action-oriented structure** — every view points toward the next decision
+
+---
+
+## Quick Start
 
 ```bash
-# install
+# Install dependencies
 npm install
 
-# dev（固定端口：5173）
+# Start dev server (http://localhost:5173)
 npm run dev
 
-# verify
-npm run lint
+# Type check and build
 npm run build
+
+# Preview production build (http://localhost:4173)
+npm run preview
+
+# Lint
+npm run lint
 ```
 
-## 真实状态同步
+> **Note:** This project ships with mock data for demonstration and development. Swap in your live data source when ready.
 
-- 本地打开：优先读取实时 `openclaw sessions`
-- 远程打开：优先读取服务端实时结果，失败时回退到 `data/office-instances.snapshot.json`
-- 仓库已提供每 10 分钟同步 snapshot 的 GitHub Workflow：
-  `.github/workflows/sync-office-snapshot.yml`
-- 也提供了 macOS `launchd` 本机定时同步方案：
-  `docs/ops/office-snapshot-sync.md`
+---
 
-注意：
+## Mock Data
 
-- 这条定时同步链路需要跑在能访问 OpenClaw 的机器上
-- 因此 GitHub Workflow 需要使用 `self-hosted runner`
+This project ships with mock data covering agents, projects, rooms, and tasks. The default setup is intended for demo and development use.
 
-## 技术栈
+---
 
-- React 19
-- TypeScript
-- Vite
-- React Router
+## Roadmap
 
-## 目录结构
+- [ ] **Lightweight personal control mode** — solo operator view with fewer chrome
+- [ ] **Better blocker visualization** — richer cause-chain and impact propagation
+- [ ] **Real-time event stream** — live feed of agent actions and state changes
+- [ ] **Action-oriented task handling** — take action directly from the task view
+- [ ] **External integrations** — connect to OpenClaw sessions, LLMs, and team tools
 
-- `src/`：前端源码
-  - `components/`：通用展示组件
-  - `layout/`：页面布局
-  - `pages/`：五大主页面（Dashboard / Agents / Projects / Rooms / Tasks）
-  - `data/`：mock 数据定义
-  - `lib/`：联动与聚焦逻辑
-  - `types/`：数据类型
-- `docs/`：文档与任务记录
-- `.github/`：CI 与 PR 模板
+---
 
-## 本地端口约定
+## License
 
-- 言町科技协作驾驶舱（本项目）开发端口：`5173`
-- 言町科技协作驾驶舱预览端口：`4173`
-- 如端口被占用，启动应直接失败，不自动漂移到其他端口
-- 羲果陪伴项目固定使用开发端口 `5174`
+MIT

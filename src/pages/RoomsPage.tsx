@@ -29,7 +29,7 @@ export function RoomsPage() {
           <p className="eyebrow">Rooms</p>
           <h2>群与通道状态</h2>
         </div>
-        <p className="page-note">群/房间保持独立统一标识，并明确承接项目、归属实例和对应任务范围。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
+        <p className="page-note">每个房间展示：名称、状态、当前用途、最近动作类型。</p>
       </div>
 
       <PageLeadPanel
@@ -52,9 +52,6 @@ export function RoomsPage() {
         {rooms.map((room) => {
           const project = projects.find((item) => item.id === room.mainProjectId)
           const linkedAgents = agents.filter((agent) => room.instanceIds.includes(agent.id))
-          const linkedTasks = tasks.filter(
-            (task) => task.projectId === room.mainProjectId || room.instanceIds.includes(task.executorAgentId),
-          )
           const focusSearch = createFocusSearch(linking.currentSearch, 'room', room.id)
           return (
             <article key={room.id} className={cardClass(room.id)} onClick={() => linking.select('room', room.id)}>
@@ -64,11 +61,11 @@ export function RoomsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>通道类型</span>
-                  <strong>{room.channelType}</strong>
+                  <span>状态</span>
+                  <strong className={`status-dot status-${room.status}`}>{room.status}</strong>
                 </div>
                 <div>
-                  <span>待处理项</span>
+                  <span>待处理</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -84,6 +81,10 @@ export function RoomsPage() {
                 <span>当前用途</span>
                 <strong>{room.purpose}</strong>
               </div>
+              <div className="info-block">
+                <span>最近动作</span>
+                <strong>{room.recentAction}</strong>
+              </div>
               <div className="relation-stack">
                 <div>
                   <span className="section-label">承接项目</span>
@@ -92,36 +93,18 @@ export function RoomsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">归属实例</span>
+                  <span className="section-label">实例 {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
                       <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
                     ))}
                   </div>
                 </div>
-                <div>
-                  <span className="section-label">关联任务</span>
-                  <div className="object-row top-gap">
-                    {linkedTasks.map((task) => (
-                      <ObjectBadge key={task.id} kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
-                    ))}
-                  </div>
-                </div>
               </div>
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看相关项 · Tasks
+                  关联任务
                 </NavLink>
-                <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看相关项 · Projects
-                </NavLink>
-                <NavLink className="inline-link-chip" to={{ pathname: '/agents', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看相关项 · Agents
-                </NavLink>
-              </div>
-              <div className="info-block">
-                <span>最近动作类型</span>
-                <strong>{room.recentAction}</strong>
               </div>
             </article>
           )

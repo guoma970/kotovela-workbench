@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
-import { StatCard } from '../components/StatCard'
 import { decisions } from '../data/mockData'
 import type { OfficeInstanceItem } from '../data/officeInstancesAdapter'
 import { useOfficeInstances } from '../data/useOfficeInstances'
@@ -33,13 +32,6 @@ type OfficeInstance = {
   agentId: string
 }
 
-type InstanceMetrics = {
-  activeInstances: number
-  doingInstances: number
-  blockedInstances: number
-  doneInstances: number
-}
-
 type OfficeSeat = {
   id: string
   key: string
@@ -62,9 +54,9 @@ const officeBlueprint: OfficeSeat[] = OFFICE_SEAT_MAP
 const REFRESH_INTERVAL_SECONDS = 20
 
 const statusSentence: Record<OperationStatus, string> = {
-  doing: '正在推进关键动作，等待下游确认。',
-  blocker: '检测到阻塞信号，等待状态回归。',
-  done: '当前未有阻塞，任务链路平稳。',
+  doing: '推进中',
+  blocker: '阻塞',
+  done: '平稳',
 }
 
 const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
@@ -184,13 +176,6 @@ export function DashboardPage() {
     : createFocusSearch(linking.currentSearch, 'project', topProject?.id)
   const keyProjectSearch = topProject ? createFocusSearch(linking.currentSearch, 'project', topProject.id) : createFocusSearch(linking.currentSearch)
 
-  const deriveMetricsFromInstances = (items: OfficeInstance[]): InstanceMetrics => ({
-    activeInstances: items.length,
-    doingInstances: items.filter((item) => item.status === 'doing').length,
-    blockedInstances: items.filter((item) => item.status === 'blocker').length,
-    doneInstances: items.filter((item) => item.status === 'done').length,
-  })
-
   const officeInstances = useMemo(
     () =>
       dataSource === 'real'
@@ -198,8 +183,6 @@ export function DashboardPage() {
         : buildOfficeFallback(agents, projects, tasks),
     [agents, dataSource, projects, rawInstances, tasks],
   )
-
-  const instanceStats = useMemo(() => deriveMetricsFromInstances(officeInstances), [officeInstances])
 
   const filteredInstances = useMemo(() => {
     if (filter === 'all') {
@@ -226,11 +209,6 @@ export function DashboardPage() {
     previousInstancesRef.current = officeInstances
     setCountdown(REFRESH_INTERVAL_SECONDS)
   }, [officeInstances])
-
-  const refreshOffice = useCallback(() => {
-    setCountdown(REFRESH_INTERVAL_SECONDS)
-    refresh()
-  }, [refresh])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -277,7 +255,7 @@ export function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>中枢总览</h2>
         </div>
-        <p className="page-note">先看 blocker、待拍板和关键更新，再看项目、实例、群之间的承接关系。数据来源：优先读取最新状态，接口不可用时自动回退到本地快照。</p>
+        <p className="page-note">先看 blocker / 活跃实例 / 关键更新，再查项目、群、任务的承接关系。</p>
       </div>
 
       <PageLeadPanel
@@ -317,22 +295,16 @@ export function DashboardPage() {
           <div className="page-header">
             <div>
               <p className="eyebrow">Office Board</p>
-              <h2>言町科技实例工位图</h2>
+              <h2>实例工位图</h2>
             </div>
-            <p className="page-note">{officeBlueprint.length} 个实例工位固定展示，支持 20s 自动刷新与手动刷新。 {dataSource === 'real' ? '(实时源已接入)' : '(已回退至本地快照)'}{isLoading ? ' · 刷新中' : ''}</p>
+            <p className="page-note">共 {officeBlueprint.length} 个席位 · {dataSource === 'real' ? '实时数据' : '本地快照'}{isLoading ? ' · 刷新中' : ''}</p>
           </div>
 
           <div className="office-controls">
             <div className="office-refresh-meta">
-              <span className="status-pill status-blue">下一次刷新：{countdown}s</span>
-              <span className="soft-tag">当前显示：{filteredInstances.length}/{officeInstances.length}</span>
-              {error ? <span className="soft-tag">{error}</span> : null}
-              <button className="ghost-button" type="button" onClick={() => navigate(-1)}>
-                返回上一步
-              </button>
-              <button className="ghost-button" type="button" onClick={refreshOffice}>
-                手动刷新
-              </button>
+              <span className="status-pill status-blue">{countdown}s 后刷新</span>
+              <span className="soft-tag">{filteredInstances.length}/{officeInstances.length}</span>
+              {error ? <span className="soft-tag error-tag">{error}</span> : null}
             </div>
             <div className="office-filters">
               <button
@@ -347,14 +319,14 @@ export function DashboardPage() {
                 type="button"
                 onClick={() => setFilter('doing')}
               >
-                仅 doing
+                Doing
               </button>
               <button
                 className={`ghost-button ${filter === 'blocker' ? 'is-active-filter' : ''}`}
                 type="button"
                 onClick={() => setFilter('blocker')}
               >
-                仅 blocker
+                Blocker
               </button>
             </div>
           </div>
@@ -379,7 +351,6 @@ export function DashboardPage() {
                       }
                     }}
                   >
-                    <span className="office-zone">工位示例</span>
                     <div className="office-head">
                       {instance.agentId ? (
                         <button
@@ -444,48 +415,7 @@ export function DashboardPage() {
                         )}
                       </strong>
                     </div>
-                    <div className="office-foot-grid">
-                      <div className="office-meta-row office-meta-row-compact">
-                        <span>角色</span>
-                        <strong className={instance.agentId ? 'office-metric-value' : ''}>
-                          {instance.agentId ? (
-                            <button
-                              className="office-metric-link office-metric-link-block"
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
-                              }}
-                            >
-                              {instance.role}
-                            </button>
-                          ) : (
-                            instance.role
-                          )}
-                        </strong>
-                      </div>
-                      <div className="office-meta-row office-meta-row-compact">
-                        <span>最近更新时间</span>
-                        <strong>{instance.updatedAt}</strong>
-                      </div>
-                    </div>
                     <p className="office-note">{instance.note}</p>
-                    <div className="office-link-row">
-                      {instance.agentId ? (
-                        <button
-                          className="inline-link-chip"
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
-                          }}
-                        >
-                          查看实例详情
-                        </button>
-                      ) : (
-                        <span className="soft-tag">当前无任务源，预留工位</span>
-                      )}
-                    </div>
                   </article>
                 )
               })
@@ -503,6 +433,7 @@ export function DashboardPage() {
               <p className="hero-kicker">当前主航道</p>
               <h3>{topProject.name}</h3>
               <p className="hero-copy">{topProject.focus}</p>
+              <p className="hero-copy" style={{ marginTop: '4px' }}>下一步：{topProject.nextStep}</p>
             </div>
             <div className="hero-badges">
               <ObjectBadge
@@ -546,48 +477,26 @@ export function DashboardPage() {
           </div>
           <div className="hero-meta">
             <div>
-              <span>当前阶段</span>
+              <span>阶段</span>
               <strong>{topProject.stage}</strong>
             </div>
             <div>
               <span>待拍板</span>
-              <strong>{decisions.length} 项</strong>
+              <strong>{decisions.length}</strong>
             </div>
             <div>
-              <span>关键 blocker</span>
-              <strong>{blockedTasks.length} 项</strong>
+              <span>Blocker</span>
+              <strong className="text-red">{blockedTasks.length}</strong>
             </div>
-            <div>
-              <span>下一步</span>
-              <strong>{topProject.nextStep}</strong>
-            </div>
-          </div>
-          <div className="cross-link-row">
-            <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: keyProjectSearch }}>
-              查看相关项 · Projects
-            </NavLink>
-            <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: keyProjectSearch }}>
-              查看相关项 · Tasks
-            </NavLink>
-            <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: keyProjectSearch }}>
-              查看相关项 · Rooms
-            </NavLink>
           </div>
         </section>
       )}
 
-      <div className="stats-grid strong-grid">
-        <StatCard label="活跃实例数" value={instanceStats.activeInstances} tone="blue" />
-        <StatCard label="进行中实例数" value={instanceStats.doingInstances} tone="green" />
-        <StatCard label="阻塞实例数" value={instanceStats.blockedInstances} tone="red" />
-        <StatCard label="完成实例数" value={instanceStats.doneInstances} tone="orange" />
-      </div>
-
       <div className="dashboard-grid dashboard-priority-grid">
         <div className="panel panel-alert blocker-panel strong-card">
           <div className="panel-header">
-            <h3>Blocker 区</h3>
-            <span>{blockedTasks.length} 个阻塞</span>
+            <h3>Blocker</h3>
+            <span className="badge-count">{blockedTasks.length}</span>
           </div>
           {blockedTasks.length > 0 ? (
             <div className="alert-list">
@@ -600,16 +509,7 @@ export function DashboardPage() {
                       <h4>{task.title}</h4>
                       <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
                     </div>
-                    <div className="object-row">
-                      <ObjectBadge
-                        kind="task"
-                        code={task.code}
-                        name={task.title}
-                        compact
-                        clickable
-                        onClick={() => linking.select('task', task.id)}
-                        {...linking.getState('task', task.id)}
-                      />
+                    <div className="object-row top-gap">
                       {project && (
                         <ObjectBadge
                           kind="project"
@@ -636,102 +536,23 @@ export function DashboardPage() {
                     </div>
                     <div className="cross-link-row">
                       <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, 'task', task.id) }}>
-                        查看相关项 · Tasks
+                        查看详情
                       </NavLink>
                     </div>
-                    <p>最近更新时间：{task.updatedAt}</p>
                   </article>
                 )
               })}
             </div>
           ) : (
-            <p className="empty-state">当前没有 blocker。</p>
+            <p className="empty-state">暂无 blocker。</p>
           )}
         </div>
 
         <div className="stack-column">
           <div className="panel strong-card">
             <div className="panel-header">
-              <h3>待拍板事项</h3>
-              <span>{decisions.length} 项</span>
-            </div>
-            <div className="compact-list">
-              {decisions.map((decision) => {
-                const project = projects.find((item) => item.id === decision.projectId)
-                const owner = agents.find((item) => item.id === decision.ownerAgentId)
-                const relatedAgent = decision.relatedAgentId
-                  ? agents.find((item) => item.id === decision.relatedAgentId)
-                  : undefined
-                const relatedTask = decision.relatedTaskId
-                  ? tasks.find((item) => item.id === decision.relatedTaskId)
-                  : undefined
-                return (
-                  <article
-                    key={decision.id}
-                    className={cardClass('project', decision.projectId, 'compact-item compact-card panel-surface')}
-                  >
-                    <div>
-                      <h4>{decision.title}</h4>
-                      <div className="object-row top-gap">
-                        {project && (
-                          <ObjectBadge
-                            kind="project"
-                            code={project.code}
-                            name={project.name}
-                            compact
-                            clickable
-                            onClick={() => linking.select('project', project.id)}
-                            {...linking.getState('project', project.id)}
-                          />
-                        )}
-                        {relatedAgent && (
-                          <ObjectBadge
-                            kind="agent"
-                            code={relatedAgent.code}
-                            name={relatedAgent.name}
-                            compact
-                            clickable
-                           
-                            onClick={() => linking.select('agent', relatedAgent.id)}
-                            {...linking.getState('agent', relatedAgent.id)}
-                          />
-                        )}
-                        {relatedTask && (
-                          <ObjectBadge
-                            kind="task"
-                            code={relatedTask.code}
-                            name={relatedTask.title}
-                            compact
-                            clickable
-                            onClick={() => linking.select('task', relatedTask.id)}
-                            {...linking.getState('task', relatedTask.id)}
-                          />
-                        )}
-                        {owner && (
-                          <ObjectBadge
-                            kind="agent"
-                            code={owner.code}
-                            name={owner.name}
-                            compact
-                            clickable
-                           
-                            onClick={() => linking.select('agent', owner.id)}
-                            {...linking.getState('agent', owner.id)}
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <span className={`priority-badge priority-${decision.priority}`}>{decision.priority}</span>
-                  </article>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="panel strong-card">
-            <div className="panel-header">
-              <h3>最近关键更新</h3>
-              <span>{criticalUpdates.length} 条</span>
+              <h3>最近更新</h3>
+              <span className="badge-count">{criticalUpdates.length}</span>
             </div>
             <div className="update-list">
               {criticalUpdates.map((item) => {
@@ -739,16 +560,13 @@ export function DashboardPage() {
                   ? projects.find((project) => project.id === item.projectId)
                   : undefined
                 const agent = item.agentId ? agents.find((agent) => agent.id === item.agentId) : undefined
-                const room = item.roomId ? rooms.find((room) => room.id === item.roomId) : undefined
                 const task = item.taskId ? tasks.find((task) => task.id === item.taskId) : undefined
                 const focusKind = item.taskId
                   ? 'task'
-                  : item.roomId
-                    ? 'room'
-                    : item.agentId
-                      ? 'agent'
-                      : 'project'
-                const focusId = item.taskId ?? item.roomId ?? item.agentId ?? item.projectId
+                  : item.agentId
+                    ? 'agent'
+                    : 'project'
+                const focusId = item.taskId ?? item.agentId ?? item.projectId
                 if (!focusId) return null
 
                 return (
@@ -782,17 +600,6 @@ export function DashboardPage() {
                             {...linking.getState('agent', agent.id)}
                           />
                         )}
-                        {room && (
-                          <ObjectBadge
-                            kind="room"
-                            code={room.code}
-                            name={room.name}
-                            compact
-                            clickable
-                            onClick={() => linking.select('room', room.id)}
-                            {...linking.getState('room', room.id)}
-                          />
-                        )}
                         {task && (
                           <ObjectBadge
                             kind="task"
@@ -805,93 +612,64 @@ export function DashboardPage() {
                           />
                         )}
                       </div>
-                      <div className="cross-link-row top-gap">
-                        <NavLink className="inline-link-chip" to={{ pathname: '/', search: createFocusSearch(linking.currentSearch, focusKind, focusId) }}>
-                          查看相关项 · Dashboard
-                        </NavLink>
-                        <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, focusKind, focusId) }}>
-                          查看相关项 · Tasks
-                        </NavLink>
-                      </div>
-                      <p>
-                        {item.source} · {item.time}
-                      </p>
+                      <p className="soft-tag" style={{ marginTop: '6px' }}>{item.source} · {item.time}</p>
                     </div>
                   </article>
                 )
               })}
             </div>
           </div>
-        </div>
 
-        <div className="panel panel-wide strong-card">
-          <div className="panel-header">
-            <h3>跨页映射</h3>
-            <span>同一对象在不同页面的定位</span>
-          </div>
-          <div className="mapping-grid">
-            {projects.slice(0, 3).map((project) => {
-              const linkedAgents = agents.filter((agent) => agent.projectId === project.id)
-              const linkedRooms = rooms.filter((room) => room.mainProjectId === project.id)
-              const linkedTasks = tasks.filter((task) => task.projectId === project.id)
-              return (
-                <article key={project.id} className={cardClass('project', project.id, 'mapping-card panel-surface')}>
-                  <div className="mapping-head">
-                    <ObjectBadge
-                      kind="project"
-                      code={project.code}
-                      name={project.name}
-                      clickable
-                      onClick={() => linking.select('project', project.id)}
-                      {...linking.getState('project', project.id)}
-                    />
-                    <span className={`status-pill status-${project.status}`}>{project.status}</span>
-                  </div>
-                  <div className="mapping-lines">
-                    <p>Dashboard / Projects / Tasks / Rooms 都以同一项目标识串联。</p>
-                    <div className="object-row">
-                      {linkedAgents.map((agent) => (
-                        <ObjectBadge
-                          key={agent.id}
-                          kind="agent"
-                          code={agent.code}
-                          name={agent.name}
-                          compact
-                          clickable
-                         
-                          onClick={() => linking.select('agent', agent.id)}
-                          {...linking.getState('agent', agent.id)}
-                        />
-                      ))}
-                    </div>
-                    <div className="object-row">
-                      {linkedRooms.map((room) => (
-                        <ObjectBadge
-                          key={room.id}
-                          kind="room"
-                          code={room.code}
-                          name={room.name}
-                          compact
-                          clickable
-                          onClick={() => linking.select('room', room.id)}
-                          {...linking.getState('room', room.id)}
-                        />
-                      ))}
-                      <span className="soft-tag">任务 {linkedTasks.length}</span>
-                    </div>
-                    <div className="cross-link-row">
-                      <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', project.id) }}>
-                        查看相关项 · Projects
-                      </NavLink>
-                      <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: createFocusSearch(linking.currentSearch, 'project', project.id) }}>
-                        查看相关项 · Rooms
-                      </NavLink>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+          {decisions.length > 0 && (
+            <div className="panel strong-card">
+              <div className="panel-header">
+                <h3>待拍板</h3>
+                <span className="badge-count">{decisions.length}</span>
+              </div>
+              <div className="compact-list">
+                {decisions.slice(0, 4).map((decision) => {
+                  const project = projects.find((item) => item.id === decision.projectId)
+                  const owner = agents.find((item) => item.id === decision.ownerAgentId)
+                  return (
+                    <article
+                      key={decision.id}
+                      className={cardClass('project', decision.projectId, 'compact-item compact-card panel-surface')}
+                    >
+                      <div>
+                        <h4>{decision.title}</h4>
+                        <div className="object-row top-gap">
+                          {project && (
+                            <ObjectBadge
+                              kind="project"
+                              code={project.code}
+                              name={project.name}
+                              compact
+                              clickable
+                              onClick={() => linking.select('project', project.id)}
+                              {...linking.getState('project', project.id)}
+                            />
+                          )}
+                          {owner && (
+                            <ObjectBadge
+                              kind="agent"
+                              code={owner.code}
+                              name={owner.name}
+                              compact
+                              clickable
+                             
+                              onClick={() => linking.select('agent', owner.id)}
+                              {...linking.getState('agent', owner.id)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <span className={`priority-badge priority-${decision.priority}`}>{decision.priority}</span>
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

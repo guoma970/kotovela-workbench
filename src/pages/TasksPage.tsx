@@ -1,9 +1,8 @@
 import { useSearchParams } from 'react-router-dom'
-import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { useOfficeInstances } from '../data/useOfficeInstances'
-import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
+import { useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { TaskStatus } from '../types'
 
 const columns: { key: TaskStatus; label: string }[] = [
@@ -42,14 +41,14 @@ export function TasksPage() {
           <p className="eyebrow">Tasks</p>
           <h2>任务队列</h2>
         </div>
-        <p className="page-note">每条任务都挂上任务单、项目、执行实例三个识别点，并接入轻联动高亮。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
+        <p className="page-note">Blocker 优先 → Doing 推进 → Done 归档。</p>
       </div>
 
       <PageLeadPanel
         heading="Tasks"
-        intro="先按状态筛选任务，再进到项目、实例、房间链路里核对执行归属。"
+        intro="先看阻塞任务，再看进行中任务。"
         metrics={[
-          { label: '任务总数', value: tasks.length, to: { pathname: '/tasks' } },
+          { label: '总数', value: tasks.length, to: { pathname: '/tasks' } },
           { label: 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },
           { label: 'Blocker', value: tasks.filter((task) => task.status === 'blocked').length, to: { pathname: '/tasks', search: '?status=blocked' } },
           { label: 'Done', value: tasks.filter((task) => task.status === 'done').length, to: { pathname: '/tasks', search: '?status=done' } },
@@ -73,16 +72,12 @@ export function TasksPage() {
             <section key={column.key} className="panel queue-column strong-card">
               <div className="panel-header">
                 <h3>{column.label}</h3>
-                <span>{items.length} 条</span>
+                <span className="badge-count">{items.length}</span>
               </div>
               <div className="queue-list">
                 {items.map((task) => {
                   const project = projects.find((item) => item.id === task.projectId)
                   const agent = agents.find((item) => item.id === task.executorAgentId)
-                  const linkedRooms = rooms.filter(
-                    (room) => room.mainProjectId === task.projectId || room.instanceIds.includes(task.executorAgentId),
-                  )
-                  const focusSearch = createFocusSearch(linking.currentSearch, 'task', task.id)
                   return (
                     <article key={task.id} className={cardClass(task.id)} onClick={() => linking.select('task', task.id)}>
                       <div className="item-head">
@@ -90,31 +85,17 @@ export function TasksPage() {
                         <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
                       </div>
                       <div className="object-row top-gap">
-                        <ObjectBadge kind="task" code={task.code} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
                         {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
                       </div>
-                      <div className="object-row top-gap">
-                        {linkedRooms.map((room) => (
-                          <ObjectBadge key={room.id} kind="room" code={room.code} name={room.name} compact clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
-                        ))}
-                      </div>
-                      <div className="cross-link-row">
-                        <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                          查看相关项 · Projects
-                        </NavLink>
-                        <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                          查看相关项 · Rooms
-                        </NavLink>
-                      </div>
                       <div className="queue-meta dense-meta">
-                        <span>负责人：{task.assignee}</span>
-                        <span>更新时间：{task.updatedAt}</span>
+                        <span>{task.assignee}</span>
+                        <span className="soft-tag">· {task.updatedAt}</span>
                       </div>
                     </article>
                   )
                 })}
-                {items.length === 0 && <p className="empty-state">当前没有任务。</p>}
+                {items.length === 0 && <p className="empty-state empty-compact">无任务</p>}
               </div>
             </section>
           )

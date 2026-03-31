@@ -29,10 +29,7 @@ export function ProjectsPage() {
           <p className="eyebrow">Projects</p>
           <h2>项目看板</h2>
         </div>
-        <p className="page-note">
-          统一展示项目主标识、实例承接、关联群和任务量，跟 Dashboard / Tasks / Rooms 保持同一识别方式。<br />
-          数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。
-        </p>
+        <p className="page-note">每个项目含状态、阶段、阻塞数、项目成员和关联任务。</p>
       </div>
 
       <PageLeadPanel
@@ -74,7 +71,7 @@ export function ProjectsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>当前阶段</span>
+                  <span>阶段</span>
                   <strong>{project.stage}</strong>
                 </div>
                 <div>
@@ -93,30 +90,15 @@ export function ProjectsPage() {
                     </NavLink>
                   </strong>
                 </div>
-                <div>
-                  <span>任务量</span>
-                  <strong>
-                    <NavLink
-                      className="context-strip-metric-link"
-                      to={{ pathname: '/tasks', search: focusSearch }}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {project.taskCount}
-                    </NavLink>
-                  </strong>
-                </div>
               </div>
               <div className="info-block emphasis-block">
-                <span>当前重点</span>
+                <span>重点 / 下一步</span>
                 <strong>{project.focus}</strong>
-              </div>
-              <div className="info-block">
-                <span>下一步</span>
-                <strong>{project.nextStep}</strong>
+                <strong style={{ marginTop: '4px', fontWeight: 400, color: '#97a7c5', fontSize: '0.85em' }}>→ {project.nextStep}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">关联实例</span>
+                  <span className="section-label">实例</span>
                   <div className="object-row top-gap">
                     {linkedAgents.length > 0 ? (
                       linkedAgents.map((agent) => (
@@ -132,12 +114,12 @@ export function ProjectsPage() {
                         />
                       ))
                     ) : (
-                      <span className="soft-tag">暂未绑定实例</span>
+                      <span className="soft-tag">—</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">承接群 / 房间</span>
+                  <span className="section-label">房间</span>
                   <div className="object-row top-gap">
                     {linkedRooms.length > 0 ? (
                       linkedRooms.map((room) => (
@@ -153,29 +135,26 @@ export function ProjectsPage() {
                         />
                       ))
                     ) : (
-                      <span className="soft-tag">暂无房间承接</span>
+                      <span className="soft-tag">—</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">关联任务</span>
+                  <span className="section-label">关联任务 {linkedTasks.length > 3 ? `(共${linkedTasks.length})` : ''}</span>
                   <div className="object-row top-gap">
-                    {linkedTasks.length > 0 ? (
-                      linkedTasks.map((task) => (
-                        <ObjectBadge
-                          key={task.id}
-                          kind="task"
-                          code={task.code}
-                          name={task.title}
-                          compact
-                          clickable
-                          onClick={() => linking.select('task', task.id)}
-                          {...linking.getState('task', task.id)}
-                        />
-                      ))
-                    ) : (
-                      <span className="soft-tag">暂无任务挂载</span>
-                    )}
+                    {linkedTasks.slice(0, 3).map((task) => (
+                      <ObjectBadge
+                        key={task.id}
+                        kind="task"
+                        code={task.code}
+                        name={task.title}
+                        compact
+                        clickable
+                        onClick={() => linking.select('task', task.id)}
+                        {...linking.getState('task', task.id)}
+                      />
+                    ))}
+                    {linkedTasks.length === 0 && <span className="soft-tag">—</span>}
                   </div>
                 </div>
               </div>
@@ -185,25 +164,8 @@ export function ProjectsPage() {
                   to={{ pathname: '/tasks', search: focusSearch }}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  查看相关项 · Tasks
+                  关联任务
                 </NavLink>
-                <NavLink
-                  className="inline-link-chip"
-                  to={{ pathname: '/rooms', search: focusSearch }}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  查看相关项 · Rooms
-                </NavLink>
-                <NavLink
-                  className="inline-link-chip"
-                  to={{ pathname: '/agents', search: focusSearch }}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  查看相关项 · Agents
-                </NavLink>
-              </div>
-              <div className="progress-bar project-card-progress">
-                <div style={{ width: `${project.progress}%` }} />
               </div>
             </article>
           )

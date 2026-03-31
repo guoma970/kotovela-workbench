@@ -44,39 +44,24 @@ export function AgentsPage() {
           <p className="eyebrow">Agents</p>
           <h2>实例状态</h2>
         </div>
-        <p className="page-note">实例统一使用同一标识卡，在 Dashboard / Tasks / Projects / Rooms 之间一眼能对上。数据来源：优先读取最新状态，同步不可用时自动回退到本地快照。</p>
+        <p className="page-note">一眼看出谁卡住 / 谁在干 / 谁空着。</p>
       </div>
 
       <PageLeadPanel
         heading="Agents"
-        intro="优先处理阻塞实例，接着确认活跃实例能否快速串起任务链路。"
+        intro="优先处理阻塞实例，接着确认活跃实例的任务链路。"
         metrics={[
-          { label: '实例总数', value: agents.length, to: { pathname: '/agents' } },
-          { label: '活跃中', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
-          { label: '待命中', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: '实例', value: agents.length, to: { pathname: '/agents' } },
+          { label: '活跃', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
           { label: '阻塞', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
-          {
-            label: '平均挂载任务',
-            value:
-              agents.length > 0
-                ? `${Math.round(tasks.length / agents.length * 100) / 100} 条/实例`
-                : '0 条/实例',
-          },
+          { label: '待命', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
         ]}
         actions={
           targetAgent
             ? [
                 {
-                  label: '查看全部实例',
-                  to: { pathname: '/agents' },
-                },
-                {
-                  label: `优先查看阻塞实例 · ${targetAgent.name}`,
-                  to: { pathname: '/tasks', search: targetFocusSearch },
-                },
-                {
-                  label: '回到 Dashboard 的阻塞焦点',
-                  to: { pathname: '/', search: targetFocusSearch },
+                  label: '查看阻塞实例',
+                  to: { pathname: '/agents', search: targetFocusSearch },
                 },
               ]
             : []
@@ -95,50 +80,31 @@ export function AgentsPage() {
                 <ObjectBadge kind="agent" code={agent.code} name={agent.name} clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
                 <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
               </div>
-              <div className="context-strip">
-                <div>
-                  <span>角色</span>
-                  <strong>{agent.role}</strong>
-                </div>
-                <div>
-                  <span>更新时间</span>
-                  <strong>{agent.updatedAt}</strong>
-                </div>
-              </div>
+
               <div className="info-block emphasis-block">
                 <span>当前任务</span>
                 <strong>{agent.currentTask}</strong>
               </div>
-              <div className="relation-stack">
-                <div>
-                  <span className="section-label">所属项目</span>
-                  <div className="object-row top-gap">
-                    {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
-                  </div>
+
+              {project && (
+                <div className="object-row" style={{ marginTop: '8px' }}>
+                  <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />
                 </div>
-                <div>
-                  <span className="section-label">关联房间</span>
-                  <div className="object-row top-gap">
-                    {linkedRooms.map((room) => (
-                      <ObjectBadge key={room.id} kind="room" code={room.code} name={room.name} compact clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="section-label">关联任务</span>
-                  <div className="object-row top-gap">
-                    {linkedTasks.map((task) => (
-                      <ObjectBadge key={task.id} kind="task" code={task.code} name={task.title} compact clickable onClick={() => linking.select('task', task.id)} {...linking.getState('task', task.id)} />
-                    ))}
-                  </div>
-                </div>
+              )}
+
+              <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
+                <span className="soft-tag">更新：{agent.updatedAt}</span>
+                {linkedRooms.length > 0 && (
+                  <span className="soft-tag">· {linkedRooms.length} 个房间</span>
+                )}
+                {linkedTasks.length > 0 && (
+                  <span className="soft-tag">· {linkedTasks.length} 个任务</span>
+                )}
               </div>
+
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看相关项 · Tasks
-                </NavLink>
-                <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看相关项 · Rooms
+                  查看关联任务
                 </NavLink>
               </div>
             </article>
