@@ -1,8 +1,9 @@
 import { createContext, useContext } from 'react'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
 import type { OfficeInstanceItem } from './officeInstancesAdapter'
+import type { PreferredDataSource, WorkbenchMode } from '../config/runtime'
 
-export type DataSource = 'real' | 'mock'
+export type DataSource = 'mock' | 'openclaw'
 
 export interface OfficeInstancesContextValue {
   agents: Agent[]
@@ -10,7 +11,13 @@ export interface OfficeInstancesContextValue {
   rooms: Room[]
   tasks: Task[]
   updates: UpdateItem[]
-  dataSource: DataSource
+  mode: WorkbenchMode
+  preferredDataSource: PreferredDataSource
+  activeDataSource: DataSource
+  isFallback: boolean
+  pollingEnabled: boolean
+  pollingIntervalMs: number
+  visibilityRefreshEnabled: boolean
   isLoading: boolean
   error: string
   refresh: () => void

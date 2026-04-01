@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
+import { useOfficeInstances } from '../data/useOfficeInstances'
 
 const navItems = [
   { to: '/', step: 1, label: 'Dashboard', note: '总览（中枢状态）' },
@@ -14,6 +15,7 @@ const navItems = [
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { mode, preferredDataSource, activeDataSource, isFallback } = useOfficeInstances()
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -153,6 +155,10 @@ export function AppShell() {
           <div className="brand-copy">
             <h1>言町科技 KOTOVELA</h1>
             <p>OpenClaw协作驾驶舱</p>
+            <p style={{ marginTop: '6px', fontSize: '12px', opacity: 0.8 }}>
+              {mode === 'internal' ? 'Internal' : 'Demo'} · 目标 {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
+              {isFallback ? ' · Fallback 到 Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw 已接入' : ' · Mock 运行中'}
+            </p>
           </div>
         </div>
 
