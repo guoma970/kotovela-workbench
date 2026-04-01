@@ -51,7 +51,6 @@ const OFFICE_SEAT_MAP: OfficeSeat[] = [
 
 const officeBlueprint: OfficeSeat[] = OFFICE_SEAT_MAP
 
-const REFRESH_INTERVAL_SECONDS = 20
 
 const statusSentence: Record<OperationStatus, string> = {
   doing: '推进中',
@@ -148,7 +147,12 @@ export function DashboardPage() {
     rooms,
     tasks,
     updates,
-    dataSource,
+    mode,
+    preferredDataSource,
+    activeDataSource,
+    isFallback,
+    pollingEnabled,
+    pollingIntervalMs,
     isLoading,
     error,
     refresh,
@@ -156,7 +160,8 @@ export function DashboardPage() {
   } = useOfficeInstances()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
+  const refreshIntervalSeconds = Math.max(1, Math.round(pollingIntervalMs / 1000))
+  const [countdown, setCountdown] = useState(refreshIntervalSeconds)
   const [filter, setFilter] = useState<FilterMode>('all')
   const [pulseIds, setPulseIds] = useState<string[]>([])
   const previousInstancesRef = useRef<OfficeInstance[]>([])
@@ -178,10 +183,10 @@ export function DashboardPage() {
 
   const officeInstances = useMemo(
     () =>
-      dataSource === 'real'
+      activeDataSource === 'openclaw'
         ? normalizeApiInstances(rawInstances, agents, projects)
         : buildOfficeFallback(agents, projects, tasks),
-    [agents, dataSource, projects, rawInstances, tasks],
+    [activeDataSource, agents, projects, rawInstances, tasks],
   )
 
   const filteredInstances = useMemo(() => {
@@ -207,25 +212,23 @@ export function DashboardPage() {
     }
 
     previousInstancesRef.current = officeInstances
-    setCountdown(REFRESH_INTERVAL_SECONDS)
-  }, [officeInstances])
+    setCountdown(refreshIntervalSeconds)
+  }, [officeInstances, refreshIntervalSeconds])
 
   useEffect(() => {
+    if (!pollingEnabled || preferredDataSource !== 'openclaw') {
+      return
+    }
+
     const timer = setInterval(() => {
-      if (hasFocusOverlay) {
+      if (hasFocusOverlay || document.visibilityState !== 'visible') {
         return
       }
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          refresh()
-          return REFRESH_INTERVAL_SECONDS
-        }
-        return prev - 1
-      })
+      setCountdown((prev) => (prev <= 1 ? refreshIntervalSeconds : prev - 1))
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [hasFocusOverlay, refresh])
+  }, [hasFocusOverlay, pollingEnabled, preferredDataSource, refreshIntervalSeconds])
 
   useEffect(() => {
     if (!pulseIds.length) {
@@ -297,13 +300,15 @@ export function DashboardPage() {
               <p className="eyebrow">Office Board</p>
               <h2>实例工位图</h2>
             </div>
-            <p className="page-note">共 {officeBlueprint.length} 个席位 · {dataSource === 'real' ? '实时数据' : '本地快照'}{isLoading ? ' · 刷新中' : ''}</p>
+            <p className="page-note">共 {officeBlueprint.length} 个席位 · {mode === 'internal' ? 'Internal' : 'Demo'} · {activeDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}{isFallback ? '（fallback）' : ''}{isLoading ? ' · 刷新中' : ''}</p>
           </div>
 
           <div className="office-controls">
             <div className="office-refresh-meta">
-              <span className="status-pill status-blue">{countdown}s 后刷新</span>
+              <span className="status-pill status-blue">{pollingEnabled && preferredDataSource === 'openclaw' ? `${countdown}s 后轮询` : '轮询关闭'}</span>
               <span className="soft-tag">{filteredInstances.length}/{officeInstances.length}</span>
+              <span className="soft-tag">目标源：{preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}</span>
+              <button className="ghost-button" type="button" onClick={refresh}>手动刷新</button>
               {error ? <span className="soft-tag error-tag">{error}</span> : null}
             </div>
             <div className="office-filters">

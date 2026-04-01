@@ -4,6 +4,8 @@ A visual cockpit for multi-agent collaboration.
 
 Track agent status, blockers, tasks, and collaboration flows in one place.
 
+> Supports both demo (mock) and internal (real data) runtime modes.
+
 ---
 
 > Designed for fast understanding of multi-agent systems in under 10 seconds.
