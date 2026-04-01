@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { fetchOfficeInstancesPayload } from '../server/officeInstances'
+import { fetchOfficeInstancesPayload } from '../server/officeInstances.js'
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
