@@ -53,6 +53,138 @@ button,
   min-height: 100vh;
 }
 
+.home-page-v1 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.home-header {
+  align-items: flex-end;
+}
+
+.home-v1-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.home-section {
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 16, 32, 0.78);
+}
+
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.home-section-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.home-count {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(126, 163, 255, 0.14);
+  color: #dbe7ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.home-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-item {
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.home-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.home-item-top strong {
+  font-size: 0.96rem;
+}
+
+.home-item p {
+  margin: 0;
+  color: #b7c7e6;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.home-badge,
+.home-time {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.home-badge {
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.home-badge-blocker {
+  background: rgba(255, 107, 107, 0.16);
+  color: #ff9d9d;
+}
+
+.home-badge-active {
+  background: rgba(91, 140, 255, 0.16);
+  color: #9ec1ff;
+}
+
+.home-badge-idle {
+  background: rgba(159, 173, 197, 0.14);
+  color: #c8d2e7;
+}
+
+.home-item-blocker {
+  border-color: rgba(255, 107, 107, 0.18);
+}
+
+.home-item-active {
+  border-color: rgba(91, 140, 255, 0.18);
+}
+
+.home-item-idle,
+.home-item-update {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.home-time {
+  color: #8ea2c6;
+}
+
+@media (max-width: 900px) {
+  .home-v1-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
