@@ -32,6 +32,7 @@ export function OfficeInstancesProvider({
   const [isFallback, setIsFallback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [lastSyncedAtMs, setLastSyncedAtMs] = useState<number | null>(null)
 
   const lastFetchMsRef = useRef(0)
   const liveInstancesRef = useRef<OfficeInstanceItem[]>([])
@@ -58,6 +59,7 @@ export function OfficeInstancesProvider({
 
   const fetchData = useCallback(async () => {
     if (preferredDataSource === 'mock') {
+      setLastSyncedAtMs(null)
       applyMockSnapshot('')
       return
     }
@@ -107,7 +109,9 @@ export function OfficeInstancesProvider({
       setIsFallback(false)
       liveInstancesRef.current = raw
       liveUpdatesRef.current = nextUpdates
-      lastFetchMsRef.current = Date.now()
+      const now = Date.now()
+      lastFetchMsRef.current = now
+      setLastSyncedAtMs(now)
     } catch (fetchError) {
       if (runtimeConfig.fallbackToMock) {
         applyMockSnapshot('OpenClaw 接口不可用，已自动回退到 Mock 数据')
@@ -202,6 +206,7 @@ export function OfficeInstancesProvider({
         error,
         refresh,
         instances,
+        lastSyncedAtMs,
       }}
     >
       {children}

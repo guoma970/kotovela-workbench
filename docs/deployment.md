@@ -17,12 +17,14 @@ npm run build
 
 ## 预发布建议（推荐）
 
-当前最适合先走 **Vercel 预发布**：
+当前最适合先走 **Vercel 预发布**。完整步骤（双项目 Demo / Internal、`VERCEL_BUILD_MODE`、环境变量）见 **[vercel-setup.md](./vercel-setup.md)**。
+
+简版：
 
 1. 将仓库导入 Vercel
-2. Build Command 使用默认 `npm run build`
+2. Build Command 由仓库根 `vercel.json` 指定为 `node scripts/vercel-build.mjs`（勿在控制台改成裸 `vite build`）
 3. Output Directory 使用默认 `dist`
-4. `api/office-instances.js` 作为服务端接口保留 `/api/office-instances`
+4. `api/office-instances.ts` 作为服务端接口保留 `/api/office-instances`
 5. 前端通过同域 `/api/office-instances` 获取实例状态
 
 这样可以得到一个：
@@ -30,6 +32,26 @@ npm run build
 - 飞书内可直接访问
 - 不依赖本地 `localhost`
 - 仍保留实例状态接口的预发布版本
+
+## Mac mini 常驻：自建 office API（外出访问）
+
+若有一台 **24h 开机的 Mac mini**，已安装并运行 OpenClaw，可在该机器仓库目录执行：
+
+```bash
+npm install
+OFFICE_API_PORT=8787 \
+OFFICE_API_TOKEN='随机长密钥' \
+OFFICE_API_CORS_ORIGIN='https://你的-internal-站点.vercel.app' \
+npm run serve:office-api
+```
+
+- 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances`
+- 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`（前端可把完整 URL 配进 `VITE_OFFICE_INSTANCES_API_PATH`，含 query 则注意构建时写入）
+- **外出访问**：家庭宽带通常无固定公网 IP，需任选其一：
+  - **Cloudflare Tunnel** / **Tailscale Funnel** / **ngrok**：把 `8787` 暴露为 **HTTPS**（避免浏览器混合内容拦截）
+  - 或 **仅 Tailscale/ZeroTier VPN**：手机加入同一虚拟网后访问 `http://100.x.x.x:8787`
+- **Vercel internal 前端**：构建环境变量里把 `VITE_OFFICE_INSTANCES_API_PATH` 设为隧道给出的 **HTTPS** 地址（路径 `/api/office-instances` 及鉴权与本地一致）
+- **launchd**：用 `launchctl` 把上述命令注册为开机自启，并在 plist 里写入与交互 shell 一致的 `PATH`（确保能找到 `openclaw`）
 
 ## 实例状态同步（远程查看）
 
@@ -100,6 +122,16 @@ docs/ops/office-snapshot-sync.md
 
 - 预发布阶段：直接把 Vercel 预发布链接放进飞书群 / 文档 / 知识库
 - 稳定后：再考虑挂到飞书 H5 或工作台页签
+
+## 手机 / iPad / 电脑「轻应用」体验
+
+仓库已提供 **Web App Manifest**（`public/manifest.webmanifest`）与 **Apple 全屏 meta**，部署到 **HTTPS** 后：
+
+- **iPhone / iPad（Safari）**：分享 → **添加到主屏幕**，可从桌面图标以 **独立窗口** 打开（类似轻应用）
+- **Android（Chrome）**：菜单 → **安装应用** 或 **添加到主屏幕**
+- **桌面 Chrome / Edge**：地址栏安装提示（若浏览器支持）
+
+图标当前使用 `favicon.svg`；若需 iOS 旧系统更稳的触控图标，可后续增加 `apple-touch-icon` 专用 PNG（180×180）。
 
 ## 当前边界
 

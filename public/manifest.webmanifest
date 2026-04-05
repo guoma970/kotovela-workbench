@@ -1,0 +1,20 @@
+{
+  "name": "KOTOVELA 驾驶舱",
+  "short_name": "驾驶舱",
+  "description": "多实例协作状态与项目跟进",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0b1020",
+  "background_color": "#0b1020",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "business"]
+}

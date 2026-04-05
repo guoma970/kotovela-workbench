@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react'
+import { runtimeConfig } from '../config/runtime'
+import { resolveInternalInstanceGlyph } from '../config/instanceGlyphs'
 
 interface ObjectBadgeProps {
   kind: 'project' | 'agent' | 'room' | 'task'
   code: string
   name?: string
+  /** OpenClaw / mock 实例 key（main、builder…），内部版用于图标内简称 */
+  instanceKey?: string
+  /** 内部版无 instanceKey 时用于对照 INS-01…06（如 agent-1） */
+  agentId?: string
   compact?: boolean
   clickable?: boolean
   selected?: boolean
@@ -53,8 +59,19 @@ const resolveAgentIcon = (code?: string, name?: string): string => {
   return kindLabel.agent
 }
 
-const resolveObjectIcon = (kind: ObjectBadgeProps['kind'], code: string, name?: string): string => {
+const resolveObjectIcon = (
+  kind: ObjectBadgeProps['kind'],
+  code: string,
+  name: string | undefined,
+  instanceKey: string | undefined,
+  agentId: string | undefined,
+): string => {
   if (kind === 'agent') {
+    // 公开 Demo：仅用英文字母等中性图标；个人化单字仅 internal 构建
+    if (runtimeConfig.mode === 'internal') {
+      const glyph = resolveInternalInstanceGlyph(code, instanceKey, agentId)
+      if (glyph) return glyph
+    }
     return resolveAgentIcon(code, name)
   }
 
@@ -65,6 +82,8 @@ export function ObjectBadge({
   kind,
   code,
   name,
+  instanceKey,
+  agentId,
   compact = false,
   clickable = false,
   selected = false,
@@ -79,7 +98,7 @@ export function ObjectBadge({
   const selectedState = isSelected ?? selected
   const relatedState = isRelated ?? related
   const dimmedState = isDimmed ?? dimmed
-  const icon = resolveObjectIcon(kind, code, name)
+  const icon = resolveObjectIcon(kind, code, name, instanceKey, agentId)
 
   const className = [
     'object-badge',

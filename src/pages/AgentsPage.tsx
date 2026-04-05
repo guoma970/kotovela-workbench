@@ -77,7 +77,16 @@ export function AgentsPage() {
           return (
             <article key={agent.id} className={cardClass(agent.id)} onClick={() => linking.select('agent', agent.id)}>
               <div className="panel-header align-start">
-                <ObjectBadge kind="agent" code={agent.code} name={agent.name} clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
+                <ObjectBadge
+                  kind="agent"
+                  code={agent.code}
+                  name={agent.name}
+                  instanceKey={agent.instanceKey}
+                  agentId={agent.id}
+                  clickable
+                  onClick={() => linking.select('agent', agent.id)}
+                  {...linking.getState('agent', agent.id)}
+                />
                 <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
               </div>
 

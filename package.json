@@ -11,8 +11,10 @@
     "sync:office-snapshot": "node scripts/export-office-snapshot.mjs",
     "dev:demo": "vite --mode demo --port 5173 --strictPort",
     "dev:internal": "vite --mode internal --port 5173 --strictPort",
-    "build:demo": "tsc -b && vite build --mode demo",
-    "build:internal": "tsc -b && vite build --mode internal"
+    "build:demo": "tsc -b && node scripts/verify-demo-build-safe.mjs && vite build --mode demo",
+    "build:internal": "tsc -b && vite build --mode internal",
+    "serve:office-api": "tsx scripts/office-api-server.ts",
+    "vercel-build": "node scripts/vercel-build.mjs"
   },
   "dependencies": {
     "react": "^19.2.4",
@@ -34,6 +36,7 @@
     "playwright": "^1.59.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
+    "tsx": "^4.20.5",
     "vite": "^8.0.1"
   }
 }

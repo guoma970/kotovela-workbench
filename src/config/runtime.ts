@@ -32,7 +32,10 @@ export const runtimeConfig = {
   mode: MODE,
   preferredDataSource: parsePreferredDataSource(import.meta.env.VITE_DATA_SOURCE, MODE),
   pollingEnabled: parseBoolean(import.meta.env.VITE_POLLING_ENABLED, MODE === 'internal'),
-  pollingIntervalMs: parsePositiveInt(import.meta.env.VITE_POLLING_INTERVAL_MS, 20_000),
+  pollingIntervalMs: parsePositiveInt(
+    import.meta.env.VITE_POLLING_INTERVAL_MS,
+    MODE === 'internal' ? 5_000 : 20_000,
+  ),
   visibilityRefreshEnabled: parseBoolean(import.meta.env.VITE_VISIBILITY_REFRESH, true),
   fallbackToMock: parseBoolean(import.meta.env.VITE_FALLBACK_TO_MOCK, true),
   staleMs: parsePositiveInt(import.meta.env.VITE_STALE_MS, 30_000),

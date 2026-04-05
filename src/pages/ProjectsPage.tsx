@@ -5,7 +5,8 @@ import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function ProjectsPage() {
-  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const { projects, agents, rooms, tasks, mode } = useOfficeInstances()
+  const showCockpitDetail = mode === 'internal'
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const blockedCount = projects.reduce((sum, project) => sum + project.blockers, 0)
@@ -78,6 +79,12 @@ export function ProjectsPage() {
                   <span>Owner</span>
                   <strong>{project.owner}</strong>
                 </div>
+                {showCockpitDetail && (project.instanceCount ?? 0) > 1 ? (
+                  <div>
+                    <span>实例</span>
+                    <strong>{project.instanceCount}</strong>
+                  </div>
+                ) : null}
                 <div>
                   <span>Blocker</span>
                   <strong>
@@ -91,6 +98,20 @@ export function ProjectsPage() {
                   </strong>
                 </div>
               </div>
+              {showCockpitDetail ? (
+                <div className="project-progress-wrap" aria-label={`进度 ${project.progress}%`}>
+                  <div className="project-progress-label">
+                    <span>进度</span>
+                    <span className="project-progress-pct">{project.progress}%</span>
+                  </div>
+                  <div className="project-progress-track">
+                    <div
+                      className="project-progress-fill"
+                      style={{ width: `${Math.min(100, Math.max(0, project.progress))}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <div className="info-block emphasis-block">
                 <span>Focus / next step</span>
                 <strong>{project.focus}</strong>
@@ -107,6 +128,8 @@ export function ProjectsPage() {
                           kind="agent"
                           code={agent.code}
                           name={agent.name}
+                          instanceKey={agent.instanceKey}
+                          agentId={agent.id}
                           compact
                           clickable
                           onClick={() => linking.select('agent', agent.id)}

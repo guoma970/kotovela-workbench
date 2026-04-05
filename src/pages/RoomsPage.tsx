@@ -96,7 +96,18 @@ export function RoomsPage() {
                   <span className="section-label">Agents {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
-                      <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
+                      <ObjectBadge
+                        key={agent.id}
+                        kind="agent"
+                        code={agent.code}
+                        name={agent.name}
+                        instanceKey={agent.instanceKey}
+                        agentId={agent.id}
+                        compact
+                        clickable
+                        onClick={() => linking.select('agent', agent.id)}
+                        {...linking.getState('agent', agent.id)}
+                      />
                     ))}
                   </div>
                 </div>

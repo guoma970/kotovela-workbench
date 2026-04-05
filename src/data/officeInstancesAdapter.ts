@@ -1,3 +1,4 @@
+import { defaultInstanceDisplayName } from '../config/instanceDisplayNames'
 import type { Agent, Project, Room, Task } from '../types'
 
 export type OfficeInstanceStatus = 'doing' | 'done' | 'blocker' | 'idle' | 'active' | 'blocked'
@@ -105,8 +106,6 @@ const PROJECT_NAME_HINTS: Record<string, string> = {
   'knowledge base refresh': 'project-4',
   'external demo assets': 'project-5',
 }
-
-const FALLBACK_PROJECT_ID = 'project-1'
 
 const normalizeStatus = (value?: string): OfficeInstanceStatus => {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
@@ -233,6 +232,60 @@ const toProjectStatus = (status: OfficeInstanceStatus): Project['status'] => {
     default:
       return 'planning'
   }
+}
+
+const foldProjectStatus = (a: Project['status'], b: Project['status']): Project['status'] => {
+  if (a === 'blocked' || b === 'blocked') return 'blocked'
+  if (a === 'active' || b === 'active') return 'active'
+  return 'planning'
+}
+
+/** Merge per-instance project rows that share the same canonical id (multi-instance → one portfolio row). */
+export function mergeSyncedProjects(projects: Project[]): Project[] {
+  if (projects.length === 0) return projects
+
+  const byId = new Map<string, Project[]>()
+  for (const p of projects) {
+    const list = byId.get(p.id) ?? []
+    list.push(p)
+    byId.set(p.id, list)
+  }
+
+  const merged: Project[] = []
+  for (const group of byId.values()) {
+    if (group.length === 1) {
+      merged.push({ ...group[0], instanceCount: 1 })
+      continue
+    }
+
+    const blockers = group.reduce((sum, p) => sum + p.blockers, 0)
+    const taskCount = group.reduce((sum, p) => sum + p.taskCount, 0)
+    const progressAvg = Math.round(group.reduce((sum, p) => sum + p.progress, 0) / group.length)
+    const status = group.map((p) => p.status).reduce(foldProjectStatus, 'planning')
+    const roomIds = [...new Set(group.flatMap((p) => p.roomIds))]
+    const blockedFirst = group.find((p) => p.blockers > 0)
+    const base = blockedFirst ?? group[0]
+
+    merged.push({
+      ...base,
+      blockers,
+      taskCount,
+      progress: progressAvg,
+      status,
+      roomIds,
+      instanceCount: group.length,
+      owner: `${group.length} 个实例`,
+      focus: blockedFirst?.focus ?? base.focus,
+      nextStep: blockedFirst?.nextStep ?? base.nextStep,
+      stage: blockedFirst?.stage ?? base.stage,
+    })
+  }
+
+  return merged.sort((a, b) => {
+    if (b.blockers !== a.blockers) return b.blockers - a.blockers
+    if (b.progress !== a.progress) return b.progress - a.progress
+    return a.name.localeCompare(b.name)
+  })
 }
 
 const toRoomStatus = (status: OfficeInstanceStatus): Room['status'] => {
@@ -475,23 +528,30 @@ export const syncOfficeInstancesToAgents = (
     return { agents: fallbackAgents, stats: fallbackStat, hasRealData: false }
   }
 
-  const syncedAgents = instances.map((item) => {
+  const syncedAgents = instances.map((item, index) => {
     const key = item.key?.trim()
     const source = item as Record<string, unknown>
     const fallbackAgent = key ? buildFallbackAgent(key, fallbackAgents) : undefined
     const projectName = pickString(source.projectName || source.project || source.mainProject)
+    const canonicalProjectId = getProjectIdFromInstance(item, index)
 
     return {
       ...fallbackAgent,
       id: fallbackAgent?.id ?? `office-${key || 'unknown'}`,
       code: fallbackAgent?.code ?? OFFICE_AGENT_CODE_MAP[key ?? ''] ?? key?.toUpperCase() ?? 'INS-00',
-      name: item.name || fallbackAgent?.name || `实例 ${key || 'unknown'}`,
+      name:
+        pickFirstStringFromValues([pickString(source.displayName), pickString(source.display_name)]) ||
+        defaultInstanceDisplayName(key?.toLowerCase()) ||
+        pickString(item.name) ||
+        fallbackAgent?.name ||
+        `实例 ${key || 'unknown'}`,
       role: item.role || fallbackAgent?.role || '未设置角色',
       status: toAgentStatus(normalizeStatus(item.status)),
       currentTask: pickString(source.currentTask) || pickString(source.current_task) || item.task || fallbackAgent?.currentTask || '暂无任务',
       project: projectName || fallbackAgent?.project || 'KOTOVELA',
-      projectId: pickFirstIdFromValues([source.projectId, source.project_id]) || fallbackAgent?.projectId || FALLBACK_PROJECT_ID,
+      projectId: canonicalProjectId,
       updatedAt: pickString(source.ageText || source.updatedAt || source.updatedAtText, fallbackAgent?.updatedAt || '刚刚'),
+      instanceKey: key || undefined,
     }
   })
 
@@ -609,7 +669,7 @@ export const syncProjectsFromInstances = (
     }
   })
 
-  return { projects: projects, hasRealData: true }
+  return { projects: mergeSyncedProjects(projects), hasRealData: true }
 }
 
 export const syncRoomsFromInstances = (
@@ -646,6 +706,11 @@ export const syncRoomsFromInstances = (
 
     if (instanceId && instanceIds.length === 1) {
       instanceIds[0] = instanceId
+    }
+
+    const anchorAgentId = getAgentIdByInstance(item)
+    if (anchorAgentId && !instanceIds.includes(anchorAgentId)) {
+      instanceIds.unshift(anchorAgentId)
     }
 
     const roomName = pickFirstStringFromValues([

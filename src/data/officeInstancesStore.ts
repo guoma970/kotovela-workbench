@@ -22,6 +22,8 @@ export interface OfficeInstancesContextValue {
   error: string
   refresh: () => void
   instances: OfficeInstanceItem[]
+  /** 最近一次成功从 OpenClaw 拉取并完成处理的时间戳（ms）；Mock 或未成功过为 null */
+  lastSyncedAtMs: number | null
 }
 
 export const OfficeInstancesContext = createContext<OfficeInstancesContextValue | null>(null)

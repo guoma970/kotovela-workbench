@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { formatLastSyncedAt } from '../lib/formatSyncTime'
 
 const navItems = [
   { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -15,7 +16,14 @@ const navItems = [
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { mode, preferredDataSource, activeDataSource, isFallback } = useOfficeInstances()
+  const {
+    mode,
+    preferredDataSource,
+    activeDataSource,
+    isFallback,
+    lastSyncedAtMs,
+    pollingIntervalMs,
+  } = useOfficeInstances()
   const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
   const productTagline = mode === 'internal' ? 'Internal command center' : 'OpenClaw collaboration cockpit'
   const currentNavItem =
@@ -161,6 +169,19 @@ export function AppShell() {
               {mode === 'internal' ? 'Internal' : 'Demo'} · Target {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
               {isFallback ? ' · Fallback to Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw connected' : ' · Mock active'}
             </p>
+            {mode === 'internal' ? (
+              <p style={{ marginTop: '4px', fontSize: '11px', opacity: 0.72, lineHeight: 1.45 }}>
+                {preferredDataSource === 'openclaw' ? (
+                  <>
+                    上次同步 {formatLastSyncedAt(lastSyncedAtMs)}
+                    <br />
+                    轮询间隔 {Math.max(1, Math.round(pollingIntervalMs / 1000))} 秒
+                  </>
+                ) : (
+                  <>Mock 模式 · 不请求 OpenClaw</>
+                )}
+              </p>
+            ) : null}
           </div>
         </div>
 

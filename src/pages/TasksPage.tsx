@@ -86,7 +86,19 @@ export function TasksPage() {
                       </div>
                       <div className="object-row top-gap">
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
-                        {agent && <ObjectBadge kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />}
+                        {agent && (
+                          <ObjectBadge
+                            kind="agent"
+                            code={agent.code}
+                            name={agent.name}
+                            instanceKey={agent.instanceKey}
+                            agentId={agent.id}
+                            compact
+                            clickable
+                            onClick={() => linking.select('agent', agent.id)}
+                            {...linking.getState('agent', agent.id)}
+                          />
+                        )}
                       </div>
                       <div className="queue-meta dense-meta">
                         <span>{task.assignee}</span>
