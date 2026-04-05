@@ -1,7 +1,7 @@
 {
-  "name": "KOTOVELA 驾驶舱",
-  "short_name": "驾驶舱",
-  "description": "多实例协作状态与项目跟进",
+  "name": "KOTOVELA HUB",
+  "short_name": "HUB",
+  "description": "内部驾驶舱 · 实例状态与项目跟进",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

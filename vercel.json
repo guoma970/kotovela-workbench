@@ -11,7 +11,20 @@
   ],
   "headers": [
     {
-      "source": "/manifest.webmanifest",
+      "source": "/manifest.demo.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.internal.webmanifest",
       "headers": [
         {
           "key": "Content-Type",

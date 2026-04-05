@@ -125,7 +125,7 @@ docs/ops/office-snapshot-sync.md
 
 ## 手机 / iPad / 电脑「轻应用」体验
 
-仓库已提供 **Web App Manifest**（`public/manifest.webmanifest`）与 **Apple 全屏 meta**，部署到 **HTTPS** 后：
+仓库已提供 **双份 Web App Manifest**（`public/manifest.demo.webmanifest` / `manifest.internal.webmanifest`，由 Vite `mode` 注入到 `index.html`）与 **Apple 全屏 meta**，部署到 **HTTPS** 后：
 
 - **iPhone / iPad（Safari）**：分享 → **添加到主屏幕**，可从桌面图标以 **独立窗口** 打开（类似轻应用）
 - **Android（Chrome）**：菜单 → **安装应用** 或 **添加到主屏幕**

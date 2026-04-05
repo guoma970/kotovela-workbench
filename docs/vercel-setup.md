@@ -65,9 +65,25 @@
 - **Internal 可选**：`GET /api/office-instances` 在同域应返回 JSON（Vercel 上一般为 **snapshot**；连 Mac mini 时以前端 `VITE_OFFICE_INSTANCES_API_PATH` 为准）
 - 两站均可试 **添加到主屏幕**（见 `docs/deployment.md`「轻应用」）
 
-## 5. 自定义域名
+## 5. 自定义域名（推荐：www 公开 · hub 内部）
 
-在 Vercel 项目 **Settings → Domains** 绑定即可；**必须 HTTPS**，PWA 与混合内容策略才完整。
+**「实际域名」**指你在浏览器里访问用的 **HTTPS 主机名**（可以是 Vercel 默认 `*.vercel.app`，也可以是你自己的域名）。
+
+若你持有 **kotovela.com**，建议分工：
+
+| 主机名 | 绑定的 Vercel 项目 | `VERCEL_BUILD_MODE` | 用途 |
+|--------|--------------------|---------------------|------|
+| `www.kotovela.com`（或根域做跳转） | **公开 Demo** | `demo` 或留空 | 开源展示、营销、申请材料；PWA 主屏幕显示 **Workbench** |
+| `hub.kotovela.com` | **内部驾驶舱** | `internal` | 你日常用的轻应用；PWA 显示 **HUB**；建议访问控制 |
+
+**不是必须**叫 `hub`——也可用 `ops.`、`dash.` 等；关键是 **公开与内部两个源站分离**，避免把内部实例接口和公开展示混在同一认知里。
+
+**DNS（示例）**
+
+- `www` → CNAME 到 Vercel 提供的目标（公开项目）
+- `hub` → CNAME 到内部项目的目标（与上不同子域可在同一 Vercel 账号下两个项目分别添加域名）
+
+在各自 Vercel 项目 **Settings → Domains** 里添加对应主机名并按提示验证；**必须 HTTPS**（Vercel 自动证书），PWA 与混合内容策略才完整。
 
 ## 6. 常见问题
 
