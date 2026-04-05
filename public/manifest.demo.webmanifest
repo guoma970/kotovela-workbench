@@ -1,7 +1,7 @@
 {
-  "name": "KOTOVELA Workbench",
-  "short_name": "Workbench",
-  "description": "OpenClaw 多实例协作演示 · 开源可参考",
+  "name": "OpenClaw × KOTOVELA",
+  "short_name": "O×KOTOVELA",
+  "description": "OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -6,6 +6,8 @@ Track agent status, blockers, tasks, and collaboration flows in one place.
 
 > Supports both demo (mock) and internal (real data) runtime modes.
 
+> **Deploy product names**: **OpenClaw × KOTOVELA** → [openclaw-kotovela.vercel.app](https://openclaw-kotovela.vercel.app/) (public demo) · **KOTOVELA HUB** → [kotovelahub.vercel.app](https://kotovelahub.vercel.app) (internal cockpit).
+
 ---
 
 > Designed for fast understanding of multi-agent systems in under 10 seconds.
@@ -111,8 +113,8 @@ npm install
 
 | Environment | npm scripts | Notes |
 |-------------|-------------|--------|
-| Demo (mock, public-facing) | `npm run dev:demo` · `npm run build:demo` | Deploy: [kotovela-workbench.vercel.app](https://kotovela-workbench.vercel.app/) |
-| Internal (OpenClaw data) | `npm run dev:internal` · `npm run build:internal` | Deploy: [kotovela-internal.vercel.app](https://kotovela-internal.vercel.app) · 默认 **5s** 轮询（`VITE_POLLING_INTERVAL_MS`），中控与侧栏显示 **上次同步时间** |
+| Demo (mock, public-facing) | `npm run dev:demo` · `npm run build:demo` | **OpenClaw × KOTOVELA** · [openclaw-kotovela.vercel.app](https://openclaw-kotovela.vercel.app/) |
+| Internal (OpenClaw data) | `npm run dev:internal` · `npm run build:internal` | **KOTOVELA HUB** · [kotovelahub.vercel.app](https://kotovelahub.vercel.app) · 默认 **5s** 轮询（`VITE_POLLING_INTERVAL_MS`），中控与侧栏显示 **上次同步时间** |
 
 ### Public demo vs internal cockpit
 

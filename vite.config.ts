@@ -23,14 +23,14 @@ export default defineConfig(({ mode }) => {
           return html
             .replace('/manifest.demo.webmanifest', '/manifest.internal.webmanifest')
             .replace(
-              '<meta name="description" content="KOTOVELA Workbench · OpenClaw 多实例协作演示" />',
+              '<meta name="description" content="OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）" />',
               '<meta name="description" content="KOTOVELA HUB · 内部驾驶舱：实例状态与项目跟进" />',
             )
             .replace(
-              '<meta name="apple-mobile-web-app-title" content="Workbench" />',
+              '<meta name="apple-mobile-web-app-title" content="O×KOTOVELA" />',
               '<meta name="apple-mobile-web-app-title" content="HUB" />',
             )
-            .replace('<title>KOTOVELA Workbench</title>', '<title>KOTOVELA HUB</title>')
+            .replace('<title>OpenClaw × KOTOVELA</title>', '<title>KOTOVELA HUB</title>')
         },
       },
       {

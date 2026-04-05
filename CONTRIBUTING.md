@@ -1,4 +1,4 @@
-# Contributing to KOTOVELA Workbench
+# Contributing to OpenClaw × KOTOVELA
 
 ## 开发流程（建议）
 

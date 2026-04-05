@@ -2,7 +2,7 @@
  * 在 Mac mini（或任意已安装 openclaw CLI 的机器）上常驻运行，对外提供与 Vite dev 同形的 JSON。
  *
  * 启动示例：
- *   OFFICE_API_PORT=8787 OFFICE_API_TOKEN='你的密钥' OFFICE_API_CORS_ORIGIN='https://你的-internal.vercel.app' npm run serve:office-api
+ *   OFFICE_API_PORT=8787 OFFICE_API_TOKEN='你的密钥' OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' npm run serve:office-api
  *
  * 外出访问：用 Cloudflare Tunnel / Tailscale Funnel / ngrok 等把本机端口暴露为 HTTPS，
  * 再在 Vercel internal 构建里设置 VITE_OFFICE_INSTANCES_API_PATH 指向该 HTTPS URL（含路径）。

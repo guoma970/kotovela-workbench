@@ -2,13 +2,13 @@
 
 ## 产品定位（与对外话术一致）
 
-- **公开版（Demo）**  
+- **公开版（Demo）— 产品名：OpenClaw × KOTOVELA**  
   - **开源展示**：给同样使用 **OpenClaw** 的人下载、本地跑、参考实现。  
   - **KOTOVELA 营销**：可对外讲的品牌与产品叙事、截图与链接。  
   - **材料用途**：后续用于 **GPT Pro / 类似计划的试用或权益申请** 时，可作为「公开可访问的 OSS 演示」佐证（以各平台当时规则为准）。  
   - **线上站点不需要 API**：访客只看到仓库内置 **Mock** 叙事，**不依赖**你配置任何 office 接口；也**不必**在 Vercel 为公开项目配 `VITE_OFFICE_INSTANCES_*`。
 
-- **内部驾驶舱（Internal）**  
+- **内部驾驶舱（Internal）— 产品名：KOTOVELA HUB**  
   - **你真实在用**：看 **自己** 各实例工作状态、中控总览、项目进度与轮询/上次同步。  
   - **数据**：自建 **Mac mini API（隧道 HTTPS）**、或 Vercel 同域 `/api/office-instances`（多为快照）、失败时 Mock 回退。
 
@@ -65,27 +65,42 @@
 - **Internal 可选**：`GET /api/office-instances` 在同域应返回 JSON（Vercel 上一般为 **snapshot**；连 Mac mini 时以前端 `VITE_OFFICE_INSTANCES_API_PATH` 为准）
 - 两站均可试 **添加到主屏幕**（见 `docs/deployment.md`「轻应用」）
 
-## 5. 自定义域名（推荐：www 公开 · hub 内部）
+## 5. 线上地址（定稿）与自定义域名（可选）
 
-**「实际域名」**指你在浏览器里访问用的 **HTTPS 主机名**（可以是 Vercel 默认 `*.vercel.app`，也可以是你自己的域名）。
+**「实际域名」**指你在浏览器里访问用的 **HTTPS 主机名**。**轻应用（添加到主屏幕）**只要求站点是 **HTTPS**；**Vercel 为每个项目提供的 `*.vercel.app` 已完全可用**，不必为了安装 PWA 再单独购买或绑定自有域名。自有域名（如公司主站子域）是 **品牌与分流** 层面的可选项。
 
-若你持有 **kotovela.com**，建议分工：
+以下为团队 **定稿** 的线上域名与页面展示名（与 `AppShell` / PWA manifest / `index.html` 一致）。**Vercel 上项目 slug 需与下表主机名一致**，且 **Production 部署成功** 后对应 `https://…vercel.app` 才可访问；若控制台 **Settings → Domains** 中实际域名与下表不同（例如改过项目名），**以控制台为准**，并同步改 `OFFICE_API_CORS_ORIGIN`、对外文档链接等。
 
-| 主机名 | 绑定的 Vercel 项目 | `VERCEL_BUILD_MODE` | 用途 |
-|--------|--------------------|---------------------|------|
-| `www.kotovela.com`（或根域做跳转） | **公开 Demo** | `demo` 或留空 | 开源展示、营销、申请材料；PWA 主屏幕显示 **Workbench** |
-| `hub.kotovela.com` | **内部驾驶舱** | `internal` | 你日常用的轻应用；PWA 显示 **HUB**；建议访问控制 |
+| 站点 | 页面展示名 | 线上域名 | `VERCEL_BUILD_MODE` |
+|------|------------|----------|---------------------|
+| 公开 Demo | **OpenClaw × KOTOVELA** | `https://openclaw-kotovela.vercel.app` | `demo` 或留空 |
+| 内部驾驶舱 | **KOTOVELA HUB** | `https://kotovelahub.vercel.app` | `internal` |
 
-**不是必须**叫 `hub`——也可用 `ops.`、`dash.` 等；关键是 **公开与内部两个源站分离**，避免把内部实例接口和公开展示混在同一认知里。
+**重要：`*.vercel.app` 来自「项目名 / slug」，不是仓库里写的字符串。** 例如 Overview 里项目名仍是 **`kotovela-workbench-internal`** 时，默认域名一定是 **`https://kotovela-workbench-internal.vercel.app`**。此时去打开 **`https://kotovelahub.vercel.app`** 会得到 **`DEPLOYMENT_NOT_FOUND`**（该子域下没有挂任何项目），**改 `vercel.json` 或前端代码无法修复**。要与上表定稿 **`kotovelahub.vercel.app`** 对齐，在 Vercel 上 **Settings → General → Project Name** 把项目改名为 **`kotovelahub`**（若该 slug 未被占用），保存后在 **Settings → Domains** 确认新默认域，并把 Mac mini 的 **`OFFICE_API_CORS_ORIGIN`** 改成该 HTTPS 源。若暂时不改项目名，则应以 **`kotovela-workbench-internal.vercel.app`** 为内部线上地址，并同步更新文档链接与 CORS。
 
-**DNS（示例）**
+### 迁到定稿域名：「删旧建新」还是「改名」？
 
-- `www` → CNAME 到 Vercel 提供的目标（公开项目）
-- `hub` → CNAME 到内部项目的目标（与上不同子域可在同一 Vercel 账号下两个项目分别添加域名）
+- **改名（通常够用）**  
+  不删项目：在 **Settings → General → Project Name** 把 **`kotovela-workbench-internal`** 改成 **`kotovelahub`**。保存后默认 **`https://kotovelahub.vercel.app`** 会指向**当前同一套**部署与配置；旧的 **`kotovela-workbench-internal.vercel.app`** 一般不再作为生产入口（以 Domains 列表为准）。飞书 / 文档里把链接换成新域名即可。
 
-在各自 Vercel 项目 **Settings → Domains** 里添加对应主机名并按提示验证；**必须 HTTPS**（Vercel 自动证书），PWA 与混合内容策略才完整。
+- **删除旧项目再新建（你说的「删掉旧地址、再部署新地址」）**  
+  适用：想从零收一个干净项目名、或改名遇到 slug 占用等情况。  
+  1. 在旧项目 **Settings → Environment Variables** 里**抄下**全部变量（内部站至少 **`VERCEL_BUILD_MODE=internal`**，以及你配的 **`VITE_OFFICE_INSTANCES_API_PATH`** 等）。  
+  2. **Settings → Advanced → Delete Project** 删除旧项目（例如 `kotovela-workbench-internal`）。  
+  3. **Add New… → Project**，**Import 同一 Git 仓库**，创建时项目名填 **`kotovelahub`**（公开 Demo 则 **`openclaw-kotovela`**，且 **`VERCEL_BUILD_MODE`** 为 `demo` 或留空）。  
+  4. 把抄下的环境变量**原样加回**新项目 → 触发 **Deploy**，确认 **Domains** 里已是定稿域名。  
+  5. 更新 **Mac mini** 的 **`OFFICE_API_CORS_ORIGIN`** 为新的内部站 `https://kotovelahub.vercel.app`（或控制台实际域名）。
+
+**说明**：Vercel 上不存在「在仓库里删除旧 URL」这种操作；**线上地址只由项目是否存在、项目名、以及 Domains 配置决定**。删项目或改名后，务必把所有对外链接和 CORS 指到新域名。
+
+若你持有 **kotovela.com** 等自有域，可在两个 Vercel 项目里分别 **Settings → Domains** 添加子域（例如 `www` 指向公开项目、`hub` 或 `ops` 指向内部项目），**CNAME** 到 Vercel 提示的目标即可；**必须 HTTPS**（Vercel 自动证书）。关键是 **公开与内部两个源站分离**，避免把内部实例数据面与公开展示混在同一入口认知里。
 
 ## 6. 常见问题
+
+**Q：浏览器打开 `https://xxx.vercel.app` 整站 404？**  
+先在终端执行：`curl -sI "https://你的域名/" | grep -i x-vercel-error`  
+- 若出现 **`DEPLOYMENT_NOT_FOUND`**：这是 **Vercel 在该主机名下没有任何已发布的 Production 部署**，与仓库里的 `vercel.json` 重写规则**无关**；改代码也解决不了，必须先让控制台里 **Deployments → Production = Ready**。请逐项确认：① 已在 Vercel **Import** 本仓库并关联正确的 Git 分支；② 最新 **Production** 构建成功（失败则整站不可用）；③ 浏览器地址栏里的域名与 **Settings → Domains** 里显示的默认域一致（项目改名后 `*.vercel.app` 会变）。定稿表中的 `openclaw-kotovela`、`kotovelahub` 需与 **Vercel 项目名（slug）**一致；不一致时用控制台域名。  
+- 若 **没有** `DEPLOYMENT_NOT_FOUND`、而是访问子路径（如 `/projects`）404：再检查 `vercel.json` 的 SPA `rewrites` 与 **Output Directory**（本仓库已在 `vercel.json` 写明 **`outputDirectory`: `dist`**）。
 
 **Q：Internal 页面一直是 Mock？**  
 检查 `VERCEL_BUILD_MODE=internal` 是否在该环境的 **Production**（及 Preview 如需）都已设置；重新 Deploy。
@@ -115,5 +130,5 @@ Mac mini 上跑 `npm run serve:office-api`，用 Cloudflare Tunnel 等得到 HTT
 
 **营销与开源**
 
-- 当前公开版 = **通用 Mock 叙事** + 可克隆本地运行，**不含你的实机状态**，适合对外链接、README、申请材料。  
+- 当前公开版（**OpenClaw × KOTOVELA**）= **通用 Mock 叙事** + 可克隆本地运行，**不含你的实机状态**，适合对外链接、README、申请材料。  
 - 「定稿」更多是**流程选择**：公开站点少动；**安全底线**由上述校验与 Mock 模式保证，而不是必须永远不改代码。

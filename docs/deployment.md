@@ -41,10 +41,11 @@ npm run build
 npm install
 OFFICE_API_PORT=8787 \
 OFFICE_API_TOKEN='随机长密钥' \
-OFFICE_API_CORS_ORIGIN='https://你的-internal-站点.vercel.app' \
+OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' \
 npm run serve:office-api
 ```
 
+- `OFFICE_API_CORS_ORIGIN` 须与内部站在浏览器中的 **HTTPS 源**一致（上例为 **KOTOVELA HUB** 常用部署域 `https://kotovelahub.vercel.app`；若你使用自有域名，请改成实际主机名）
 - 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances`
 - 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`（前端可把完整 URL 配进 `VITE_OFFICE_INSTANCES_API_PATH`，含 query 则注意构建时写入）
 - **外出访问**：家庭宽带通常无固定公网 IP，需任选其一：
@@ -125,7 +126,7 @@ docs/ops/office-snapshot-sync.md
 
 ## 手机 / iPad / 电脑「轻应用」体验
 
-仓库已提供 **双份 Web App Manifest**（`public/manifest.demo.webmanifest` / `manifest.internal.webmanifest`，由 Vite `mode` 注入到 `index.html`）与 **Apple 全屏 meta**，部署到 **HTTPS** 后：
+仓库已提供 **双份 Web App Manifest**（`public/manifest.demo.webmanifest` / `manifest.internal.webmanifest`，由 Vite `mode` 注入到 `index.html`）与 **Apple 全屏 meta**。部署到 **HTTPS** 即可（**Vercel 默认的 `*.vercel.app` 已满足**；自有域名仅为品牌与分流，**不是**「添加到主屏幕」的前置条件）：
 
 - **iPhone / iPad（Safari）**：分享 → **添加到主屏幕**，可从桌面图标以 **独立窗口** 打开（类似轻应用）
 - **Android（Chrome）**：菜单 → **安装应用** 或 **添加到主屏幕**

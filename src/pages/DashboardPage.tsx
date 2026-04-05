@@ -474,8 +474,8 @@ export function DashboardPage() {
       <section className="page home-page-v1 home-page--internal-control">
         <div className="page-header home-header home-header--compact">
           <div>
-            <p className="eyebrow">KOTOVELA · 内部</p>
-            <h2>驾驶舱中控</h2>
+            <p className="eyebrow">KOTOVELA HUB</p>
+            <h2>驾驶舱总览</h2>
           </div>
         </div>
 
@@ -529,13 +529,11 @@ export function DashboardPage() {
     <section className="page home-page-v1">
       <div className="page-header home-header">
         <div>
-          <p className="eyebrow">KOTOVELA HUB</p>
-          <h2>KOTOVELA HUB</h2>
+          <p className="eyebrow">开源演示</p>
+          <h2>OpenClaw × KOTOVELA</h2>
         </div>
         <p className="page-note">
-          Real-time internal status is visible here. Current data source: {activeDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-          {isFallback ? ' (fallback)' : ''}
-          {isLoading ? ' · refreshing' : ' · live status visible'}
+          线上公开站为仓库内置 <strong>Mock</strong>，不依赖实机 API。克隆仓库后可在本地以 Demo / Internal 模式连接 OpenClaw。
         </p>
       </div>
 
@@ -544,7 +542,7 @@ export function DashboardPage() {
           数据源：{activeDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
         </span>
         <span className="home-runtime-pill">刷新状态：{isLoading ? '更新中' : '已展示最新状态'}</span>
-        <span className="home-runtime-pill">模式：Demo</span>
+        <span className="home-runtime-pill">模式：公开演示</span>
         {isFallback ? <span className="home-runtime-pill">当前 fallback 到 Mock</span> : null}
       </div>
 
