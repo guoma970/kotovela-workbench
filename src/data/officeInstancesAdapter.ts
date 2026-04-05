@@ -3,27 +3,27 @@ import type { Agent, Project, Room, Task } from '../types'
 export type OfficeInstanceStatus = 'doing' | 'done' | 'blocker' | 'idle' | 'active' | 'blocked'
 
 /**
- * 后端状态到前端状态语义的规范映射（最小闭环）。
- * 规则：
+ * Normalized status mapping between backend payloads and the workbench UI.
+ * Rules:
  * - doing/in_progress/running -> doing
  * - blocker/blocked/error -> blocker
  * - done/done_ok/finished -> done
  * - active/online/busy -> active
  * - idle/offline -> idle
- * - 兜底 -> idle，避免将未知状态误判为 blocker
+ * - fallback -> idle
  */
 
 /** Fallback status sentences keyed by normalized status. */
 const STATUS_SENTENCE: Record<string, string> = {
-  doing: '正在推进关键动作，等待下游确认。',
-  blocker: '检测到阻塞信号，等待状态回归。',
-  done: '当前未有阻塞，任务链路平稳。',
-  active: '正在推进关键动作，等待下游确认。',
-  idle: '当前未有阻塞，任务链路平稳。',
-  blocked: '检测到阻塞信号，等待状态回归。',
+  doing: 'Work is actively moving.',
+  blocker: 'A blocker needs attention.',
+  done: 'No active blocker detected.',
+  active: 'Work is actively moving.',
+  idle: 'No active blocker detected.',
+  blocked: 'A blocker needs attention.',
 }
 
-const unknownStatusSentence = '当前未有阻塞，任务链路平稳。'
+const unknownStatusSentence = 'No active blocker detected.'
 
 export function getStatusSentence(status: string): string {
   const key = status?.toLowerCase()
@@ -98,14 +98,12 @@ const OFFICE_AGENT_CODE_MAP: Record<string, string> = {
 }
 
 const PROJECT_NAME_HINTS: Record<string, string> = {
+  'kotovela workbench': 'project-1',
   kotovela: 'project-1',
-  主项目: 'project-1',
-  群助手: 'project-1',
-  '羲果陪伴': 'project-2',
-  'github 同步': 'project-3',
-  github同步: 'project-3',
-  'clawhub 内容沉淀': 'project-4',
-  '对外演示素材': 'project-5',
+  'companion prototype': 'project-2',
+  'github sync': 'project-3',
+  'knowledge base refresh': 'project-4',
+  'external demo assets': 'project-5',
 }
 
 const FALLBACK_PROJECT_ID = 'project-1'
@@ -189,7 +187,7 @@ const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
         normalizeTextId(nested.name) ||
         normalizeTextId((nested as { title?: unknown }).title)
       if (nestedName) {
-        // 回退到名称语义映射（只用于已知主项目名）
+        // Fallback to semantic name mapping for known project names.
         const hintKey = nestedName.trim().toLowerCase()
         if (PROJECT_NAME_HINTS[hintKey]) {
           return PROJECT_NAME_HINTS[hintKey]

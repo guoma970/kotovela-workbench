@@ -52,9 +52,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
   return (
     <section className={`panel strong-card page-lead-panel ${collapsed ? 'page-lead-panel-collapsed' : ''}`}>
       <div className="panel-header">
-        <h3>页面速览 · {heading}</h3>
+        <h3>Page snapshot · {heading}</h3>
         <div className="page-lead-toolbar">
-          <span>{collapsed ? '精简视角' : '当前视角'}</span>
+          <span>{collapsed ? 'Compact view' : 'Current view'}</span>
           {isCompactViewport && (
             <button
               type="button"
@@ -62,7 +62,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
               onClick={() => setExpanded((value) => !value)}
               aria-expanded={expanded}
             >
-              {expanded ? '收起速览' : '展开速览'}
+              {expanded ? 'Collapse' : 'Expand'}
             </button>
           )}
         </div>
@@ -98,7 +98,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
       )}
       {collapsed && (hiddenMetricCount > 0 || hiddenActionCount > 0) && (
         <button type="button" className="page-lead-peek" onClick={() => setExpanded(true)}>
-          还有 {hiddenMetricCount} 个指标、{hiddenActionCount} 个下一步
+          {hiddenMetricCount} more metrics and {hiddenActionCount} more next steps
         </button>
       )}
     </section>

@@ -5,17 +5,19 @@ import { createFocusSearch } from '../lib/workbenchLinking'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 
 const navItems = [
-  { to: '/', step: 1, label: 'Dashboard', note: '总览（中枢状态）' },
-  { to: '/projects', step: 2, label: 'Projects', note: '项目地图（跟踪与承接）' },
-  { to: '/rooms', step: 3, label: 'Rooms', note: '协作通道（执行牵引）' },
-  { to: '/tasks', step: 4, label: 'Tasks', note: '任务流水（阻塞与待办）' },
-  { to: '/agents', step: 5, label: 'Agents', note: '实例状态（指挥与分派）' },
+  { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
+  { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
+  { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
+  { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
+  { to: '/agents', step: 5, label: 'Agents', note: 'Agent activity and routing' },
 ]
 
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const { mode, preferredDataSource, activeDataSource, isFallback } = useOfficeInstances()
+  const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
+  const productTagline = mode === 'internal' ? 'Internal command center' : 'OpenClaw collaboration cockpit'
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -150,14 +152,14 @@ export function AppShell() {
       >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/yanting-logo-tight.png" alt="言町科技" />
+            <img className="brand-logo" src="/yanting-logo-tight.png" alt={productName} />
           </div>
           <div className="brand-copy">
-            <h1>言町科技 KOTOVELA</h1>
-            <p>OpenClaw协作驾驶舱</p>
+            <h1>{productName}</h1>
+            <p>{productTagline}</p>
             <p style={{ marginTop: '6px', fontSize: '12px', opacity: 0.8 }}>
-              {mode === 'internal' ? 'Internal' : 'Demo'} · 目标 {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-              {isFallback ? ' · Fallback 到 Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw 已接入' : ' · Mock 运行中'}
+              {mode === 'internal' ? 'Internal' : 'Demo'} · Target {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
+              {isFallback ? ' · Fallback to Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw connected' : ' · Mock active'}
             </p>
           </div>
         </div>
@@ -183,7 +185,7 @@ export function AppShell() {
       <button
         type="button"
         className={sidebarOpen ? 'sidebar-backdrop sidebar-backdrop-visible' : 'sidebar-backdrop'}
-        aria-label="关闭侧边菜单"
+        aria-label="Close sidebar"
         onClick={() => {
           setSidebarOpen(false)
           menuButtonRef.current?.focus()
@@ -197,7 +199,7 @@ export function AppShell() {
             ref={menuButtonRef}
             type="button"
             className="mobile-nav-toggle"
-            aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
+            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((open) => !open)}
           >
@@ -211,9 +213,9 @@ export function AppShell() {
               <span>{currentNavItem.note}</span>
             </div>
             <div className="mobile-nav-meta">
-              <span>言町科技 KOTOVELA</span>
+              <span>{productName}</span>
               <span className={hasLinkedFocus ? 'mobile-nav-pill' : 'mobile-nav-pill mobile-nav-pill-muted'}>
-                {hasLinkedFocus ? '联动中' : '当前页'}
+                {hasLinkedFocus ? 'Linked focus' : 'Current page'}
               </span>
             </div>
           </div>

@@ -27,24 +27,24 @@ export function RoomsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Rooms</p>
-          <h2>群与通道状态</h2>
+          <h2>Room Status</h2>
         </div>
-        <p className="page-note">每个房间展示：名称、状态、当前用途、最近动作类型。</p>
+        <p className="page-note">Each room shows its name, status, purpose, and most recent action.</p>
       </div>
 
       <PageLeadPanel
         heading="Rooms"
-        intro="先看房间承接量和待处理规模，再顺着数字跳到 Tasks / Projects / Agents，保持从通道继续往下走。"
+        intro="Start with room capacity and pending load, then jump to Tasks, Projects, and Agents." 
         metrics={[
-          { label: '房间总数', value: rooms.length, to: { pathname: '/rooms' } },
-          { label: '活跃房间', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
-          { label: '待处理总量', value: pendingCount, to: { pathname: '/tasks' } },
-          { label: '承接实例', value: agents.length, to: { pathname: '/agents' } },
+          { label: 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
+          { label: 'Pending total', value: pendingCount, to: { pathname: '/tasks' } },
+          { label: 'Agents', value: agents.length, to: { pathname: '/agents' } },
         ]}
         actions={[
-          { label: '下一步看任务流水', to: { pathname: '/tasks' } },
-          { label: '下一步看项目地图', to: { pathname: '/projects' } },
-          { label: '下一步看实例状态', to: { pathname: '/agents' } },
+          { label: 'Go to tasks', to: { pathname: '/tasks' } },
+          { label: 'Go to projects', to: { pathname: '/projects' } },
+          { label: 'Go to agents', to: { pathname: '/agents' } },
         ]}
       />
 
@@ -61,11 +61,11 @@ export function RoomsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>状态</span>
+                  <span>Status</span>
                   <strong className={`status-dot status-${room.status}`}>{room.status}</strong>
                 </div>
                 <div>
-                  <span>待处理</span>
+                  <span>Pending</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -78,22 +78,22 @@ export function RoomsPage() {
                 </div>
               </div>
               <div className="info-block emphasis-block">
-                <span>当前用途</span>
+                <span>Purpose</span>
                 <strong>{room.purpose}</strong>
               </div>
               <div className="info-block">
-                <span>最近动作</span>
+                <span>Recent action</span>
                 <strong>{room.recentAction}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">承接项目</span>
+                  <span className="section-label">Project</span>
                   <div className="object-row top-gap">
                     {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">实例 {linkedAgents.length > 0 ? '' : '—'}</span>
+                  <span className="section-label">Agents {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
                       <ObjectBadge key={agent.id} kind="agent" code={agent.code} name={agent.name} compact clickable onClick={() => linking.select('agent', agent.id)} {...linking.getState('agent', agent.id)} />
@@ -103,7 +103,7 @@ export function RoomsPage() {
               </div>
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  关联任务
+                  Related tasks
                 </NavLink>
               </div>
             </article>

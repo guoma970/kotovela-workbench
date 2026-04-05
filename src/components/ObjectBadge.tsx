@@ -17,21 +17,19 @@ interface ObjectBadgeProps {
 }
 
 const kindLabel = {
-  project: '项',
-  agent: '实',
-  room: '群',
-  task: '任',
+  project: 'P',
+  agent: 'A',
+  room: 'R',
+  task: 'T',
 }
 
-
-
 const AGENT_ICON_BY_CODE: Record<string, string> = {
-  'INS-01': '树',
-  'INS-02': '筑',
-  'INS-03': '果',
-  'INS-04': '羲',
-  'INS-05': '言',
-  'INS-06': '柒',
+  'INS-01': 'C',
+  'INS-02': 'B',
+  'INS-03': 'M',
+  'INS-04': 'S',
+  'INS-05': 'A',
+  'INS-06': 'G',
 }
 
 const resolveAgentIcon = (code?: string, name?: string): string => {
@@ -42,8 +40,8 @@ const resolveAgentIcon = (code?: string, name?: string): string => {
   if (name) {
     const trimmed = name.replace(/\s+/g, '')
 
-    if (trimmed.startsWith('小') && trimmed.length >= 2) {
-      return trimmed[1]
+    if (trimmed.length >= 1) {
+      return trimmed[0].toUpperCase()
     }
 
     const last = trimmed.at(-1)

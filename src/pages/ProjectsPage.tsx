@@ -27,24 +27,24 @@ export function ProjectsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Projects</p>
-          <h2>项目看板</h2>
+          <h2>Project Board</h2>
         </div>
-        <p className="page-note">每个项目含状态、阶段、阻塞数、项目成员和关联任务。</p>
+        <p className="page-note">Each project shows status, stage, blockers, linked agents, and linked tasks.</p>
       </div>
 
       <PageLeadPanel
         heading="Projects"
-        intro="先看项目总量与阻塞，再顺着数字跳到 Tasks / Rooms / Agents，页面不会停在单点浏览。"
+        intro="Start with project volume and blockers, then jump into Tasks, Rooms, and Agents." 
         metrics={[
-          { label: '项目总数', value: projects.length, to: { pathname: '/projects' } },
-          { label: '活跃项目', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
-          { label: '总阻塞项', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
-          { label: '承接房间', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: 'Projects', value: projects.length, to: { pathname: '/projects' } },
+          { label: 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
+          { label: 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
         ]}
         actions={[
-          { label: '下一步看任务流水', to: { pathname: '/tasks' } },
-          { label: '下一步看承接房间', to: { pathname: '/rooms' } },
-          { label: '下一步看实例状态', to: { pathname: '/agents' } },
+          { label: 'Go to tasks', to: { pathname: '/tasks' } },
+          { label: 'Go to rooms', to: { pathname: '/rooms' } },
+          { label: 'Go to agents', to: { pathname: '/agents' } },
         ]}
       />
 
@@ -71,11 +71,11 @@ export function ProjectsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>阶段</span>
+                  <span>Stage</span>
                   <strong>{project.stage}</strong>
                 </div>
                 <div>
-                  <span>负责人</span>
+                  <span>Owner</span>
                   <strong>{project.owner}</strong>
                 </div>
                 <div>
@@ -92,13 +92,13 @@ export function ProjectsPage() {
                 </div>
               </div>
               <div className="info-block emphasis-block">
-                <span>重点 / 下一步</span>
+                <span>Focus / next step</span>
                 <strong>{project.focus}</strong>
                 <strong style={{ marginTop: '4px', fontWeight: 400, color: '#97a7c5', fontSize: '0.85em' }}>→ {project.nextStep}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">实例</span>
+                  <span className="section-label">Agents</span>
                   <div className="object-row top-gap">
                     {linkedAgents.length > 0 ? (
                       linkedAgents.map((agent) => (
@@ -119,7 +119,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">房间</span>
+                  <span className="section-label">Rooms</span>
                   <div className="object-row top-gap">
                     {linkedRooms.length > 0 ? (
                       linkedRooms.map((room) => (
@@ -140,7 +140,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">关联任务 {linkedTasks.length > 3 ? `(共${linkedTasks.length})` : ''}</span>
+                  <span className="section-label">Tasks {linkedTasks.length > 3 ? `(${linkedTasks.length} total)` : ''}</span>
                   <div className="object-row top-gap">
                     {linkedTasks.slice(0, 3).map((task) => (
                       <ObjectBadge
@@ -164,7 +164,7 @@ export function ProjectsPage() {
                   to={{ pathname: '/tasks', search: focusSearch }}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  关联任务
+                  Related tasks
                 </NavLink>
               </div>
             </article>

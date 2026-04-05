@@ -42,25 +42,25 @@ export function AgentsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Agents</p>
-          <h2>实例状态</h2>
+          <h2>Agent Status</h2>
         </div>
-        <p className="page-note">一眼看出谁卡住 / 谁在干 / 谁空着。</p>
+        <p className="page-note">See who is blocked, active, or idle at a glance.</p>
       </div>
 
       <PageLeadPanel
         heading="Agents"
-        intro="优先处理阻塞实例，接着确认活跃实例的任务链路。"
+        intro="Start with blocked agents, then confirm the active execution chain." 
         metrics={[
-          { label: '实例', value: agents.length, to: { pathname: '/agents' } },
-          { label: '活跃', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
-          { label: '阻塞', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
-          { label: '待命', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
+          { label: 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
         ]}
         actions={
           targetAgent
             ? [
                 {
-                  label: '查看阻塞实例',
+                  label: 'View blocked agent',
                   to: { pathname: '/agents', search: targetFocusSearch },
                 },
               ]
@@ -82,7 +82,7 @@ export function AgentsPage() {
               </div>
 
               <div className="info-block emphasis-block">
-                <span>当前任务</span>
+                <span>Current task</span>
                 <strong>{agent.currentTask}</strong>
               </div>
 
@@ -93,18 +93,18 @@ export function AgentsPage() {
               )}
 
               <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
-                <span className="soft-tag">更新：{agent.updatedAt}</span>
+                <span className="soft-tag">Updated: {agent.updatedAt}</span>
                 {linkedRooms.length > 0 && (
-                  <span className="soft-tag">· {linkedRooms.length} 个房间</span>
+                  <span className="soft-tag">· {linkedRooms.length} rooms</span>
                 )}
                 {linkedTasks.length > 0 && (
-                  <span className="soft-tag">· {linkedTasks.length} 个任务</span>
+                  <span className="soft-tag">· {linkedTasks.length} tasks</span>
                 )}
               </div>
 
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  查看关联任务
+                  View related tasks
                 </NavLink>
               </div>
             </article>

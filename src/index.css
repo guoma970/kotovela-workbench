@@ -63,6 +63,35 @@ button,
   align-items: flex-end;
 }
 
+.home-runtime-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-runtime-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d6e3fb;
+  font-size: 0.82rem;
+}
+
+.home-runtime-pill.is-live {
+  border-color: rgba(91, 140, 255, 0.28);
+  color: #9ec1ff;
+}
+
+.home-action-feedback {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(126, 163, 255, 0.22);
+  background: rgba(91, 140, 255, 0.08);
+  color: #dbe7ff;
+  font-size: 0.92rem;
+}
+
 .home-v1-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -132,6 +161,43 @@ button,
   color: #b7c7e6;
   font-size: 0.92rem;
   line-height: 1.5;
+}
+
+.home-item-meta {
+  margin-top: 8px;
+  color: #8ea2c6;
+  font-size: 0.8rem;
+}
+
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.home-action {
+  min-height: 32px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 140, 255, 0.24);
+  background: rgba(91, 140, 255, 0.14);
+  color: #e9f1ff;
+}
+
+.home-action:hover:not(:disabled) {
+  background: rgba(91, 140, 255, 0.2);
+}
+
+.home-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home-action-quiet {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d0dbef;
 }
 
 .home-badge,

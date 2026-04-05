@@ -39,16 +39,16 @@ export function TasksPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Tasks</p>
-          <h2>任务队列</h2>
+          <h2>Task Queue</h2>
         </div>
-        <p className="page-note">Blocker 优先 → Doing 推进 → Done 归档。</p>
+        <p className="page-note">Prioritize blockers, move active work, then archive completed tasks.</p>
       </div>
 
       <PageLeadPanel
         heading="Tasks"
-        intro="先看阻塞任务，再看进行中任务。"
+        intro="Start with blocked tasks, then review work in progress." 
         metrics={[
-          { label: '总数', value: tasks.length, to: { pathname: '/tasks' } },
+          { label: 'Total', value: tasks.length, to: { pathname: '/tasks' } },
           { label: 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },
           { label: 'Blocker', value: tasks.filter((task) => task.status === 'blocked').length, to: { pathname: '/tasks', search: '?status=blocked' } },
           { label: 'Done', value: tasks.filter((task) => task.status === 'done').length, to: { pathname: '/tasks', search: '?status=done' } },
@@ -57,7 +57,7 @@ export function TasksPage() {
           statusFilter
             ? [
                 {
-                  label: '返回全部任务',
+                  label: 'Back to all tasks',
                   to: { pathname: '/tasks' },
                 },
               ]
@@ -95,7 +95,7 @@ export function TasksPage() {
                     </article>
                   )
                 })}
-                {items.length === 0 && <p className="empty-state empty-compact">无任务</p>}
+                {items.length === 0 && <p className="empty-state empty-compact">No tasks</p>}
               </div>
             </section>
           )

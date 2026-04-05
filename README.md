@@ -105,19 +105,23 @@ Follow collaboration channels and active contexts
 git clone https://github.com/yourname/kotovela-workbench.git
 cd kotovela-workbench
 npm install
-npm run dev
 ```
+
+**Demo vs Internal** — same codebase; Vite loads `.env.demo` or `.env.internal` via `--mode` (see `VITE_MODE`, `VITE_DATA_SOURCE`, etc.).
+
+| Environment | npm scripts | Notes |
+|-------------|-------------|--------|
+| Demo (mock, public-facing) | `npm run dev:demo` · `npm run build:demo` | Deploy: [kotovela-workbench.vercel.app](https://kotovela-workbench.vercel.app/) |
+| Internal (OpenClaw data) | `npm run dev:internal` · `npm run build:internal` | Deploy: [kotovela-internal.vercel.app](https://kotovela-internal.vercel.app) |
+
+- **Dev server:** `http://localhost:5173` (strict port; only one of Demo/Internal dev at a time unless you change the port).
+- **Preview (static dist):** `http://localhost:4173` — run `npm run build:demo` or `npm run build:internal` first, then `npm run preview`. For Internal local verification, **4173 is the preferred preview port** (aligned with earlier milestone evidence); avoid running Demo preview on 4173 at the same time.
+
+**Builder workspace path (local):** `/Users/ztl/.openclaw/workspace-builder/kotovela-workbench` — adjust if your clone lives elsewhere.
 
 **Mock Data**
 
-This project uses mock data for demonstration:
-
-- `data/agents.json` — agent definitions
-- `data/projects.json` — project definitions
-- `data/rooms.json` — room definitions
-- `data/tasks.json` — task definitions
-
-You can replace them with your own data sources.
+Demo and fallbacks use in-repo TypeScript mock modules (e.g. `src/data/mockData.ts`) and the office-instances adapter (`src/data/officeInstancesAdapter.ts`). Replace or extend via `VITE_DATA_SOURCE` and API paths in `.env.*`.
 
 ---
 
