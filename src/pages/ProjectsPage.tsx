@@ -27,25 +27,33 @@ export function ProjectsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Projects</p>
-          <h2>Project Board</h2>
+          <p className="eyebrow">{showCockpitDetail ? 'Projects 项目' : 'Projects'}</p>
+          <h2>{showCockpitDetail ? '项目看板总览' : 'Project Board'}</h2>
         </div>
-        <p className="page-note">Each project shows status, stage, blockers, linked agents, and linked tasks.</p>
+        <p className="page-note">
+          {showCockpitDetail
+            ? '每个项目展示阶段、负责人、阻塞与关联实例。'
+            : 'Each project shows status, stage, blockers, linked agents, and linked tasks.'}
+        </p>
       </div>
 
       <PageLeadPanel
-        heading="Projects"
-        intro="Start with project volume and blockers, then jump into Tasks, Rooms, and Agents." 
+        heading={showCockpitDetail ? 'Projects 项目' : 'Projects'}
+        intro={
+          showCockpitDetail
+            ? '先看项目数量与阻塞，再进入任务、房间与实例。'
+            : 'Start with project volume and blockers, then jump into Tasks, Rooms, and Agents.'
+        }
         metrics={[
-          { label: 'Projects', value: projects.length, to: { pathname: '/projects' } },
-          { label: 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
-          { label: 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
-          { label: 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: showCockpitDetail ? '项目' : 'Projects', value: projects.length, to: { pathname: '/projects' } },
+          { label: showCockpitDetail ? '活跃项目' : 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
+          { label: showCockpitDetail ? '阻塞总数' : 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: showCockpitDetail ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
         ]}
         actions={[
-          { label: 'Go to tasks', to: { pathname: '/tasks' } },
-          { label: 'Go to rooms', to: { pathname: '/rooms' } },
-          { label: 'Go to agents', to: { pathname: '/agents' } },
+          { label: showCockpitDetail ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
+          { label: showCockpitDetail ? '进入房间' : 'Go to rooms', to: { pathname: '/rooms' } },
+          { label: showCockpitDetail ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
       />
 
@@ -72,11 +80,11 @@ export function ProjectsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>Stage</span>
+                  <span>{showCockpitDetail ? '阶段' : 'Stage'}</span>
                   <strong>{project.stage}</strong>
                 </div>
                 <div>
-                  <span>Owner</span>
+                  <span>{showCockpitDetail ? '负责人' : 'Owner'}</span>
                   <strong>{project.owner}</strong>
                 </div>
                 {showCockpitDetail && (project.instanceCount ?? 0) > 1 ? (
@@ -86,7 +94,7 @@ export function ProjectsPage() {
                   </div>
                 ) : null}
                 <div>
-                  <span>Blocker</span>
+                  <span>{showCockpitDetail ? '阻塞' : 'Blocker'}</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -113,13 +121,13 @@ export function ProjectsPage() {
                 </div>
               ) : null}
               <div className="info-block emphasis-block">
-                <span>Focus / next step</span>
+                <span>{showCockpitDetail ? '项目焦点 / 下一步' : 'Focus / next step'}</span>
                 <strong>{project.focus}</strong>
                 <strong style={{ marginTop: '4px', fontWeight: 400, color: '#97a7c5', fontSize: '0.85em' }}>→ {project.nextStep}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">Agents</span>
+                  <span className="section-label">{showCockpitDetail ? '实例' : 'Agents'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.length > 0 ? (
                       linkedAgents.map((agent) => (
@@ -142,7 +150,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">Rooms</span>
+                  <span className="section-label">{showCockpitDetail ? '房间' : 'Rooms'}</span>
                   <div className="object-row top-gap">
                     {linkedRooms.length > 0 ? (
                       linkedRooms.map((room) => (
@@ -163,7 +171,9 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">Tasks {linkedTasks.length > 3 ? `(${linkedTasks.length} total)` : ''}</span>
+                  <span className="section-label">
+                    {showCockpitDetail ? '任务' : 'Tasks'} {linkedTasks.length > 3 ? `(${linkedTasks.length}${showCockpitDetail ? ' 个' : ' total'})` : ''}
+                  </span>
                   <div className="object-row top-gap">
                     {linkedTasks.slice(0, 3).map((task) => (
                       <ObjectBadge
@@ -187,7 +197,7 @@ export function ProjectsPage() {
                   to={{ pathname: '/tasks', search: focusSearch }}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  Related tasks
+                  {showCockpitDetail ? '关联任务' : 'Related tasks'}
                 </NavLink>
               </div>
             </article>

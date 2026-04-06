@@ -12,7 +12,8 @@ const columns: { key: TaskStatus; label: string }[] = [
 ]
 
 export function TasksPage() {
-  const { tasks, projects, agents, rooms } = useOfficeInstances()
+  const { tasks, projects, agents, rooms, mode } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const [searchParams] = useSearchParams()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
@@ -38,26 +39,26 @@ export function TasksPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Tasks</p>
-          <h2>Task Queue</h2>
+          <p className="eyebrow">{isInternal ? 'Tasks 任务' : 'Tasks'}</p>
+          <h2>{isInternal ? '任务队列' : 'Task Queue'}</h2>
         </div>
-        <p className="page-note">Prioritize blockers, move active work, then archive completed tasks.</p>
+        <p className="page-note">{isInternal ? '阻塞优先，推进进行中，再沉淀已完成任务。' : 'Prioritize blockers, move active work, then archive completed tasks.'}</p>
       </div>
 
       <PageLeadPanel
-        heading="Tasks"
-        intro="Start with blocked tasks, then review work in progress." 
+        heading={isInternal ? 'Tasks 任务' : 'Tasks'}
+        intro={isInternal ? '先看阻塞任务，再复核进行中的执行链。' : 'Start with blocked tasks, then review work in progress.'}
         metrics={[
-          { label: 'Total', value: tasks.length, to: { pathname: '/tasks' } },
-          { label: 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },
-          { label: 'Blocker', value: tasks.filter((task) => task.status === 'blocked').length, to: { pathname: '/tasks', search: '?status=blocked' } },
-          { label: 'Done', value: tasks.filter((task) => task.status === 'done').length, to: { pathname: '/tasks', search: '?status=done' } },
+          { label: isInternal ? '总任务' : 'Total', value: tasks.length, to: { pathname: '/tasks' } },
+          { label: isInternal ? '进行中' : 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },
+          { label: isInternal ? '阻塞' : 'Blocker', value: tasks.filter((task) => task.status === 'blocked').length, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: isInternal ? '已完成' : 'Done', value: tasks.filter((task) => task.status === 'done').length, to: { pathname: '/tasks', search: '?status=done' } },
         ]}
         actions={
           statusFilter
             ? [
                 {
-                  label: 'Back to all tasks',
+                  label: isInternal ? '返回全部任务' : 'Back to all tasks',
                   to: { pathname: '/tasks' },
                 },
               ]
@@ -71,7 +72,15 @@ export function TasksPage() {
           return (
             <section key={column.key} className="panel queue-column strong-card">
               <div className="panel-header">
-                <h3>{column.label}</h3>
+                <h3>
+                  {isInternal
+                    ? column.key === 'doing'
+                      ? '进行中'
+                      : column.key === 'blocked'
+                        ? '阻塞'
+                        : '已完成'
+                    : column.label}
+                </h3>
                 <span className="badge-count">{items.length}</span>
               </div>
               <div className="queue-list">
@@ -107,7 +116,7 @@ export function TasksPage() {
                     </article>
                   )
                 })}
-                {items.length === 0 && <p className="empty-state empty-compact">No tasks</p>}
+                {items.length === 0 && <p className="empty-state empty-compact">{isInternal ? '暂无任务' : 'No tasks'}</p>}
               </div>
             </section>
           )

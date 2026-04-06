@@ -5,13 +5,22 @@ import { createFocusSearch } from '../lib/workbenchLinking'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
 
-const navItems = [
-  { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
-  { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
-  { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
-  { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-  { to: '/agents', step: 5, label: 'Agents', note: 'Agent activity and routing' },
-]
+const getNavItems = (isInternal: boolean) =>
+  isInternal
+    ? [
+        { to: '/', step: 1, label: 'Dashboard 总览', note: '系统状态 · 同步概览' },
+        { to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
+        { to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
+        { to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
+        { to: '/agents', step: 5, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+      ]
+    : [
+        { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
+        { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
+        { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
+        { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
+        { to: '/agents', step: 5, label: 'Agents', note: 'Agent activity and routing' },
+      ]
 
 export function AppShell() {
   const location = useLocation()
@@ -25,6 +34,7 @@ export function AppShell() {
     pollingIntervalMs,
   } = useOfficeInstances()
   const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
+  const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
     mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
@@ -244,7 +254,7 @@ export function AppShell() {
             <div className="mobile-nav-meta">
               <span>{productName}</span>
               <span className={hasLinkedFocus ? 'mobile-nav-pill' : 'mobile-nav-pill mobile-nav-pill-muted'}>
-                {hasLinkedFocus ? 'Linked focus' : 'Current page'}
+                {hasLinkedFocus ? (mode === 'internal' ? '关联焦点' : 'Linked focus') : mode === 'internal' ? '当前页面' : 'Current page'}
               </span>
             </div>
           </div>

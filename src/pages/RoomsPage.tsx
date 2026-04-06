@@ -5,7 +5,8 @@ import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function RoomsPage() {
-  const { rooms, projects, agents, tasks } = useOfficeInstances()
+  const { rooms, projects, agents, tasks, mode } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const pendingCount = rooms.reduce((sum, room) => sum + room.pending, 0)
@@ -26,25 +27,25 @@ export function RoomsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Rooms</p>
-          <h2>Room Status</h2>
+          <p className="eyebrow">{isInternal ? 'Rooms 房间' : 'Rooms'}</p>
+          <h2>{isInternal ? '房间状态总览' : 'Room Status'}</h2>
         </div>
-        <p className="page-note">Each room shows its name, status, purpose, and most recent action.</p>
+        <p className="page-note">{isInternal ? '查看每个房间的状态、用途与最近动作。' : 'Each room shows its name, status, purpose, and most recent action.'}</p>
       </div>
 
       <PageLeadPanel
-        heading="Rooms"
-        intro="Start with room capacity and pending load, then jump to Tasks, Projects, and Agents." 
+        heading={isInternal ? 'Rooms 房间' : 'Rooms'}
+        intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和实例。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
         metrics={[
-          { label: 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
-          { label: 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
-          { label: 'Pending total', value: pendingCount, to: { pathname: '/tasks' } },
-          { label: 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: isInternal ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: isInternal ? '活跃房间' : 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
+          { label: isInternal ? '待处理总数' : 'Pending total', value: pendingCount, to: { pathname: '/tasks' } },
+          { label: isInternal ? '实例' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
         ]}
         actions={[
-          { label: 'Go to tasks', to: { pathname: '/tasks' } },
-          { label: 'Go to projects', to: { pathname: '/projects' } },
-          { label: 'Go to agents', to: { pathname: '/agents' } },
+          { label: isInternal ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
+          { label: isInternal ? '进入项目' : 'Go to projects', to: { pathname: '/projects' } },
+          { label: isInternal ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
       />
 
@@ -61,11 +62,11 @@ export function RoomsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>Status</span>
+                  <span>{isInternal ? '状态' : 'Status'}</span>
                   <strong className={`status-dot status-${room.status}`}>{room.status}</strong>
                 </div>
                 <div>
-                  <span>Pending</span>
+                  <span>{isInternal ? '待处理' : 'Pending'}</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -78,22 +79,22 @@ export function RoomsPage() {
                 </div>
               </div>
               <div className="info-block emphasis-block">
-                <span>Purpose</span>
+                <span>{isInternal ? '用途' : 'Purpose'}</span>
                 <strong>{room.purpose}</strong>
               </div>
               <div className="info-block">
-                <span>Recent action</span>
+                <span>{isInternal ? '最近动作' : 'Recent action'}</span>
                 <strong>{room.recentAction}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">Project</span>
+                  <span className="section-label">{isInternal ? '项目' : 'Project'}</span>
                   <div className="object-row top-gap">
                     {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">Agents {linkedAgents.length > 0 ? '' : '—'}</span>
+                  <span className="section-label">{isInternal ? '实例' : 'Agents'} {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
                       <ObjectBadge
@@ -114,7 +115,7 @@ export function RoomsPage() {
               </div>
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  Related tasks
+                  {isInternal ? '关联任务' : 'Related tasks'}
                 </NavLink>
               </div>
             </article>

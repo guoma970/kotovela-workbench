@@ -6,7 +6,8 @@ import { ObjectBadge } from '../components/ObjectBadge'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function AgentsPage() {
-  const { agents, projects, rooms, tasks } = useOfficeInstances()
+  const { agents, projects, rooms, tasks, mode } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const [searchParams] = useSearchParams()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
@@ -41,26 +42,26 @@ export function AgentsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Agents</p>
-          <h2>Agent Status</h2>
+          <p className="eyebrow">{isInternal ? 'Agents 实例' : 'Agents'}</p>
+          <h2>{isInternal ? '实例状态总览' : 'Agent Status'}</h2>
         </div>
-        <p className="page-note">See who is blocked, active, or idle at a glance.</p>
+        <p className="page-note">{isInternal ? '快速查看谁在阻塞、推进或待命。' : 'See who is blocked, active, or idle at a glance.'}</p>
       </div>
 
       <PageLeadPanel
-        heading="Agents"
-        intro="Start with blocked agents, then confirm the active execution chain." 
+        heading={isInternal ? 'Agents 实例' : 'Agents'}
+        intro={isInternal ? '优先处理阻塞实例，再确认当前执行链。' : 'Start with blocked agents, then confirm the active execution chain.'}
         metrics={[
-          { label: 'Agents', value: agents.length, to: { pathname: '/agents' } },
-          { label: 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
-          { label: 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
-          { label: 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: isInternal ? '实例' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: isInternal ? '进行中' : 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: isInternal ? '阻塞' : 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
+          { label: isInternal ? '待命' : 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
         ]}
         actions={
           targetAgent
             ? [
                 {
-                  label: 'View blocked agent',
+                  label: isInternal ? '查看阻塞实例' : 'View blocked agent',
                   to: { pathname: '/agents', search: targetFocusSearch },
                 },
               ]
@@ -93,7 +94,7 @@ export function AgentsPage() {
               {agent.role ? <p className="agent-card-role">{agent.role}</p> : null}
 
               <div className="info-block emphasis-block">
-                <span>Current task</span>
+                <span>{isInternal ? '当前任务' : 'Current task'}</span>
                 <strong>{agent.currentTask}</strong>
               </div>
 
@@ -104,18 +105,18 @@ export function AgentsPage() {
               )}
 
               <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
-                <span className="soft-tag">Updated: {agent.updatedAt}</span>
+                <span className="soft-tag">{isInternal ? '更新：' : 'Updated: '}{agent.updatedAt}</span>
                 {linkedRooms.length > 0 && (
-                  <span className="soft-tag">· {linkedRooms.length} rooms</span>
+                  <span className="soft-tag">· {linkedRooms.length} {isInternal ? '个房间' : 'rooms'}</span>
                 )}
                 {linkedTasks.length > 0 && (
-                  <span className="soft-tag">· {linkedTasks.length} tasks</span>
+                  <span className="soft-tag">· {linkedTasks.length} {isInternal ? '个任务' : 'tasks'}</span>
                 )}
               </div>
 
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  View related tasks
+                  {isInternal ? '查看关联任务' : 'View related tasks'}
                 </NavLink>
               </div>
             </article>
