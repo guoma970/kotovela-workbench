@@ -29,6 +29,8 @@ type SessionItem = {
   kind?: string
   agentId?: string
   model?: string
+  /** When no matching session row exists for this slot (final payload only) */
+  slotKey?: string
 }
 
 type SessionResponse = {
@@ -63,11 +65,7 @@ const toMs = (value: unknown): number | undefined => {
 }
 
 const normalizeSessionKey = (value: unknown): string => {
-  if (typeof value !== 'string') {
-    return ''
-  }
-
-  const trimmed = value.trim()
+  const trimmed = typeof value === 'string' ? value.trim() : value != null ? String(value).trim() : ''
   if (!trimmed) {
     return ''
   }
@@ -105,6 +103,11 @@ const inferTaskSummary = (session: SessionItem): string => {
     return model ? `飞书会话 · ${model}` : '飞书会话'
   }
 
+  const slot = typeof session.slotKey === 'string' ? session.slotKey.trim() : ''
+  if (slot) {
+    return `实例 ${slot} · 无会话上报`
+  }
+
   return model ? `会话活跃 · ${model}` : '会话活跃（暂无任务摘要）'
 }
 
@@ -125,11 +128,14 @@ const parseSessionOutput = (raw: unknown): SessionItem[] => {
   const mapped = list
     .filter((item): item is SessionItem => typeof item === 'object' && item !== null)
     .map((item) => {
-      const originalKey = typeof item.key === 'string' ? item.key : ''
+      const originalKey =
+        typeof item.key === 'string' ? item.key : item.key != null ? String(item.key) : ''
+      const agentId = typeof item.agentId === 'string' ? item.agentId.trim() : ''
+      const sessionKeyRaw = originalKey || (agentId ? `agent:${agentId}` : '')
       return {
         ...item,
-        sessionKeyRaw: originalKey,
-        key: normalizeSessionKey(item.key),
+        sessionKeyRaw,
+        key: normalizeSessionKey(item.key ?? item.agentId),
         updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
       }
     })
@@ -163,6 +169,10 @@ const buildFallbackSession = (session: SessionItem) => {
     role: session.role || OFFICE_ROLE_MAP[key] || '未设置角色',
     status: typeof session.status === 'string' && session.status.length > 0 ? session.status : 'active',
     task: inferTaskSummary(session),
+    sessionKeyRaw: session.sessionKeyRaw,
+    kind: typeof session.kind === 'string' ? session.kind : undefined,
+    model: typeof session.model === 'string' ? session.model : undefined,
+    currentTask: typeof session.currentTask === 'string' ? session.currentTask : undefined,
     updatedAt,
     ageMs,
     ageText: updatedAt,
@@ -239,7 +249,14 @@ export const fetchOfficeInstancesPayload = async () => {
       name: found?.name || `实例 ${key}`,
       role: found?.role || OFFICE_ROLE_MAP[key],
       status: statusByAge(safeAge),
-      task: found?.task || '暂无任务',
+      task: inferTaskSummary({
+        task: found?.task,
+        currentTask: found?.currentTask,
+        sessionKeyRaw: found?.sessionKeyRaw,
+        kind: found?.kind,
+        model: found?.model,
+        ...(found ? {} : { slotKey: key }),
+      } as SessionItem),
       updatedAt: found?.ageText || found?.updatedAt || '刚刚',
       ageMs: safeAge,
       ageText: found?.ageText || found?.updatedAt || '刚刚',
