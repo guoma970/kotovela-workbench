@@ -772,6 +772,14 @@ button,
   opacity: 0.8;
 }
 
+.brand .brand-sync-meta {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #8fa3c4;
+  opacity: 0.88;
+}
+
 .brand-mark {
   width: 124px;
   height: 124px;

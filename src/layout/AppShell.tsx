@@ -28,8 +28,9 @@ export function AppShell() {
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
     mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
+  /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
-    mode === 'internal' ? 'Internal command center' : 'OpenClaw collaboration cockpit · OSS-friendly demo'
+    mode === 'internal' ? null : 'OpenClaw collaboration cockpit · OSS-friendly demo'
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -169,24 +170,26 @@ export function AppShell() {
           <div className="brand-copy">
             <h1>{productName}</h1>
             <p className="brand-subtitle-zh">{productSubtitleZh}</p>
-            <p className="brand-subtitle-en">{productTaglineEn}</p>
-            <p className="brand-runtime-line">
-              {mode === 'internal' ? 'Internal' : 'Demo'} · Target {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-              {isFallback ? ' · Fallback to Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw connected' : ' · Mock active'}
-            </p>
+            {productTaglineEn ? <p className="brand-subtitle-en">{productTaglineEn}</p> : null}
             {mode === 'internal' ? (
-              <p style={{ marginTop: '4px', fontSize: '11px', opacity: 0.72, lineHeight: 1.45 }}>
+              <p className="brand-sync-meta">
                 {preferredDataSource === 'openclaw' ? (
                   <>
-                    上次同步 {formatLastSyncedAt(lastSyncedAtMs)}
+                    数据源：{isFallback ? 'OpenClaw（已回退 Mock）' : 'OpenClaw'}
                     <br />
-                    轮询间隔 {Math.max(1, Math.round(pollingIntervalMs / 1000))} 秒
+                    上次同步 {formatLastSyncedAt(lastSyncedAtMs)} · 每{' '}
+                    {Math.max(1, Math.round(pollingIntervalMs / 1000))} 秒刷新
                   </>
                 ) : (
-                  <>Mock 模式 · 不请求 OpenClaw</>
+                  <>数据源：Mock · 不请求 OpenClaw</>
                 )}
               </p>
-            ) : null}
+            ) : (
+              <p className="brand-runtime-line">
+                Demo · 目标数据源 {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
+                {isFallback ? ' · 已回退 Mock' : activeDataSource === 'openclaw' ? ' · 已连接 OpenClaw' : ' · 当前 Mock'}
+              </p>
+            )}
           </div>
         </div>
 
