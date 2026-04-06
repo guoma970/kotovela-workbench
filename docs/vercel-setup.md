@@ -58,6 +58,20 @@
 
 **注意**：带 token 的 URL 会打进前端静态包，务必配合 **隧道访问控制 + 定期轮换 token**，并限制 Internal 站点访问范围。
 
+#### `kotovelahub` 项目：必须在控制台里配（无法写在仓库里）
+
+同一 Git 仓库对应 **两个** Vercel 项目（公开 Demo + 内部驾驶舱）。**`VERCEL_BUILD_MODE` 不能**写在仓库根 `vercel.json` 的 `env` 里，否则两个项目会共用同一值，**公开站会被打成 Internal 包**。因此 **内部项目必须在 Vercel 控制台单独加变量**（自动化脚本或 CI 若没有你的账号 Token，也无法替你代填）。
+
+**在浏览器里操作（约 1 分钟）：**
+
+1. 打开 [Vercel Dashboard](https://vercel.com/) → 选中项目 **`kotovelahub`** → **Settings** → **Environment Variables**。
+2. **Add New**：**Name** `VERCEL_BUILD_MODE`，**Value** `internal`，**Environments** 勾选 **Production**（若 Preview 也要出内部包，再勾选 **Preview**）。
+3. **Save** → 进入 **Deployments** → 对 **`main`** 最新一条点 **⋯** → **Redeploy**（或推送空 commit 触发构建）。
+
+你已配置的 **`VITE_DATA_SOURCE=openclaw`** 等可保留；加上 **`VERCEL_BUILD_MODE=internal`** 后，构建会走 `build:internal`，不再触发「公开 Demo 拒绝 openclaw」的守卫。
+
+**可选（本机已安装 Vercel CLI 且已 `vercel link` 到 `kotovelahub`）：** 在仓库根执行 `npx vercel env add VERCEL_BUILD_MODE production`，提示值时输入 `internal`（以 CLI 文档为准）。
+
 ## 4. 部署后自测
 
 - **Demo**：任意页数据源为 **Mock**；打开开发者工具 Network，**不应**出现对 office 实例接口的请求（除非有人误改构建变量）
