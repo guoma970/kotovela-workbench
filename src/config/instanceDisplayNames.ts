@@ -1,13 +1,13 @@
 import { runtimeConfig, type WorkbenchMode } from './runtime'
 
 /**
- * 公开 / Demo 构建：完整展示名，不在文案里嵌入与内部 icon 单字同一套的个人简称（Family 行按产品约定保留「小羲」）。
+ * 公开 / Demo 构建：完整展示名，不含内部「小×」称呼；Family 为产品向叙事（与内部版 Family 小羲 区分）。
  */
 export const OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY: Record<string, string> = {
   main: 'Main｜系统协调与编排',
   builder: 'Builder｜产品实现',
   media: 'Media｜内容运营',
-  family: 'Family 小羲｜家庭助手',
+  family: 'Family ｜家庭助手',
   business: 'Business｜商业分析',
   ztl970: 'Platform｜综合支援',
 }
