@@ -16,6 +16,8 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
 
 type SessionItem = {
   key?: string
+  /** Original session key before agent-id normalization (e.g. agent:main:feishu:group:oc_…) */
+  sessionKeyRaw?: string
   name?: string
   role?: string
   status?: string
@@ -24,6 +26,9 @@ type SessionItem = {
   updatedAt?: string
   ageMs?: number | string
   ageText?: string
+  kind?: string
+  agentId?: string
+  model?: string
 }
 
 type SessionResponse = {
@@ -75,6 +80,34 @@ const normalizeSessionKey = (value: unknown): string => {
   return trimmed
 }
 
+/** When OpenClaw JSON has no task/currentTask, derive a one-line summary for the cockpit. */
+const inferTaskSummary = (session: SessionItem): string => {
+  const t = typeof session.task === 'string' ? session.task.trim() : ''
+  const ct = typeof session.currentTask === 'string' ? session.currentTask.trim() : ''
+  if (t && t !== '暂无任务') return t
+  if (ct) return ct
+
+  const raw = typeof session.sessionKeyRaw === 'string' ? session.sessionKeyRaw : ''
+  const kind = typeof session.kind === 'string' ? session.kind.toLowerCase() : ''
+  const model = typeof session.model === 'string' && session.model.length > 0 ? session.model : ''
+
+  if (kind === 'group' || raw.includes('feishu:group') || raw.includes(':group:')) {
+    const tail = raw.split(':').filter(Boolean).pop() ?? ''
+    const shortId = tail.length > 14 ? `${tail.slice(0, 10)}…` : tail
+    return shortId ? `飞书群会话 · ${shortId}` : '飞书群会话'
+  }
+
+  if (kind === 'direct') {
+    return model ? `直连会话 · ${model}` : '直连会话'
+  }
+
+  if (raw.includes('feishu')) {
+    return model ? `飞书会话 · ${model}` : '飞书会话'
+  }
+
+  return model ? `会话活跃 · ${model}` : '会话活跃（暂无任务摘要）'
+}
+
 const parseSessionOutput = (raw: unknown): SessionItem[] => {
   if (!raw || typeof raw !== 'object') {
     return []
@@ -91,11 +124,15 @@ const parseSessionOutput = (raw: unknown): SessionItem[] => {
 
   const mapped = list
     .filter((item): item is SessionItem => typeof item === 'object' && item !== null)
-    .map((item) => ({
-      ...item,
-      key: normalizeSessionKey(item.key),
-      updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
-    }))
+    .map((item) => {
+      const originalKey = typeof item.key === 'string' ? item.key : ''
+      return {
+        ...item,
+        sessionKeyRaw: originalKey,
+        key: normalizeSessionKey(item.key),
+        updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
+      }
+    })
 
   const deduped: Record<string, SessionItem> = {}
   for (const item of mapped) {
@@ -125,7 +162,7 @@ const buildFallbackSession = (session: SessionItem) => {
     name: session.name || key || '未知实例',
     role: session.role || OFFICE_ROLE_MAP[key] || '未设置角色',
     status: typeof session.status === 'string' && session.status.length > 0 ? session.status : 'active',
-    task: typeof session.task === 'string' && session.task.length > 0 ? session.task : session.currentTask || '暂无任务',
+    task: inferTaskSummary(session),
     updatedAt,
     ageMs,
     ageText: updatedAt,
