@@ -5,8 +5,54 @@
 ```bash
 cd /path/to/repo
 npm install
-npm run dev
+# 公开演示（Mock）：npm run dev:demo
+# 内部驾驶舱（默认轮询 OpenClaw）：npm run dev:internal
+npm run dev:internal
 ```
+
+浏览器访问 **http://localhost:5173**（端口写死，勿被占用）。
+
+### 内部驾驶舱：本机显示「真实 OpenClaw」状态（操作清单）
+
+目标：页面数据来自本机执行的 `openclaw sessions`，而不是 `src/data/mockData.ts`。
+
+1. **前提**
+   - 本机已安装 CLI：`openclaw --version` 有版本号。
+   - 仓库根目录已 `npm install`。
+
+2. **用 Internal 模式启动（会加载 `.env.internal`）**
+
+   ```bash
+   npm run dev:internal
+   ```
+
+   默认配置（见仓库内 `.env.internal`）为：`VITE_MODE=internal`、`VITE_DATA_SOURCE=openclaw`、`VITE_OFFICE_INSTANCES_API_PATH=/api/office-instances`。  
+   Vite 开发服务器会把 **`/api/office-instances`** 代理到同仓库的 `server/officeInstances.ts`：在 **Node 子进程里**执行与线上一致的 `openclaw --log-level silent sessions --json --all-agents --active 240`，把 JSON 转成驾驶舱用的 payload。
+
+3. **自检接口是否「live」**（需在 `dev:internal` 已启动时执行）
+
+   ```bash
+   npm run check:office
+   ```
+
+   或手动：
+
+   ```bash
+   curl -s http://127.0.0.1:5173/api/office-instances | head -c 400
+   ```
+
+   - 若 JSON 里 **`"source":"live"`**：表示已读到 `openclaw sessions`，不是快照文件。
+   - 若 **`"source":"snapshot"`**：表示本机 `openclaw` 未返回可用会话，已回退到 `data/office-instances.snapshot.json`（可 `npm run sync:office-snapshot` 更新快照）。
+   - 若请求失败（5xx / 连接拒绝）：前端在配置了 `VITE_FALLBACK_TO_MOCK=true` 时会 **回退 Mock**，顶栏可能仍显示「Mock」或提示 fallback。
+
+4. **若仍像 Mock 或数据不对**
+   - 直接跑：`openclaw --log-level silent sessions --json --all-agents --active 240`，确认 stdout 是合法 JSON 且 `sessions` 非空。
+   - 临时将 `.env.internal` 中 **`VITE_FALLBACK_TO_MOCK=false`**（或在本机 `.env.internal.local` 覆盖）再试一次，便于在浏览器 Network 里看到 **真实接口错误**，而不是静默 Mock。
+   - 确认没有用 **`npm run dev:demo`**（Demo 固定 `VITE_DATA_SOURCE=mock`，不会请求真实实例）。
+
+5. **外出访问（手机 / Vercel 读家里 Mac）**  
+   云端 **没有** 你的 `openclaw` 二进制，需二选一：  
+   - 在 **Mac mini** 上 `npm run serve:office-api` 暴露 `8787`，再用隧道把 **HTTPS** 指到该端口；Vercel 内部构建里设置 **`VITE_OFFICE_INSTANCES_API_PATH`** 为该 HTTPS 地址（含 `token` 若启用鉴权）。见下文「Mac mini 常驻」与 **`docs/vercel-setup.md`**。
 
 ## 生产构建校验
 
