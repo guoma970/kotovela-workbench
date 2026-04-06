@@ -25,7 +25,11 @@ export function AppShell() {
     pollingIntervalMs,
   } = useOfficeInstances()
   const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
-  const productTagline = mode === 'internal' ? 'Internal command center' : 'OpenClaw collaboration cockpit'
+  /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
+  const productSubtitleZh =
+    mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
+  const productTaglineEn =
+    mode === 'internal' ? 'Internal command center' : 'OpenClaw collaboration cockpit · OSS-friendly demo'
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -160,12 +164,13 @@ export function AppShell() {
       >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/yanting-logo-tight.png" alt={productName} />
+            <img className="brand-logo" src="/yanting-logo-tight.png" alt={`${productName} · ${productSubtitleZh}`} />
           </div>
           <div className="brand-copy">
             <h1>{productName}</h1>
-            <p>{productTagline}</p>
-            <p style={{ marginTop: '6px', fontSize: '12px', opacity: 0.8 }}>
+            <p className="brand-subtitle-zh">{productSubtitleZh}</p>
+            <p className="brand-subtitle-en">{productTaglineEn}</p>
+            <p className="brand-runtime-line">
               {mode === 'internal' ? 'Internal' : 'Demo'} · Target {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
               {isFallback ? ' · Fallback to Mock' : activeDataSource === 'openclaw' ? ' · OpenClaw connected' : ' · Mock active'}
             </p>

@@ -751,6 +751,27 @@ button,
   font-size: 0.86rem;
 }
 
+.brand .brand-subtitle-zh {
+  margin-top: 6px;
+  color: #c5d4ef;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.brand .brand-subtitle-en {
+  margin-top: 4px;
+  color: #93a4c3;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.92;
+}
+
+.brand .brand-runtime-line {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
 .brand-mark {
   width: 124px;
   height: 124px;
