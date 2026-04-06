@@ -20,14 +20,15 @@ if (mode === 'demo') {
   if (ds === 'openclaw') {
     console.error(
       '[vercel-build] Refusing public demo build: VITE_DATA_SOURCE=openclaw is set.\n' +
-        '公开站点只能走 Mock。请从该 Vercel 项目的 Environment Variables 中删除此项。',
+        '公开 Demo 站只能走 Mock：请从「公开项目」的 Environment Variables 中删除 VITE_DATA_SOURCE，或勿设为 openclaw。\n' +
+        '若本项目是内部驾驶舱（需要 OpenClaw）：请在 Production 设置 VERCEL_BUILD_MODE=internal（勿删 VITE_DATA_SOURCE，走 build:internal 即可）。',
     )
     process.exit(1)
   }
   if (vm === 'internal') {
     console.error(
       '[vercel-build] Refusing public demo build: VITE_MODE=internal.\n' +
-        '请使用 VERCEL_BUILD_MODE=internal 的专用项目构建驾驶舱。',
+        '公开项目请勿设置 VITE_MODE=internal。内部站请在 Vercel 设置 VERCEL_BUILD_MODE=internal。',
     )
     process.exit(1)
   }

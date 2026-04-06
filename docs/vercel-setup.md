@@ -105,6 +105,9 @@
 **Q：Internal 页面一直是 Mock？**  
 检查 `VERCEL_BUILD_MODE=internal` 是否在该环境的 **Production**（及 Preview 如需）都已设置；重新 Deploy。
 
+**Q：内部项目 Production 报错 `Refusing public demo build: VITE_DATA_SOURCE=openclaw is set`？**  
+说明 **`VERCEL_BUILD_MODE` 未设为 `internal`**，Vercel 走了 **公开 Demo** 构建路径，而 Demo 守卫禁止 `VITE_DATA_SOURCE=openclaw`。**不要**为通过构建而删掉 `VITE_DATA_SOURCE`（内部站需要 OpenClaw 时应保留）。正确做法：在 **`kotovelahub` 的 Production（及需要的 Preview）** 增加 **`VERCEL_BUILD_MODE=internal`**，保存后 **Redeploy**。
+
 **Q：想连家里 Mac mini API？**  
 Mac mini 上跑 `npm run serve:office-api`，用 Cloudflare Tunnel 等得到 HTTPS，把完整 API URL 写入 `VITE_OFFICE_INSTANCES_API_PATH` 后 **重新部署**（Vite 在构建期写入该变量）。
 
