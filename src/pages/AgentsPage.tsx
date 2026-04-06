@@ -90,6 +90,8 @@ export function AgentsPage() {
                 <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
               </div>
 
+              {agent.role ? <p className="agent-card-role">{agent.role}</p> : null}
+
               <div className="info-block emphasis-block">
                 <span>Current task</span>
                 <strong>{agent.currentTask}</strong>

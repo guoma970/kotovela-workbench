@@ -1,4 +1,4 @@
-import { defaultInstanceDisplayName } from '../config/instanceDisplayNames'
+import { defaultInstanceDisplayName, defaultInstanceRoleLabel } from '../config/instanceDisplayNames'
 import type { Agent, Project, Room, Task } from '../types'
 
 export type OfficeInstanceStatus = 'doing' | 'done' | 'blocker' | 'idle' | 'active' | 'blocked'
@@ -545,7 +545,12 @@ export const syncOfficeInstancesToAgents = (
         pickString(item.name) ||
         fallbackAgent?.name ||
         `实例 ${key || 'unknown'}`,
-      role: item.role || fallbackAgent?.role || '未设置角色',
+      role:
+        pickString(source.role) ||
+        item.role ||
+        defaultInstanceRoleLabel(key?.toLowerCase()) ||
+        fallbackAgent?.role ||
+        '未设置角色',
       status: toAgentStatus(normalizeStatus(item.status)),
       currentTask: pickString(source.currentTask) || pickString(source.current_task) || item.task || fallbackAgent?.currentTask || '暂无任务',
       project: projectName || fallbackAgent?.project || 'KOTOVELA',

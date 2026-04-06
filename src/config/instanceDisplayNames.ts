@@ -1,7 +1,7 @@
 import { runtimeConfig, type WorkbenchMode } from './runtime'
 
 /**
- * 公开 / Demo 构建：完整展示名，不含内部「小×」称呼；Family 为产品向叙事（与内部版 Family 小羲 区分）。
+ * 公开 / Demo：`Agent.name` 用完整产品向一行；`Agent.role` 由 mock 英文叙事填充。
  */
 export const OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY: Record<string, string> = {
   main: 'Main｜系统协调与编排',
@@ -13,20 +13,37 @@ export const OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY: Record<string, string> 
 }
 
 /**
- * 内部构建：「角色｜称呼｜职能」三段式，用于列表与徽章上的实例名（与公开版无「小×」称呼区分）。
+ * 内部版：`Agent.name` 只显示称呼（小树、小筑…）；`Agent.role` 用「角色｜职能」
+ *（如 Main｜数字指挥官），与称呼分列，不在 name 里堆一整句。
  */
-export const OFFICE_INSTANCE_INTERNAL_DISPLAY_NAME_BY_KEY: Record<string, string> = {
-  main: 'Main｜小树｜数字指挥官',
-  builder: 'Builder｜小筑｜开发助手',
-  media: 'Media｜小果｜内容助手',
-  family: 'Family｜小羲｜家庭助手',
-  business: 'Business｜小言｜业务助手',
-  ztl970: 'ZTL970｜小柒｜个人助手',
+export const OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY: Record<string, string> = {
+  main: '小树',
+  builder: '小筑',
+  media: '小果',
+  family: '小羲',
+  business: '小言',
+  ztl970: '小柒',
+}
+
+export const OFFICE_INSTANCE_INTERNAL_ROLE_BY_KEY: Record<string, string> = {
+  main: 'Main｜数字指挥官',
+  builder: 'Builder｜开发助手',
+  media: 'Media｜内容助手',
+  family: 'Family｜家庭助手',
+  business: 'Business｜业务助手',
+  ztl970: 'ZTL970｜个人助手',
 }
 
 /** @deprecated 使用 `OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY` */
 export const OFFICE_INSTANCE_DISPLAY_NAME_BY_KEY = OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY
 
+/** 兼容旧引用：内部版等同称呼，公开版等同完整展示名 */
+export const OFFICE_INSTANCE_INTERNAL_DISPLAY_NAME_BY_KEY = OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY
+
+/**
+ * 实例主展示串：内部 = 称呼；公开 = 完整一行。
+ * 用于 ObjectBadge、列表主标题、OpenClaw 同步缺省名等。
+ */
 export function defaultInstanceDisplayName(
   instanceKey: string | undefined,
   mode: WorkbenchMode = runtimeConfig.mode,
@@ -34,6 +51,16 @@ export function defaultInstanceDisplayName(
   const k = instanceKey?.trim().toLowerCase()
   if (!k) return undefined
   return mode === 'internal'
-    ? OFFICE_INSTANCE_INTERNAL_DISPLAY_NAME_BY_KEY[k]
+    ? OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY[k]
     : OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY[k]
+}
+
+/** 内部版 `Agent.role`；公开构建返回 `undefined`（由 mock / 数据层英文 role 兜底）。 */
+export function defaultInstanceRoleLabel(
+  instanceKey: string | undefined,
+  mode: WorkbenchMode = runtimeConfig.mode,
+): string | undefined {
+  const k = instanceKey?.trim().toLowerCase()
+  if (!k || mode !== 'internal') return undefined
+  return OFFICE_INSTANCE_INTERNAL_ROLE_BY_KEY[k]
 }
