@@ -33,7 +33,12 @@ function InternalControlSummary({
   const active = agents.filter((a) => a.status === 'active').length
   const idle = agents.filter((a) => a.status === 'idle').length
   const projectsWithBlockers = projects.filter((p) => p.blockers > 0).length
-  const topProjects = projects.slice(0, 6)
+  const topProjects = [...projects]
+    .sort((a, b) => {
+      if (b.blockers !== a.blockers) return b.blockers - a.blockers
+      return b.progress - a.progress
+    })
+    .slice(0, 6)
 
   const sourceLine =
     activeDataSource === 'openclaw'
@@ -68,6 +73,9 @@ function InternalControlSummary({
         <div className="control-summary-title-block">
           <h2 className="control-summary-heading">中控总览</h2>
           <p className="control-summary-health">{healthLine}</p>
+          <p className="control-summary-sub">
+            上方：各项目整体进度（阻塞多的优先）；下方：按实例看谁在做，并汇总该实例名下的任务完成情况。
+          </p>
         </div>
         <div className="control-summary-meta">
           <span className={`control-summary-pill ${activeDataSource === 'openclaw' && !isFallback ? 'is-live' : ''}`}>
@@ -108,7 +116,7 @@ function InternalControlSummary({
         <div className="control-project-snapshot">
           <div className="control-project-snapshot-head">
             <span className="control-project-snapshot-title">项目进度快照</span>
-            <span className="control-project-snapshot-hint">阻塞优先 · 点击进项目板</span>
+            <span className="control-project-snapshot-hint">阻塞优先排序 · 点击进项目板</span>
           </div>
           <ul className="control-project-snapshot-list">
             {topProjects.map((project) => (
@@ -158,6 +166,27 @@ type HomeItem = {
   projectId?: string
   agentId: string
   instanceKey?: string
+  /** Internal cockpit: compact task counts for this executor instance */
+  taskLine?: string
+}
+
+/** Per-instance task rollup (tasks where executor = agent). */
+function formatAgentTaskLine(tasks: Task[], agentId: string): string | undefined {
+  const mine = tasks.filter((t) => t.executorAgentId === agentId)
+  if (mine.length === 0) return undefined
+  let doing = 0
+  let blocked = 0
+  let done = 0
+  let todo = 0
+  for (const t of mine) {
+    if (t.status === 'doing') doing++
+    else if (t.status === 'blocked') blocked++
+    else if (t.status === 'done') done++
+    else if (t.status === 'todo') todo++
+  }
+  const parts = [`进行中 ${doing}`, `阻塞 ${blocked}`, `已完成 ${done}`]
+  if (todo > 0) parts.push(`待办 ${todo}`)
+  return `任务 ${mine.length} 条 · ${parts.join(' · ')}`
 }
 
 const normalizeSentence = (value?: string) => value?.trim() || 'No active task'
@@ -281,6 +310,7 @@ function SectionList({
                 <span className={`home-badge home-badge-${item.status}`}>{labels[item.status]}</span>
               </div>
               <p>{item.sentence}</p>
+              {item.taskLine ? <p className="home-item-taskline">{item.taskLine}</p> : null}
               <div className="home-item-meta">
                 {item.instanceKey ? <span className="home-item-key">{item.instanceKey}</span> : null}
                 <span>
@@ -356,7 +386,14 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const [actionMessage, setActionMessage] = useState<string>('')
 
-  const items = useMemo(() => buildHomeItems(agents, projects, rooms, tasks), [agents, projects, rooms, tasks])
+  const items = useMemo(() => {
+    const base = buildHomeItems(agents, projects, rooms, tasks)
+    if (mode !== 'internal') return base
+    return base.map((item) => ({
+      ...item,
+      taskLine: formatAgentTaskLine(tasks, item.agentId),
+    }))
+  }, [agents, projects, rooms, tasks, mode])
   const blockers = items.filter((item) => item.status === 'blocker')
   const actives = items.filter((item) => item.status === 'active')
   const idles = items.filter((item) => item.status === 'idle')
@@ -472,11 +509,14 @@ export function DashboardPage() {
   if (showInternalCockpit) {
     return (
       <section className="page home-page-v1 home-page--internal-control">
-        <div className="page-header home-header home-header--compact">
+        <div className="page-header home-header home-header--compact home-header--internal-dash">
           <div>
             <p className="eyebrow">KOTOVELA HUB</p>
             <h2>驾驶舱总览</h2>
           </div>
+          <p className="page-note home-internal-page-note">
+            核心两件事：各实例在你名下的任务完成情况；各「项目」维度的整体进度（开发、自媒体、家庭事务等可都建成项目，用进度条与阻塞数管控）。
+          </p>
         </div>
 
         {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}

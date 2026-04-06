@@ -168,6 +168,17 @@ button,
   line-height: 1.5;
 }
 
+.home-item-taskline {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #8ea2c6;
+  line-height: 1.45;
+}
+
+.home-internal-page-note {
+  margin-top: 0;
+}
+
 .home-item-meta {
   margin-top: 8px;
   color: #8ea2c6;
@@ -383,6 +394,14 @@ button,
   margin-bottom: 4px;
 }
 
+.home-header--internal-dash {
+  flex-direction: column;
+  align-items: stretch;
+}
+.home-header--internal-dash .page-note {
+  max-width: none;
+}
+
 .home-v1-grid--internal {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   align-items: start;
@@ -423,6 +442,14 @@ button,
   font-size: 0.95rem;
   color: #9ec1ff;
   line-height: 1.45;
+}
+
+.control-summary-sub {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #8ea2c6;
+  line-height: 1.45;
+  max-width: 78ch;
 }
 
 .control-summary-meta {
