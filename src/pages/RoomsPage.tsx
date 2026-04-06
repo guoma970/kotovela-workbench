@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { roomStatusLabel } from '../lib/statusLabels'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function RoomsPage() {
@@ -47,6 +48,11 @@ export function RoomsPage() {
           { label: isInternal ? '进入项目' : 'Go to projects', to: { pathname: '/projects' } },
           { label: isInternal ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
+        internalHint={
+          isInternal
+            ? '房间：协作入口（如飞书群或话题），表达「在哪个频道对接」；具体执行项以「任务」为准。'
+            : undefined
+        }
       />
 
       <div className="card-grid">
@@ -58,12 +64,12 @@ export function RoomsPage() {
             <article key={room.id} className={cardClass(room.id)} onClick={() => linking.select('room', room.id)}>
               <div className="panel-header align-start">
                 <ObjectBadge kind="room" code={room.code} name={room.name} clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
-                <span className={`status-pill status-${room.status}`}>{room.status}</span>
+                <span className={`status-pill status-${room.status}`}>{roomStatusLabel(room.status, isInternal)}</span>
               </div>
               <div className="context-strip">
                 <div>
                   <span>{isInternal ? '状态' : 'Status'}</span>
-                  <strong className={`status-dot status-${room.status}`}>{room.status}</strong>
+                  <strong className={`status-dot status-${room.status}`}>{roomStatusLabel(room.status, isInternal)}</strong>
                 </div>
                 <div>
                   <span>{isInternal ? '待处理' : 'Pending'}</span>

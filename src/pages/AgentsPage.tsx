@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { ObjectBadge } from '../components/ObjectBadge'
+import { agentStatusLabel } from '../lib/statusLabels'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function AgentsPage() {
@@ -88,7 +89,7 @@ export function AgentsPage() {
                   onClick={() => linking.select('agent', agent.id)}
                   {...linking.getState('agent', agent.id)}
                 />
-                <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
+                <span className={`status-pill status-${agent.status}`}>{agentStatusLabel(agent.status, isInternal)}</span>
               </div>
 
               {agent.role ? <p className="agent-card-role">{agent.role}</p> : null}

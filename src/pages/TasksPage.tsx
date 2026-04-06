@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { priorityLabel } from '../lib/statusLabels'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { TaskStatus } from '../types'
 
@@ -64,6 +65,9 @@ export function TasksPage() {
               ]
             : []
         }
+        internalHint={
+          isInternal ? '任务：你在飞书群里交给 OpenClaw 执行的具体事项；按队列与阻塞状态跟进。' : undefined
+        }
       />
 
       <div className="queue-grid">
@@ -91,7 +95,7 @@ export function TasksPage() {
                     <article key={task.id} className={cardClass(task.id)} onClick={() => linking.select('task', task.id)}>
                       <div className="item-head">
                         <h4>{task.title}</h4>
-                        <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                        <span className={`priority-badge priority-${task.priority}`}>{priorityLabel(task.priority, isInternal)}</span>
                       </div>
                       <div className="object-row top-gap">
                         {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}

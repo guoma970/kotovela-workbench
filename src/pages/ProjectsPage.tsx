@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { projectStatusLabel } from '../lib/statusLabels'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function ProjectsPage() {
@@ -55,6 +56,11 @@ export function ProjectsPage() {
           { label: showCockpitDetail ? '进入房间' : 'Go to rooms', to: { pathname: '/rooms' } },
           { label: showCockpitDetail ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
+        internalHint={
+          showCockpitDetail
+            ? '项目：多实例、多任务下的成果与阶段归属；在飞书群里布置的具体事，落在「任务」里。'
+            : undefined
+        }
       />
 
       <div className="card-grid project-grid">
@@ -76,7 +82,7 @@ export function ProjectsPage() {
                     {...linking.getState('project', project.id)}
                   />
                 </div>
-                <span className={`status-pill status-${project.status}`}>{project.status}</span>
+                <span className={`status-pill status-${project.status}`}>{projectStatusLabel(project.status, showCockpitDetail)}</span>
               </div>
               <div className="context-strip">
                 <div>

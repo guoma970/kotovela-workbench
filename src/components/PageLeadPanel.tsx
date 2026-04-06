@@ -17,6 +17,8 @@ interface PageLeadPanelProps {
   intro: string
   metrics: PageLeadPanelMetric[]
   actions?: PageLeadPanelAction[]
+  /** Internal mode: short semantics line (e.g. project vs room vs task). */
+  internalHint?: string
 }
 
 const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
@@ -24,7 +26,7 @@ const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
 const getIsCompactViewport = () =>
   typeof window !== 'undefined' ? window.matchMedia(MOBILE_PAGE_LEAD_MEDIA).matches : false
 
-export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLeadPanelProps) {
+export function PageLeadPanel({ heading, intro, metrics, actions = [], internalHint }: PageLeadPanelProps) {
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactViewport)
   const [expanded, setExpanded] = useState(() => !getIsCompactViewport())
 
@@ -68,6 +70,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLea
         </div>
       </div>
       <p className={`page-note ${collapsed ? 'page-lead-intro-compact' : ''}`}>{intro}</p>
+      {internalHint ? (
+        <p className={`page-note page-note-hint ${collapsed ? 'page-lead-intro-compact' : ''}`}>{internalHint}</p>
+      ) : null}
       <div className="info-pairs">
         {visibleMetrics.map((item) => (
           item.to ? (

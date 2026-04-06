@@ -1045,6 +1045,13 @@ button,
   max-width: 78ch;
 }
 
+.page-note-hint {
+  margin-top: 6px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2747,6 +2754,11 @@ body.focus-overlay-open .panel:hover {
 
   .page-lead-panel .page-note {
     font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .page-lead-panel .page-note-hint {
+    font-size: 0.8rem;
     line-height: 1.4;
   }
 
