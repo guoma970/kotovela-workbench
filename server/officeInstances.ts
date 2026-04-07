@@ -14,6 +14,12 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
   ztl970: '个人助手',
 }
 
+const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
+  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
+  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
+  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
+}
+
 type SessionItem = {
   key?: string
   /** Original session key before agent-id normalization (e.g. agent:main:feishu:group:oc_…) */
@@ -78,6 +84,12 @@ const normalizeSessionKey = (value: unknown): string => {
   return trimmed
 }
 
+const extractFeishuChatId = (raw: string): string | undefined => {
+  const m = /(?:^|:)oc_[a-z0-9]{8,}(?:$|:)?/i.exec(raw)
+  if (!m) return undefined
+  return m[0].replace(/:/g, '').toLowerCase()
+}
+
 /** When OpenClaw JSON has no task/currentTask, derive a one-line summary for the cockpit. */
 const inferTaskSummary = (session: SessionItem): string => {
   const t = typeof session.task === 'string' ? session.task.trim() : ''
@@ -90,7 +102,10 @@ const inferTaskSummary = (session: SessionItem): string => {
   const model = typeof session.model === 'string' && session.model.length > 0 ? session.model : ''
 
   if (kind === 'group' || raw.includes('feishu:group') || raw.includes(':group:')) {
-    const tail = raw.split(':').filter(Boolean).pop() ?? ''
+    const chatId = extractFeishuChatId(raw)
+    const groupName = chatId ? FEISHU_CHAT_ID_TO_NAME[chatId] : undefined
+    if (groupName) return `飞书群会话 · ${groupName}`
+    const tail = chatId || raw.split(':').filter(Boolean).pop() || ''
     const shortId = tail.length > 14 ? `${tail.slice(0, 10)}…` : tail
     return shortId ? `飞书群会话 · ${shortId}` : '飞书群会话'
   }
@@ -105,10 +120,10 @@ const inferTaskSummary = (session: SessionItem): string => {
 
   const slot = typeof session.slotKey === 'string' ? session.slotKey.trim() : ''
   if (slot) {
-    return `实例 ${slot} · 无会话上报`
+    return `实例 ${slot} · 暂无任务上报`
   }
 
-  return model ? `会话活跃 · ${model}` : '会话活跃（暂无任务摘要）'
+  return model ? `会话活跃 · ${model}` : '等待新任务（飞书群）'
 }
 
 const parseSessionOutput = (raw: unknown): SessionItem[] => {

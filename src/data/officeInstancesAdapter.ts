@@ -180,6 +180,7 @@ const pickFirstStringFromValues = (values: unknown[], fallback = ''): string => 
 }
 
 const CHAT_ID_REGEX = /\boc_[a-z0-9]{8,}\b/gi
+const GENERIC_TASK_TITLE_REGEX = /^(会话活跃（暂无任务摘要）|等待新任务（飞书群）|飞书群会话|直连会话|暂无任务)$/u
 
 const readableFeishuGroupNameFromSource = (source: Record<string, unknown>): string | undefined => {
   const explicitName = pickFirstStringFromValues([
@@ -229,6 +230,32 @@ const prettifyTaskTitle = (
       .trim()
   }
   return replaced
+}
+
+const resolveTaskTitle = (item: OfficeInstanceItem, source: Record<string, unknown>): string => {
+  const rawTitle = pickFirstStringFromValues([
+    pickString(source.title),
+    pickString(source.taskTitle),
+    item.task,
+    item.currentTask,
+  ])
+
+  const prettified = prettifyTaskTitle(rawTitle, source)
+  if (prettified && !GENERIC_TASK_TITLE_REGEX.test(prettified)) {
+    return prettified
+  }
+
+  // If title is too generic, fallback to more context-rich fields.
+  const richFallback = pickFirstStringFromValues([
+    pickString(source.note),
+    pickString(source.projectRelated),
+    readableFeishuGroupNameFromSource(source),
+    item.currentTask,
+    item.task,
+  ])
+
+  if (richFallback) return prettifyTaskTitle(richFallback, source)
+  return prettified || '待补充任务摘要'
 }
 
 const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
@@ -862,18 +889,10 @@ export const syncTasksFromInstances = (
       'KOTOVELA',
     ], 'KOTOVELA')
 
-    const rawTitle = pickFirstStringFromValues([
-      pickString(source.title),
-      pickString(source.taskTitle),
-      item.task,
-      item.currentTask,
-      '未命名任务',
-    ], '未命名任务')
-
     return {
       id: taskId,
       code: pickString(source.taskCode, `TSK-${taskId.slice(-3).toUpperCase()}`),
-      title: prettifyTaskTitle(rawTitle, source),
+      title: resolveTaskTitle(item, source),
       project: projectName,
       projectId,
       assignee: pickFirstStringFromValues([pickString(source.assignee), pickString(source.owner)], item.name || '实例'),
