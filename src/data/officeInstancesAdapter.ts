@@ -107,6 +107,19 @@ const PROJECT_NAME_HINTS: Record<string, string> = {
   'external demo assets': 'project-5',
 }
 
+/**
+ * Known Feishu chat_id -> readable group names.
+ * Priority order when rendering task titles:
+ * 1) Payload provided group name (room/channel/chat name)
+ * 2) This known-id map
+ * 3) Fallback to original title
+ */
+const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
+  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
+  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
+  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
+}
+
 const normalizeStatus = (value?: string): OfficeInstanceStatus => {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
 
@@ -164,6 +177,46 @@ const pickFirstStringFromValues = (values: unknown[], fallback = ''): string => 
   }
 
   return fallback
+}
+
+const CHAT_ID_REGEX = /\boc_[a-z0-9]{8,}\b/gi
+
+const readableFeishuGroupNameFromSource = (source: Record<string, unknown>): string | undefined => {
+  const explicitName = pickFirstStringFromValues([
+    pickString(source.chatName),
+    pickString(source.chat_name),
+    pickString(source.channelName),
+    pickString(source.channel_name),
+    pickString(source.roomName),
+    pickString(source.groupName),
+    pickString(source.group),
+  ])
+  if (explicitName) return explicitName
+
+  const explicitChatId = pickFirstStringFromValues([
+    pickString(source.chatId),
+    pickString(source.chat_id),
+    pickString(source.channelId),
+    pickString(source.channel_id),
+  ])
+  if (explicitChatId) return FEISHU_CHAT_ID_TO_NAME[explicitChatId]
+
+  return undefined
+}
+
+const prettifyTaskTitle = (
+  rawTitle: string,
+  source: Record<string, unknown>,
+): string => {
+  if (!rawTitle) return rawTitle
+
+  const fallbackGroupName = readableFeishuGroupNameFromSource(source)
+
+  return rawTitle.replace(CHAT_ID_REGEX, (chatId) => {
+    const mapped = FEISHU_CHAT_ID_TO_NAME[chatId]
+    const groupName = fallbackGroupName || mapped
+    return groupName || chatId
+  })
 }
 
 const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
@@ -797,16 +850,18 @@ export const syncTasksFromInstances = (
       'KOTOVELA',
     ], 'KOTOVELA')
 
+    const rawTitle = pickFirstStringFromValues([
+      pickString(source.title),
+      pickString(source.taskTitle),
+      item.task,
+      item.currentTask,
+      '未命名任务',
+    ], '未命名任务')
+
     return {
       id: taskId,
       code: pickString(source.taskCode, `TSK-${taskId.slice(-3).toUpperCase()}`),
-      title: pickFirstStringFromValues([
-        pickString(source.title),
-        pickString(source.taskTitle),
-        item.task,
-        item.currentTask,
-        '未命名任务',
-      ], '未命名任务'),
+      title: prettifyTaskTitle(rawTitle, source),
       project: projectName,
       projectId,
       assignee: pickFirstStringFromValues([pickString(source.assignee), pickString(source.owner)], item.name || '实例'),
