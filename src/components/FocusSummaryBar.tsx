@@ -18,7 +18,8 @@ const pageLinks = [
 ]
 
 export function FocusSummaryBar({ search, pathname, onClear }: { search: string; pathname: string; onClear?: () => void }) {
-  const { agents, projects, rooms, tasks, updates } = useOfficeInstances()
+  const { agents, projects, rooms, tasks, updates, mode } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const navigate = useNavigate()
   const searchParams = new URLSearchParams(search)
   const pageData = { projects, agents, rooms, tasks }
@@ -88,10 +89,10 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
       (item.taskId && relationScope.taskIds.has(item.taskId)),
   ).length
   const relatedSnapshot = [
-    `Projects ${relationScope.projectIds.size}`,
-    `Agents ${relationScope.agentIds.size}`,
-    `Rooms ${relationScope.roomIds.size}`,
-    `Tasks ${relationScope.taskIds.size}`,
+    `${isInternal ? '项目' : 'Projects'} ${relationScope.projectIds.size}`,
+    `${isInternal ? '实例' : 'Agents'} ${relationScope.agentIds.size}`,
+    `${isInternal ? '房间' : 'Rooms'} ${relationScope.roomIds.size}`,
+    `${isInternal ? '任务' : 'Tasks'} ${relationScope.taskIds.size}`,
   ].join(' · ')
   const primaryFocusPath =
     focusTarget?.type === 'project'
@@ -120,44 +121,49 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
     <section
       className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''} ${isScrolled ? 'focus-summary-dock-scrolled' : ''}`}
     >
-      <button type="button" className="focus-close-action" aria-label="Clear linked focus" onClick={onClear}>
-        Clear
+      <button
+        type="button"
+        className="focus-close-action"
+        aria-label={isInternal ? '清除联动焦点' : 'Clear linked focus'}
+        onClick={onClear}
+      >
+        {isInternal ? '清除' : 'Clear'}
       </button>
       <header className="focus-summary-header focus-summary-header-compact">
         <div className="focus-summary-title-block">
-          <p className="eyebrow">Linked navigation</p>
+          <p className="eyebrow">{isInternal ? '联动导航' : 'Linked navigation'}</p>
           <h3>
             {summary.label}：{summary.value}
           </h3>
           <p className="focus-summary-inline-meta">
-            {relatedSnapshot} · blocker {blockerCount}
+            {relatedSnapshot} · {isInternal ? '阻塞' : 'blocker'} {blockerCount}
           </p>
         </div>
         <div className="focus-summary-toolbar">
           <div className="focus-summary-chip-row">
             <NavLink className="focus-metric focus-metric-link focus-metric-mini" to={{ pathname: '/tasks', search: baseSearch }}>
-              <span>Tasks</span>
+              <span>{isInternal ? '任务' : 'Tasks'}</span>
               <strong>{relationScope.taskIds.size}</strong>
             </NavLink>
             <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/rooms', search: baseSearch }}>
-              <span>Rooms</span>
+              <span>{isInternal ? '房间' : 'Rooms'}</span>
               <strong>{relationScope.roomIds.size}</strong>
             </NavLink>
             <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/agents', search: baseSearch }}>
-              <span>Agents</span>
+              <span>{isInternal ? '实例' : 'Agents'}</span>
               <strong>{relationScope.agentIds.size}</strong>
             </NavLink>
             <NavLink
               className="focus-metric focus-metric-link focus-metric-mini"
               to={{ pathname: '/tasks', search: withExtraSearch({ status: 'blocked' }) }}
             >
-              <span>blocker</span>
+              <span>{isInternal ? '阻塞' : 'blocker'}</span>
               <strong>{blockerCount}</strong>
             </NavLink>
           </div>
           <div className="focus-summary-header-actions">
             <NavLink className="ghost-button focus-header-button focus-header-link" to={{ pathname: primaryFocusPath, search: baseSearch }}>
-              Open object page
+              {isInternal ? '打开对象页面' : 'Open object page'}
             </NavLink>
             <button
               type="button"
@@ -165,7 +171,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
               onClick={() => setExpandedKey((value) => (value === summaryKey ? null : summaryKey))}
               aria-expanded={expanded}
             >
-              {expanded ? 'Details ˄' : 'Details ˅'}
+              {expanded ? (isInternal ? '收起详情 ˄' : 'Details ˄') : isInternal ? '展开详情 ˅' : 'Details ˅'}
             </button>
           </div>
         </div>
@@ -173,11 +179,11 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
 
       {expanded && (
         <div className="focus-summary-main-area">
-          <section className="focus-summary-group" aria-label="Linked group details">
-            <p className="section-label">Grouped details</p>
+          <section className="focus-summary-group" aria-label={isInternal ? '联动分组详情' : 'Linked group details'}>
+            <p className="section-label">{isInternal ? '分组详情' : 'Grouped details'}</p>
             <div className="focus-group-grid">
               <div className="focus-group-block">
-                <span>Projects</span>
+                <span>{isInternal ? '项目' : 'Projects'}</span>
                 <div className="focus-group-links">
                   {relationScope.projectIds.size ? (
                     [...relationScope.projectIds].map((id) => {
@@ -200,7 +206,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>Agents</span>
+                <span>{isInternal ? '实例' : 'Agents'}</span>
                 <div className="focus-group-links">
                   {relationScope.agentIds.size ? (
                     [...relationScope.agentIds].map((id) => {
@@ -223,7 +229,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>Rooms</span>
+                <span>{isInternal ? '房间' : 'Rooms'}</span>
                 <div className="focus-group-links">
                   {relationScope.roomIds.size ? (
                     [...relationScope.roomIds].map((id) => {
@@ -246,7 +252,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>Tasks</span>
+                <span>{isInternal ? '任务' : 'Tasks'}</span>
                 <div className="focus-group-links">
                   {relationScope.taskIds.size ? (
                     [...relationScope.taskIds].map((id) => {
@@ -269,10 +275,10 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>Key updates</span>
+                <span>{isInternal ? '关键更新' : 'Key updates'}</span>
                 <div className="focus-group-links">
                   <NavLink className="focus-group-link" to={{ pathname: '/', search: baseSearch }}>
-                    {criticalUpdateCount} total
+                    {criticalUpdateCount} {isInternal ? '条' : 'total'}
                   </NavLink>
                 </div>
               </div>
@@ -290,7 +296,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                     end={item.to === '/'}
                     className={isCurrent ? 'focus-page-link focus-page-link-active' : 'focus-page-link'}
                   >
-                    Related items · {item.label}
+                    {isInternal ? '联动项 · ' : 'Related items · '}{item.label}
                   </NavLink>
                 )
               })}

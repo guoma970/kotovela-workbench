@@ -56,7 +56,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
       <div className="panel-header">
         <h3>Page snapshot · {heading}</h3>
         <div className="page-lead-toolbar">
-          <span>{collapsed ? 'Compact view' : 'Current view'}</span>
+          <span>{collapsed ? 'Compact view 紧凑视图' : 'Current view 当前视图'}</span>
           {isCompactViewport && (
             <button
               type="button"
@@ -64,7 +64,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
               onClick={() => setExpanded((value) => !value)}
               aria-expanded={expanded}
             >
-              {expanded ? 'Collapse' : 'Expand'}
+              {expanded ? 'Collapse 收起' : 'Expand 展开'}
             </button>
           )}
         </div>
@@ -103,7 +103,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
       )}
       {collapsed && (hiddenMetricCount > 0 || hiddenActionCount > 0) && (
         <button type="button" className="page-lead-peek" onClick={() => setExpanded(true)}>
-          {hiddenMetricCount} more metrics and {hiddenActionCount} more next steps
+          {hiddenMetricCount} more metrics / 指标，{hiddenActionCount} more next steps / 后续动作
         </button>
       )}
     </section>

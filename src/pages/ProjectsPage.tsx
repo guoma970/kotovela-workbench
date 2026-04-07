@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
@@ -8,6 +8,7 @@ import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 export function ProjectsPage() {
   const { projects, agents, rooms, tasks, mode } = useOfficeInstances()
   const showCockpitDetail = mode === 'internal'
+  const navigate = useNavigate()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const blockedCount = projects.reduce((sum, project) => sum + project.blockers, 0)
@@ -22,6 +23,14 @@ export function ProjectsPage() {
     ]
       .filter(Boolean)
       .join(' ')
+  }
+
+  const goFocus = (
+    pathname: string,
+    kind: 'project' | 'agent' | 'room' | 'task',
+    id: string,
+  ) => {
+    navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
   }
 
   return (
@@ -146,7 +155,7 @@ export function ProjectsPage() {
                           agentId={agent.id}
                           compact
                           clickable
-                          onClick={() => linking.select('agent', agent.id)}
+                          onClick={() => goFocus('/agents', 'agent', agent.id)}
                           {...linking.getState('agent', agent.id)}
                         />
                       ))
@@ -167,7 +176,7 @@ export function ProjectsPage() {
                           name={room.name}
                           compact
                           clickable
-                          onClick={() => linking.select('room', room.id)}
+                          onClick={() => goFocus('/rooms', 'room', room.id)}
                           {...linking.getState('room', room.id)}
                         />
                       ))
@@ -189,7 +198,7 @@ export function ProjectsPage() {
                         name={task.title}
                         compact
                         clickable
-                        onClick={() => linking.select('task', task.id)}
+                        onClick={() => goFocus('/tasks', 'task', task.id)}
                         {...linking.getState('task', task.id)}
                       />
                     ))}

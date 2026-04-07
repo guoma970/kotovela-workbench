@@ -211,12 +211,24 @@ const prettifyTaskTitle = (
   if (!rawTitle) return rawTitle
 
   const fallbackGroupName = readableFeishuGroupNameFromSource(source)
-
-  return rawTitle.replace(CHAT_ID_REGEX, (chatId) => {
+  const replaced = rawTitle.replace(CHAT_ID_REGEX, (chatId) => {
     const mapped = FEISHU_CHAT_ID_TO_NAME[chatId]
     const groupName = fallbackGroupName || mapped
     return groupName || chatId
   })
+
+  // Last fallback: if the title still contains chat_id tokens, strip raw ids for readability.
+  CHAT_ID_REGEX.lastIndex = 0
+  if (CHAT_ID_REGEX.test(replaced)) {
+    CHAT_ID_REGEX.lastIndex = 0
+    return replaced
+      .replace(/飞书群会话[:：]\s*oc_[a-z0-9]+/gi, '飞书群会话')
+      .replace(/群会话[:：]\s*oc_[a-z0-9]+/gi, '群会话')
+      .replace(CHAT_ID_REGEX, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  }
+  return replaced
 }
 
 const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
