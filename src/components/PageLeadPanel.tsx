@@ -19,6 +19,8 @@ interface PageLeadPanelProps {
   actions?: PageLeadPanelAction[]
   /** Internal mode: short semantics line (e.g. project vs room vs task). */
   internalHint?: string
+  /** Internal mode copy preference. */
+  internalMode?: boolean
 }
 
 const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
@@ -26,7 +28,7 @@ const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
 const getIsCompactViewport = () =>
   typeof window !== 'undefined' ? window.matchMedia(MOBILE_PAGE_LEAD_MEDIA).matches : false
 
-export function PageLeadPanel({ heading, intro, metrics, actions = [], internalHint }: PageLeadPanelProps) {
+export function PageLeadPanel({ heading, intro, metrics, actions = [], internalHint, internalMode = false }: PageLeadPanelProps) {
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactViewport)
   const [expanded, setExpanded] = useState(() => !getIsCompactViewport())
 
@@ -54,9 +56,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
   return (
     <section className={`panel strong-card page-lead-panel ${collapsed ? 'page-lead-panel-collapsed' : ''}`}>
       <div className="panel-header">
-        <h3>Page snapshot · {heading}</h3>
+        <h3>{internalMode ? `页面快照 · ${heading}` : `Page snapshot · ${heading}`}</h3>
         <div className="page-lead-toolbar">
-          <span>{collapsed ? 'Compact view 紧凑视图' : 'Current view 当前视图'}</span>
+          <span>{internalMode ? (collapsed ? '紧凑视图' : '当前视图') : collapsed ? 'Compact view' : 'Current view'}</span>
           {isCompactViewport && (
             <button
               type="button"
@@ -64,7 +66,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
               onClick={() => setExpanded((value) => !value)}
               aria-expanded={expanded}
             >
-              {expanded ? 'Collapse 收起' : 'Expand 展开'}
+              {internalMode ? (expanded ? '收起' : '展开') : expanded ? 'Collapse' : 'Expand'}
             </button>
           )}
         </div>
@@ -103,7 +105,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
       )}
       {collapsed && (hiddenMetricCount > 0 || hiddenActionCount > 0) && (
         <button type="button" className="page-lead-peek" onClick={() => setExpanded(true)}>
-          {hiddenMetricCount} more metrics / 指标，{hiddenActionCount} more next steps / 后续动作
+          {internalMode
+            ? `还有 ${hiddenMetricCount} 个指标、${hiddenActionCount} 个后续动作`
+            : `${hiddenMetricCount} more metrics and ${hiddenActionCount} more next steps`}
         </button>
       )}
     </section>

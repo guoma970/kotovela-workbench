@@ -37,6 +37,7 @@ export function RoomsPage() {
       <PageLeadPanel
         heading={isInternal ? 'Rooms 房间' : 'Rooms'}
         intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和实例。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
+        internalMode={isInternal}
         metrics={[
           { label: isInternal ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
           { label: isInternal ? '活跃房间' : 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },

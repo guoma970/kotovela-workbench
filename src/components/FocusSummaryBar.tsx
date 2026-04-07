@@ -10,11 +10,11 @@ import {
 } from '../lib/workbenchLinking'
 
 const pageLinks = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/projects', label: 'Projects' },
-  { to: '/agents', label: 'Agents' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/rooms', label: 'Rooms' },
+  { to: '/', label: 'Dashboard', internalLabel: 'Dashboard 总览' },
+  { to: '/projects', label: 'Projects', internalLabel: 'Projects 项目' },
+  { to: '/agents', label: 'Agents', internalLabel: 'Agents 实例' },
+  { to: '/tasks', label: 'Tasks', internalLabel: 'Tasks 任务' },
+  { to: '/rooms', label: 'Rooms', internalLabel: 'Rooms 房间' },
 ]
 
 export function FocusSummaryBar({ search, pathname, onClear }: { search: string; pathname: string; onClear?: () => void }) {
@@ -296,7 +296,8 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                     end={item.to === '/'}
                     className={isCurrent ? 'focus-page-link focus-page-link-active' : 'focus-page-link'}
                   >
-                    {isInternal ? '联动项 · ' : 'Related items · '}{item.label}
+                    {isInternal ? '联动项 · ' : 'Related items · '}
+                    {isInternal ? item.internalLabel : item.label}
                   </NavLink>
                 )
               })}

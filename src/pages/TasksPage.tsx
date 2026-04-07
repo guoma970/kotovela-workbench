@@ -49,6 +49,7 @@ export function TasksPage() {
       <PageLeadPanel
         heading={isInternal ? 'Tasks 任务' : 'Tasks'}
         intro={isInternal ? '先看阻塞任务，再复核进行中的执行链。' : 'Start with blocked tasks, then review work in progress.'}
+        internalMode={isInternal}
         metrics={[
           { label: isInternal ? '总任务' : 'Total', value: tasks.length, to: { pathname: '/tasks' } },
           { label: isInternal ? '进行中' : 'Doing', value: tasks.filter((task) => task.status === 'doing').length, to: { pathname: '/tasks', search: '?status=doing' } },

@@ -54,6 +54,7 @@ export function ProjectsPage() {
             ? '先看项目数量与阻塞，再进入任务、房间与实例。'
             : 'Start with project volume and blockers, then jump into Tasks, Rooms, and Agents.'
         }
+        internalMode={showCockpitDetail}
         metrics={[
           { label: showCockpitDetail ? '项目' : 'Projects', value: projects.length, to: { pathname: '/projects' } },
           { label: showCockpitDetail ? '活跃项目' : 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },

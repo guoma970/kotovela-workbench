@@ -52,6 +52,7 @@ export function AgentsPage() {
       <PageLeadPanel
         heading={isInternal ? 'Agents 实例' : 'Agents'}
         intro={isInternal ? '优先处理阻塞实例，再确认当前执行链。' : 'Start with blocked agents, then confirm the active execution chain.'}
+        internalMode={isInternal}
         metrics={[
           { label: isInternal ? '实例' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
           { label: isInternal ? '进行中' : 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
