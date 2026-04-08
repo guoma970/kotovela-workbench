@@ -115,6 +115,15 @@ const PROJECT_NAME_HINTS: Record<string, string> = {
   'external demo assets': 'project-5',
 }
 
+const PROJECT_NAME_BY_INSTANCE_KEY: Record<string, string> = {
+  main: '中枢调度项目',
+  builder: '研发执行项目',
+  media: '内容创作项目',
+  family: '家庭事务项目',
+  business: '业务增长项目',
+  personal: '个人助手项目',
+}
+
 /**
  * Known Feishu chat_id -> readable group names.
  * Priority order when rendering task titles:
@@ -513,7 +522,7 @@ const getProjectIdFromInstance = (item: OfficeInstanceItem, index: number): stri
     return hinted
   }
 
-  const key = item.key?.trim()
+  const key = canonicalInstanceKey(item.key)
   return key ? `project-${key}` : `project-${index + 1}`
 }
 
@@ -540,7 +549,7 @@ const getRoomIdFromInstance = (item: OfficeInstanceItem, index: number): string 
     return `room-${roomCode.replace(/\s+/g, '-')}`
   }
 
-  const key = item.key?.trim()
+  const key = canonicalInstanceKey(item.key)
   return key ? `room-${key}` : `room-${index + 1}`
 }
 
@@ -568,7 +577,7 @@ const getTaskIdFromInstance = (item: OfficeInstanceItem, index: number): string 
     return `task-${code.replace(/^TSK-?/i, '').trim() ? code.trim() : code}`
   }
 
-  const key = item.key?.trim()
+  const key = canonicalInstanceKey(item.key)
   return key ? `task-${key}` : `task-${index + 1}`
 }
 
@@ -726,13 +735,15 @@ export const syncProjectsFromInstances = (
   const projects: Project[] = instances.map((item, index) => {
     const source = item as Record<string, unknown>
     const normalized = normalizeStatus(item.status)
+    const instanceKey = canonicalInstanceKey(item.key)
     const projectId = getProjectIdFromInstance(item, index)
     const projectName = pickFirstStringFromValues([
       pickString(source.projectName),
       pickString(source.project),
       pickString(source.mainProject),
+      instanceKey ? PROJECT_NAME_BY_INSTANCE_KEY[instanceKey] : '',
       pickString(item.name, ''),
-      `实例 ${canonicalInstanceKey(item.key) || index + 1}`,
+      `实例 ${instanceKey || index + 1}`,
     ], '未命名项目')
     const ownerAgentId = getAssigneeAgentIdByTask(item)
     const roomId = getRoomIdFromInstance(item, index)
