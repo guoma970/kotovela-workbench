@@ -38,6 +38,7 @@ type SessionItem = {
   model?: string
   /** When no matching session row exists for this slot (final payload only) */
   slotKey?: string
+  [key: string]: unknown
 }
 
 type SessionResponse = {
@@ -91,16 +92,38 @@ const extractFeishuChatId = (raw: string): string | undefined => {
   return m[0].replace(/:/g, '').toLowerCase()
 }
 
+const pickSessionRichText = (session: SessionItem): string => {
+  const candidates: unknown[] = [
+    session.task,
+    session.currentTask,
+    session.title,
+    session.summary,
+    session.note,
+    session.latestMessage,
+    session.lastMessage,
+    session.preview,
+    session.content,
+    session.snippet,
+    session.description,
+  ]
+  for (const value of candidates) {
+    if (typeof value !== 'string') continue
+    const t = value.trim()
+    if (!t) continue
+    if (t === '暂无任务') continue
+    return t
+  }
+  return ''
+}
+
 /** When OpenClaw JSON has no task/currentTask, derive a one-line summary for the cockpit. */
 const inferTaskSummary = (session: SessionItem): string => {
-  const t = typeof session.task === 'string' ? session.task.trim() : ''
-  const ct = typeof session.currentTask === 'string' ? session.currentTask.trim() : ''
-  if (t && t !== '暂无任务') return t
-  if (ct) return ct
+  const rich = pickSessionRichText(session)
+  if (rich) return rich
 
   const raw = typeof session.sessionKeyRaw === 'string' ? session.sessionKeyRaw : ''
   const kind = typeof session.kind === 'string' ? session.kind.toLowerCase() : ''
-  const model = typeof session.model === 'string' && session.model.length > 0 ? session.model : ''
+  const key = typeof session.key === 'string' ? session.key.trim().toLowerCase() : ''
 
   if (kind === 'group' || raw.includes('feishu:group') || raw.includes(':group:')) {
     const chatId = extractFeishuChatId(raw)
@@ -112,19 +135,21 @@ const inferTaskSummary = (session: SessionItem): string => {
   }
 
   if (kind === 'direct') {
-    return model ? `直连会话 · ${model}` : '直连会话'
+    if (key === 'media') return '诗句创作中，待同步最新内容'
+    if (key) return `实例 ${key} · 直连会话进行中`
+    return '直连会话进行中'
   }
 
   if (raw.includes('feishu')) {
-    return model ? `飞书会话 · ${model}` : '飞书会话'
+    return '飞书会话'
   }
 
   const slot = typeof session.slotKey === 'string' ? session.slotKey.trim() : ''
   if (slot) {
-    return `实例 ${slot} · 暂无任务上报`
+    return `实例 ${slot} · 暂无任务上报（请同步任务标题/摘要）`
   }
 
-  return model ? `会话活跃 · ${model}` : '等待新任务（飞书群）'
+  return '等待新任务（飞书群）'
 }
 
 const parseSessionOutput = (raw: unknown): SessionItem[] => {

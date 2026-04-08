@@ -121,14 +121,6 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
     <section
       className={`panel focus-banner focus-summary-bar strong-card focus-summary-dock ${expanded ? 'focus-summary-dock-expanded' : ''} ${isScrolled ? 'focus-summary-dock-scrolled' : ''}`}
     >
-      <button
-        type="button"
-        className="focus-close-action"
-        aria-label={isInternal ? '清除联动焦点' : 'Clear linked focus'}
-        onClick={onClear}
-      >
-        {isInternal ? '清除' : 'Clear'}
-      </button>
       <header className="focus-summary-header focus-summary-header-compact">
         <div className="focus-summary-title-block">
           <p className="eyebrow">{isInternal ? '联动导航' : 'Linked navigation'}</p>
@@ -172,6 +164,14 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
               aria-expanded={expanded}
             >
               {expanded ? (isInternal ? '收起详情 ˄' : 'Details ˄') : isInternal ? '展开详情 ˅' : 'Details ˅'}
+            </button>
+            <button
+              type="button"
+              className="ghost-button focus-header-button focus-clear-button"
+              aria-label={isInternal ? '清除联动焦点' : 'Clear linked focus'}
+              onClick={onClear}
+            >
+              {isInternal ? '清除' : 'Clear'}
             </button>
           </div>
         </div>

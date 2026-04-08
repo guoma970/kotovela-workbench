@@ -1267,27 +1267,8 @@ button,
   flex: 0 0 auto;
 }
 
-.focus-close-action {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  min-width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid rgba(126, 163, 255, 0.3);
-  background: rgba(10, 17, 37, 0.55);
-  color: #f4f7ff;
-  font-size: 0.74rem;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.focus-close-action:hover {
-  background: rgba(126, 163, 255, 0.25);
+.focus-clear-button {
+  min-width: 64px;
 }
 
 .focus-summary-main-area {
