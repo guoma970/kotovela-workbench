@@ -28,11 +28,14 @@ export function OfficeInstancesProvider({
 }) {
   const [instances, setInstances] = useState<OfficeInstanceItem[]>([])
   const [updates, setUpdates] = useState(fallbackUpdates)
-  const [activeDataSource, setActiveDataSource] = useState<DataSource>('mock')
+  const [activeDataSource, setActiveDataSource] = useState<DataSource>(
+    runtimeConfig.preferredDataSource === 'openclaw' ? 'openclaw' : 'mock',
+  )
   const [isFallback, setIsFallback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [lastSyncedAtMs, setLastSyncedAtMs] = useState<number | null>(null)
+  const [hasBootstrapped, setHasBootstrapped] = useState(runtimeConfig.preferredDataSource === 'mock')
 
   const lastFetchMsRef = useRef(0)
   const liveInstancesRef = useRef<OfficeInstanceItem[]>([])
@@ -61,6 +64,7 @@ export function OfficeInstancesProvider({
     if (preferredDataSource === 'mock') {
       setLastSyncedAtMs(null)
       applyMockSnapshot('')
+      setHasBootstrapped(true)
       return
     }
 
@@ -120,6 +124,7 @@ export function OfficeInstancesProvider({
       }
     } finally {
       setIsLoading(false)
+      setHasBootstrapped(true)
     }
   }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks, preferredDataSource, applyMockSnapshot])
 
@@ -177,10 +182,13 @@ export function OfficeInstancesProvider({
     void fetchData()
   }, [fetchData])
 
-  const effectiveAgents = activeDataSource === 'mock' ? fallbackAgents : null
-  const effectiveProjects = activeDataSource === 'mock' ? fallbackProjects : null
-  const effectiveRooms = activeDataSource === 'mock' ? fallbackRooms : null
-  const effectiveTasks = activeDataSource === 'mock' ? fallbackTasks : null
+  const isInternalOpenclawBootstrap =
+    mode === 'internal' && preferredDataSource === 'openclaw' && !hasBootstrapped && !isFallback
+
+  const effectiveAgents = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackAgents : null
+  const effectiveProjects = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackProjects : null
+  const effectiveRooms = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackRooms : null
+  const effectiveTasks = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackTasks : null
 
   const syncAgents = effectiveAgents ?? syncOfficeInstancesToAgents(instances, fallbackAgents).agents
   const syncProjects = effectiveProjects ?? syncProjectsFromInstances(instances, fallbackProjects).projects
@@ -194,7 +202,7 @@ export function OfficeInstancesProvider({
         projects: syncProjects,
         rooms: syncRooms,
         tasks: syncTasks,
-        updates,
+        updates: isInternalOpenclawBootstrap ? [] : updates,
         mode,
         preferredDataSource,
         activeDataSource,
