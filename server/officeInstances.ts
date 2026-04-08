@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'ztl970'] as const
+export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'personal'] as const
 
 export const OFFICE_ROLE_MAP: Record<string, string> = {
   main: '中枢调度',
@@ -11,6 +11,7 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
   media: '内容助手',
   family: '家庭助手',
   business: '业务助手',
+  personal: '个人助手',
   ztl970: '个人助手',
 }
 
@@ -78,10 +79,10 @@ const normalizeSessionKey = (value: unknown): string => {
 
   const parts = trimmed.split(':')
   if (parts[0] === 'agent' && parts.length >= 2) {
-    return parts[1]
+    const key = parts[1]
+    return key === 'ztl970' ? 'personal' : key
   }
-
-  return trimmed
+  return trimmed === 'ztl970' ? 'personal' : trimmed
 }
 
 const extractFeishuChatId = (raw: string): string | undefined => {

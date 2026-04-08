@@ -72,14 +72,14 @@ export const agents: Agent[] = [
   {
     id: 'agent-6',
     code: 'INS-06',
-    name: defaultInstanceDisplayName('ztl970')!,
-    role: defaultInstanceRoleLabel('ztl970') ?? 'Flexible support',
+    name: defaultInstanceDisplayName('personal')!,
+    role: defaultInstanceRoleLabel('personal') ?? 'Flexible support',
     status: 'idle',
     currentTask: 'Standing by for the next routed task',
     project: 'Kotovela Workbench',
     projectId: 'project-1',
     updatedAt: 'just now',
-    instanceKey: 'ztl970',
+    instanceKey: 'personal',
   },
 ]
 

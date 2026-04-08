@@ -8,6 +8,7 @@ export const OFFICE_INSTANCE_KEY_TO_GLYPH: Record<string, string> = {
   media: '果',
   family: '言',
   business: '柒',
+  personal: '羲',
   ztl970: '羲',
 }
 

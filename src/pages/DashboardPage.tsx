@@ -189,7 +189,13 @@ function formatAgentTaskLine(tasks: Task[], agentId: string): string | undefined
   return `任务 ${mine.length} 条 · ${parts.join(' · ')}`
 }
 
-const normalizeSentence = (value?: string) => value?.trim() || 'No active task'
+const normalizeSentence = (value?: string) => value?.trim() || '暂无明确任务'
+
+const shortText = (value: string, max = 56): string => {
+  const text = value.trim()
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1)}…`
+}
 
 const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tasks: Task[]): HomeItem[] => {
   return agents.map((agent) => {
@@ -197,14 +203,22 @@ const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tas
     const blockerTask = relatedTasks.find((task) => task.status === 'blocked')
     const doingTask = relatedTasks.find((task) => task.status === 'doing')
     const relatedRoom = rooms.find((room) => room.instanceIds.includes(agent.id))
-    const projectName = projects.find((project) => project.id === agent.projectId)?.name || agent.project
+    const relatedProject = projects.find((project) => project.id === agent.projectId)
+    const projectName = relatedProject?.name || agent.project
+    const projectProgress = Number.isFinite(relatedProject?.progress) ? relatedProject!.progress : 0
+    const roomName = relatedRoom?.name || '未绑定房间'
+    const blockedText = shortText(blockerTask?.title || agent.currentTask || '阻塞事项待处理')
+    const doingText = shortText(doingTask?.title || agent.currentTask || '执行事项待补充')
+    const idleText = shortText(agent.currentTask || '等待任务分派')
 
     if (agent.status === 'blocked' || blockerTask) {
       return {
         id: agent.id,
         name: agent.name,
         status: 'blocker',
-        sentence: normalizeSentence(blockerTask?.title || agent.currentTask || `${projectName} has a blocker`),
+        sentence: normalizeSentence(
+          `在 ${roomName} 阻塞：${blockedText} · 项目 ${projectName}（${projectProgress}%）`,
+        ),
         updatedAt: agent.updatedAt,
         taskId: blockerTask?.id,
         roomId: relatedRoom?.id,
@@ -219,7 +233,9 @@ const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tas
         id: agent.id,
         name: agent.name,
         status: 'active',
-        sentence: normalizeSentence(doingTask?.title || agent.currentTask),
+        sentence: normalizeSentence(
+          `在 ${roomName} 推进：${doingText} · 项目 ${projectName}（${projectProgress}%）`,
+        ),
         updatedAt: agent.updatedAt,
         taskId: doingTask?.id,
         roomId: relatedRoom?.id,
@@ -233,7 +249,9 @@ const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tas
       id: agent.id,
       name: agent.name,
       status: 'idle',
-      sentence: normalizeSentence(agent.currentTask || `${projectName} has no active work`),
+      sentence: normalizeSentence(
+        `待命于 ${roomName} · 当前关注：${idleText} · 项目 ${projectName}（${projectProgress}%）`,
+      ),
       updatedAt: agent.updatedAt,
       roomId: relatedRoom?.id,
       projectId: agent.projectId,

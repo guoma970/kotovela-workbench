@@ -9,7 +9,8 @@ export const OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY: Record<string, string> 
   media: 'Media｜内容运营',
   family: 'Family ｜家庭助手',
   business: 'Business｜商业分析',
-  ztl970: 'Platform｜综合支援',
+  personal: 'Personal｜个人助手',
+  ztl970: 'Personal｜个人助手',
 }
 
 /**
@@ -22,6 +23,7 @@ export const OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY: Record<string, string> = 
   media: '小果',
   family: '小羲',
   business: '小言',
+  personal: 'Personal',
   ztl970: 'Personal',
 }
 
@@ -31,7 +33,8 @@ export const OFFICE_INSTANCE_INTERNAL_ROLE_BY_KEY: Record<string, string> = {
   media: 'Media｜内容助手',
   family: 'Family｜家庭助手',
   business: 'Business｜业务助手',
-  ztl970: 'ZTL970｜个人助手',
+  personal: 'Personal｜个人助手',
+  ztl970: 'Personal｜个人助手',
 }
 
 /** @deprecated 使用 `OFFICE_INSTANCE_PUBLIC_DISPLAY_NAME_BY_KEY` */
@@ -48,7 +51,8 @@ export function defaultInstanceDisplayName(
   instanceKey: string | undefined,
   mode: WorkbenchMode = runtimeConfig.mode,
 ): string | undefined {
-  const k = instanceKey?.trim().toLowerCase()
+  const raw = instanceKey?.trim().toLowerCase()
+  const k = raw === 'ztl970' ? 'personal' : raw
   if (!k) return undefined
   return mode === 'internal'
     ? OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY[k]
@@ -60,7 +64,8 @@ export function defaultInstanceRoleLabel(
   instanceKey: string | undefined,
   mode: WorkbenchMode = runtimeConfig.mode,
 ): string | undefined {
-  const k = instanceKey?.trim().toLowerCase()
+  const raw = instanceKey?.trim().toLowerCase()
+  const k = raw === 'ztl970' ? 'personal' : raw
   if (!k || mode !== 'internal') return undefined
   return OFFICE_INSTANCE_INTERNAL_ROLE_BY_KEY[k]
 }

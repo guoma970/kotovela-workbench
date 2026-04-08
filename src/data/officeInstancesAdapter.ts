@@ -86,6 +86,7 @@ const OFFICE_AGENT_ID_MAP: Record<string, string> = {
   media: 'agent-3',
   family: 'agent-4',
   business: 'agent-5',
+  personal: 'agent-6',
   ztl970: 'agent-6',
 }
 
@@ -95,7 +96,14 @@ const OFFICE_AGENT_CODE_MAP: Record<string, string> = {
   media: 'INS-03',
   family: 'INS-04',
   business: 'INS-05',
+  personal: 'INS-06',
   ztl970: 'INS-06',
+}
+
+const canonicalInstanceKey = (key: string | undefined): string | undefined => {
+  const k = key?.trim().toLowerCase()
+  if (!k) return undefined
+  return k === 'ztl970' ? 'personal' : k
 }
 
 const PROJECT_NAME_HINTS: Record<string, string> = {
@@ -177,6 +185,39 @@ const pickFirstStringFromValues = (values: unknown[], fallback = ''): string => 
   }
 
   return fallback
+}
+
+const clampProgressByStatus = (status: OfficeInstanceStatus, raw: number | undefined): number => {
+  if (Number.isFinite(raw)) {
+    return Math.min(100, Math.max(0, raw as number))
+  }
+  switch (status) {
+    case 'done':
+      return 100
+    case 'doing':
+    case 'active':
+      return 60
+    case 'blocker':
+    case 'blocked':
+      return 35
+    default:
+      return 20
+  }
+}
+
+const statusActionText = (status: OfficeInstanceStatus): string => {
+  switch (status) {
+    case 'blocker':
+    case 'blocked':
+      return '阻塞待处理'
+    case 'doing':
+    case 'active':
+      return '正在推进'
+    case 'done':
+      return '已完成'
+    default:
+      return '待分派'
+  }
 }
 
 const CHAT_ID_REGEX = /\boc_[a-z0-9]{8,}\b/gi
@@ -414,9 +455,9 @@ const toTaskPriority = (index: number): Task['priority'] => {
 }
 
 const getAgentIdByInstance = (item: OfficeInstanceItem, fallback = 'agent-1'): string => {
-  const key = item.key?.trim()
+  const key = canonicalInstanceKey(item.key)
   if (!key) return fallback
-  return OFFICE_AGENT_ID_MAP[key] ?? `office-${key.toLowerCase()}`
+  return OFFICE_AGENT_ID_MAP[key] ?? `office-${key}`
 }
 
 const getAssigneeAgentIdByTask = (item: OfficeInstanceItem): string => {
@@ -621,7 +662,7 @@ export const syncOfficeInstancesToAgents = (
   }
 
   const syncedAgents = instances.map((item, index) => {
-    const key = item.key?.trim()
+    const key = canonicalInstanceKey(item.key)
     const source = item as Record<string, unknown>
     const fallbackAgent = key ? buildFallbackAgent(key, fallbackAgents) : undefined
     const projectName = pickString(source.projectName || source.project || source.mainProject)
@@ -633,14 +674,14 @@ export const syncOfficeInstancesToAgents = (
       code: fallbackAgent?.code ?? OFFICE_AGENT_CODE_MAP[key ?? ''] ?? key?.toUpperCase() ?? 'INS-00',
       name:
         pickFirstStringFromValues([pickString(source.displayName), pickString(source.display_name)]) ||
-        defaultInstanceDisplayName(key?.toLowerCase()) ||
+        defaultInstanceDisplayName(key) ||
         pickString(item.name) ||
         fallbackAgent?.name ||
         `实例 ${key || 'unknown'}`,
       role:
         pickString(source.role) ||
         item.role ||
-        defaultInstanceRoleLabel(key?.toLowerCase()) ||
+        defaultInstanceRoleLabel(key) ||
         fallbackAgent?.role ||
         '未设置角色',
       status: toAgentStatus(normalizeStatus(item.status)),
@@ -648,7 +689,7 @@ export const syncOfficeInstancesToAgents = (
       project: projectName || fallbackAgent?.project || 'KOTOVELA',
       projectId: canonicalProjectId,
       updatedAt: pickString(source.ageText || source.updatedAt || source.updatedAtText, fallbackAgent?.updatedAt || '刚刚'),
-      instanceKey: key || undefined,
+      instanceKey: key,
     }
   })
 
@@ -691,7 +732,7 @@ export const syncProjectsFromInstances = (
       pickString(source.project),
       pickString(source.mainProject),
       pickString(item.name, ''),
-      `实例 ${item.key || index + 1}`,
+      `实例 ${canonicalInstanceKey(item.key) || index + 1}`,
     ], '未命名项目')
     const ownerAgentId = getAssigneeAgentIdByTask(item)
     const roomId = getRoomIdFromInstance(item, index)
@@ -714,7 +755,11 @@ export const syncProjectsFromInstances = (
       pickString(source.roomName),
       pickString(source.mainRoom),
       pickString(source.group),
+      pickString(source.channelName),
     ])
+    const taskSummary = resolveTaskTitle(item, source)
+    const actionText = statusActionText(normalized)
+    const progress = clampProgressByStatus(normalized, Number.isFinite(progressRaw) ? progressRaw : undefined)
 
     return {
       id: projectId,
@@ -730,13 +775,12 @@ export const syncProjectsFromInstances = (
       owner,
       ownerAgentId,
       status: toProjectStatus(normalized),
-      progress: Number.isFinite(progressRaw) ? Math.min(100, Math.max(0, progressRaw)) : 20,
+      progress,
       focus: pickFirstStringFromValues(
         [
           pickString(source.focus),
           pickString(source.goal),
-          item.task,
-          item.currentTask,
+          `${actionText}：${taskSummary}`,
           '与实例状态同步',
         ],
         '与实例状态同步',
@@ -755,8 +799,8 @@ export const syncProjectsFromInstances = (
         [
           pickString(source.nextStep),
           pickString(source.next),
-          roomHint,
-          item.currentTask,
+          roomHint ? `在 ${roomHint} 跟进：${taskSummary}` : '',
+          `${actionText}：${taskSummary}`,
           '等待任务推进',
         ],
         '等待任务推进',
@@ -815,19 +859,22 @@ export const syncRoomsFromInstances = (
       pickString(source.channelName),
       pickString(source.channel),
       pickString(source.name),
-      `实例 ${item.key || index + 1} 房间`,
-    ], `实例 ${item.key || index + 1} 房间`)
+      `实例 ${canonicalInstanceKey(item.key) || index + 1} 房间`,
+    ], `实例 ${canonicalInstanceKey(item.key) || index + 1} 房间`)
 
     const statusText = pickFirstStringFromValues([
       pickString(source.focus),
       pickString(item.role),
       pickString(source.purpose),
-      '实例承载空间',
+      '承载任务讨论与执行汇报',
     ], '实例承载空间')
+    const taskSummary = resolveTaskTitle(item, source)
+    const actionText = statusActionText(normalized)
 
     const recentAction = pickFirstStringFromValues([
       pickString(source.recentAction),
       pickString(source.lastAction),
+      `${actionText}：${taskSummary}`,
       pickString(source.currentTask),
       item.task,
       '实例回传更新',
