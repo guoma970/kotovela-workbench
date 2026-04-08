@@ -64,7 +64,7 @@ export function RoomsPage() {
           return (
             <article key={room.id} className={cardClass(room.id)} onClick={() => linking.select('room', room.id)}>
               <div className="panel-header align-start">
-                <ObjectBadge kind="room" code={room.code} name={room.name} clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
+                <ObjectBadge kind="room" code={room.code} name={room.name} hideCode={isInternal} clickable onClick={() => linking.select('room', room.id)} {...linking.getState('room', room.id)} />
                 <span className={`status-pill status-${room.status}`}>{roomStatusLabel(room.status, isInternal)}</span>
               </div>
               <div className="context-strip">
@@ -97,7 +97,7 @@ export function RoomsPage() {
                 <div>
                   <span className="section-label">{isInternal ? '项目' : 'Project'}</span>
                   <div className="object-row top-gap">
-                    {project && <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
+                    {project && <ObjectBadge kind="project" code={project.code} name={project.name} hideCode={isInternal} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
                   </div>
                 </div>
                 <div>

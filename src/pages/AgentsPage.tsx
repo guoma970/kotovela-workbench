@@ -84,6 +84,7 @@ export function AgentsPage() {
                   kind="agent"
                   code={agent.code}
                   name={agent.name}
+                  hideCode={isInternal}
                   instanceKey={agent.instanceKey}
                   agentId={agent.id}
                   clickable
@@ -102,7 +103,7 @@ export function AgentsPage() {
 
               {project && (
                 <div className="object-row" style={{ marginTop: '8px' }}>
-                  <ObjectBadge kind="project" code={project.code} name={project.name} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />
+                  <ObjectBadge kind="project" code={project.code} name={project.name} hideCode={isInternal} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />
                 </div>
               )}
 

@@ -87,6 +87,7 @@ export function ProjectsPage() {
                     kind="project"
                     code={project.code}
                     name={project.name}
+                    hideCode={showCockpitDetail}
                     clickable
                     onClick={() => linking.select('project', project.id)}
                     {...linking.getState('project', project.id)}

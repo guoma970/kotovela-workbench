@@ -6,6 +6,7 @@ interface ObjectBadgeProps {
   kind: 'project' | 'agent' | 'room' | 'task'
   code: string
   name?: string
+  hideCode?: boolean
   /** OpenClaw / mock 实例 key（main、builder…），内部版用于图标内简称 */
   instanceKey?: string
   /** 内部版无 instanceKey 时用于对照 INS-01…06（如 agent-1） */
@@ -82,6 +83,7 @@ export function ObjectBadge({
   kind,
   code,
   name,
+  hideCode = false,
   instanceKey,
   agentId,
   compact = false,
@@ -115,8 +117,8 @@ export function ObjectBadge({
   const content = (
     <>
       <span className="object-icon">{icon}</span>
-      <span className="object-code">{code}</span>
       {name && <span className="object-name">{name}</span>}
+      {!hideCode && <span className="object-code">{code}</span>}
       {suffix}
     </>
   )

@@ -2074,13 +2074,16 @@ button.object-badge {
 }
 
 .object-code {
-  color: #f4f7ff;
-  font-weight: 700;
+  color: #8ea2c6;
+  font-weight: 600;
+  font-size: 0.72rem;
   letter-spacing: 0.02em;
 }
 
 .object-name {
   display: inline-block;
+  color: #eef4ff;
+  font-weight: 600;
   max-width: 16ch;
   overflow: hidden;
   text-overflow: ellipsis;
