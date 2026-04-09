@@ -133,6 +133,7 @@ const PROJECT_NAME_BY_INSTANCE_KEY: Record<string, string> = {
  */
 const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
   oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
+  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
   oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
   oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
 }
@@ -740,6 +741,7 @@ export const syncProjectsFromInstances = (
     const projectName = pickFirstStringFromValues([
       pickString(source.projectName),
       pickString(source.project),
+      pickString(source.projectRelated),
       pickString(source.mainProject),
       instanceKey ? PROJECT_NAME_BY_INSTANCE_KEY[instanceKey] : '',
       pickString(item.name, ''),
@@ -841,6 +843,7 @@ export const syncRoomsFromInstances = (
       pickString(source.mainProject),
       pickString(source.projectName),
       pickString(source.project),
+      pickString(source.projectRelated),
       'KOTOVELA',
     ], 'KOTOVELA')
 
@@ -944,6 +947,7 @@ export const syncTasksFromInstances = (
     const projectName = pickFirstStringFromValues([
       pickString(source.projectName),
       pickString(source.project),
+      pickString(source.projectRelated),
       'KOTOVELA',
     ], 'KOTOVELA')
 

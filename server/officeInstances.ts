@@ -15,8 +15,18 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
   ztl970: '个人助手',
 }
 
+const OFFICE_PROJECT_RELATED_MAP: Record<string, string> = {
+  main: '言町科技工作台研发群',
+  builder: '言町科技工作台研发群',
+  media: '内容创作协同项目',
+  family: '家庭事务协同项目',
+  business: '业务增长协同项目',
+  personal: '个人助手协同项目',
+}
+
 const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
   oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
+  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
   oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
   oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
 }
@@ -214,6 +224,7 @@ const buildFallbackSession = (session: SessionItem) => {
     kind: typeof session.kind === 'string' ? session.kind : undefined,
     model: typeof session.model === 'string' ? session.model : undefined,
     currentTask: typeof session.currentTask === 'string' ? session.currentTask : undefined,
+    projectRelated: typeof session.projectRelated === 'string' ? session.projectRelated : undefined,
     updatedAt,
     ageMs,
     ageText: updatedAt,
@@ -280,8 +291,12 @@ export const fetchOfficeInstancesPayload = async () => {
   const now = Date.now()
   const sourceItems = sessions.length > 0 ? sessions : Array.isArray(snapshot?.instances) ? snapshot.instances : []
   const normalized = sourceItems.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
+  const activeKeys =
+    sessions.length > 0
+      ? [...new Set(normalized.map((item) => item.key).filter((k): k is (typeof OFFICE_TARGET_KEYS)[number] => Boolean(k)))]
+      : OFFICE_TARGET_KEYS
 
-  const instances = OFFICE_TARGET_KEYS.map((key) => {
+  const instances = activeKeys.map((key) => {
     const found = normalized.find((item) => item.key === key)
     const safeAge = Math.max(0, typeof found?.ageMs === 'number' ? found.ageMs : 0)
 
@@ -305,7 +320,7 @@ export const fetchOfficeInstancesPayload = async () => {
         safeAge <= 5 * 60 * 1000
           ? `最近 ${Math.max(1, Math.round(safeAge / 1000))} 秒有状态上报`
           : `上次上报于 ${Math.max(1, Math.round(safeAge / 60000))} 分钟前`,
-      projectRelated: 'KOTOVELA 中枢群',
+      projectRelated: found?.projectRelated || OFFICE_PROJECT_RELATED_MAP[key] || 'KOTOVELA 协同项目',
     }
   })
 
