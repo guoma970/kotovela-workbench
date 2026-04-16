@@ -183,6 +183,35 @@ type FailedTaskState = {
   autoRetrying?: boolean
 }
 
+function AutoTaskSystemSummaryCard() {
+  const navigate = useNavigate()
+  const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
+
+  useEffect(() => {
+    fetch('/api/tasks-board', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json: AutoTaskBoardPayload) => setData(json))
+      .catch(() => setData(null))
+  }, [])
+
+  return (
+    <section className="home-section panel strong-card auto-task-summary-card">
+      <div className="home-section-head">
+        <h3>自动任务系统</h3>
+        <span className="home-count">{data?.total ?? 0}</span>
+      </div>
+      <div className="auto-task-overview">
+        <div className="auto-task-metric"><span>total</span><strong>{data?.total ?? 0}</strong></div>
+        <div className="auto-task-metric"><span>success</span><strong>{data?.success ?? 0}</strong></div>
+        <div className={`auto-task-metric ${(data?.failed ?? 0) > 0 ? 'is-failed' : ''}`}><span>failed</span><strong>{data?.failed ?? 0}</strong></div>
+      </div>
+      <button className="auto-task-go-btn" type="button" onClick={() => navigate('/auto-tasks')}>
+        查看详情 / 进入系统
+      </button>
+    </section>
+  )
+}
+
 type HomeItem = {
   id: string
   name: string
@@ -414,7 +443,7 @@ function RecentUpdates({
   )
 }
 
-function AutoTaskSystemPanel() {
+export function AutoTaskSystemPanel() {
   const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [taskInput, setTaskInput] = useState('')
@@ -890,7 +919,7 @@ export function DashboardPage() {
 
         <div className="home-v1-grid home-v1-grid--internal">
           <div className="home-internal-main-col">
-            <AutoTaskSystemPanel />
+            <AutoTaskSystemSummaryCard />
             <SectionList
               title="需处理"
               items={blockers}

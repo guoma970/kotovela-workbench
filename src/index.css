@@ -181,6 +181,19 @@ button,
   gap: 16px;
 }
 
+.auto-task-summary-card {
+  gap: 14px;
+}
+
+.auto-task-go-btn {
+  border: 1px solid rgba(126, 163, 255, 0.35);
+  background: rgba(91, 140, 255, 0.16);
+  color: #dbe7ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
 .auto-task-runner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

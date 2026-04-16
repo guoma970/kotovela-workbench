@@ -12,14 +12,16 @@ const getNavItems = (isInternal: boolean) =>
         { to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
         { to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
         { to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
-        { to: '/agents', step: 5, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { to: '/auto-tasks', step: 5, label: '自动任务系统', note: '执行控制 · 队列调度' },
+        { to: '/agents', step: 6, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
         { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
         { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
         { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
         { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-        { to: '/agents', step: 5, label: 'Agents', note: 'Agent activity and routing' },
+        { to: '/auto-tasks', step: 5, label: 'Auto Tasks', note: 'Execution control and queue' },
+        { to: '/agents', step: 6, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {
