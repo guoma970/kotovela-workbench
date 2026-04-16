@@ -25,6 +25,7 @@ function App() {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="scheduler" element={<AutoTasksPage />} />
+          <Route path="auto-tasks" element={<Navigate to="/scheduler" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
