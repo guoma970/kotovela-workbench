@@ -161,6 +161,7 @@ type AutoTaskBoardItem = {
   priority: number
   status: string
   type: string
+  code_snippet?: string
 }
 
 type AutoTaskBoardPayload = {
@@ -414,6 +415,8 @@ function AutoTaskSystemPanel() {
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState('')
   const [failedTask, setFailedTask] = useState<FailedTaskState | null>(null)
+  const [runningTaskName, setRunningTaskName] = useState('')
+  const [summaryExpanded, setSummaryExpanded] = useState(false)
 
   const loadBoard = () => {
     setLoading(true)
@@ -434,10 +437,10 @@ function AutoTaskSystemPanel() {
     loadBoard()
   }, [])
 
-  const runTask = async () => {
-    const input = taskInput.trim()
+  const executeTask = async (input: string) => {
     if (!input || running) return
     setRunning(true)
+    setRunningTaskName(input)
     setRunError('')
     setFailedTask(null)
     try {
@@ -462,7 +465,18 @@ function AutoTaskSystemPanel() {
       })
     } finally {
       setRunning(false)
+      setRunningTaskName('')
     }
+  }
+
+  const runTask = async () => {
+    const input = taskInput.trim()
+    if (!input || running) return
+    await executeTask(input)
+  }
+
+  const retryTask = async (taskName: string) => {
+    await executeTask(taskName)
   }
 
   const failedBoardTask = data?.board?.find((item) => item.status === 'failed')
@@ -470,15 +484,21 @@ function AutoTaskSystemPanel() {
   const latestSummary = failedTask
     ? `${failedTask.taskName} (builder | P- )\n   status: failed\n   error: ${failedTask.message}`
     : failedBoardTask
-      ? `${failedBoardTask.task_name} (${failedBoardTask.agent} | P${failedBoardTask.priority})\n   status: failed`
+      ? `${failedBoardTask.task_name} (${failedBoardTask.agent} | P${failedBoardTask.priority})\n   status: failed\n   code: ${failedBoardTask.code_snippet || ''}`
       : data?.board?.length
         ? data.board
             .map(
               (item, index) =>
-                `${index + 1}. ${item.task_name} (${item.agent} | P${item.priority})\n   status: ${item.status}`,
+                `${index + 1}. ${item.task_name} (${item.agent} | P${item.priority})\n   status: ${item.status}\n   code: ${item.code_snippet || ''}`,
             )
             .join('\n\n')
         : '暂无 RESULT SUMMARY'
+
+  const displayedSummary = summaryExpanded
+    ? latestSummary
+    : latestSummary.length > 280
+      ? `${latestSummary.slice(0, 280)}...`
+      : latestSummary
 
   return (
     <section className="home-section panel strong-card auto-task-panel">
@@ -496,7 +516,7 @@ function AutoTaskSystemPanel() {
           disabled={running}
         />
         <button className="auto-task-run-btn" type="button" onClick={runTask} disabled={running || !taskInput.trim()}>
-          {running ? '执行中...' : '执行'}
+          {running && runningTaskName === taskInput.trim() ? '执行中...' : '执行'}
         </button>
       </div>
 
@@ -506,6 +526,9 @@ function AutoTaskSystemPanel() {
           <div>任务: {failedTask.taskName}</div>
           <div>status: {failedTask.status}</div>
           <div>error: {failedTask.message}</div>
+          <button className="auto-task-retry-btn" type="button" onClick={() => retryTask(failedTask.taskName)} disabled={running}>
+            {running && runningTaskName === failedTask.taskName ? '执行中...' : '重试'}
+          </button>
         </div>
       ) : null}
 
@@ -526,6 +549,7 @@ function AutoTaskSystemPanel() {
               <th>status</th>
               <th>priority</th>
               <th>type</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -533,9 +557,14 @@ function AutoTaskSystemPanel() {
               <tr key={`${item.task_name}-${index}`}>
                 <td>{item.task_name}</td>
                 <td>{item.agent}</td>
-                <td>{item.status}</td>
+                <td>{running && runningTaskName === item.task_name ? 'running' : item.status}</td>
                 <td>P{item.priority}</td>
                 <td>{item.type}</td>
+                <td>
+                  <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running}>
+                    {running && runningTaskName === item.task_name ? '执行中...' : '重跑'}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -543,8 +572,13 @@ function AutoTaskSystemPanel() {
       </div>
 
       <div className="auto-task-summary">
-        <div className="auto-task-summary-label">最近结果</div>
-        <pre>{`=== RESULT SUMMARY ===\n\n${latestSummary}`}</pre>
+        <div className="auto-task-summary-head">
+          <div className="auto-task-summary-label">最近结果</div>
+          <button className="auto-task-summary-toggle" type="button" onClick={() => setSummaryExpanded((v) => !v)}>
+            {summaryExpanded ? '收起' : '展开完整 RESULT SUMMARY'}
+          </button>
+        </div>
+        <pre>{`=== RESULT SUMMARY ===\n\n${displayedSummary}`}</pre>
       </div>
     </section>
   )
