@@ -233,7 +233,7 @@ function AutoTaskSystemSummaryCard() {
         <div className="auto-task-metric"><span>success</span><strong>{data?.success ?? 0}</strong></div>
         <div className={`auto-task-metric ${(data?.failed ?? 0) > 0 ? 'is-failed' : ''}`}><span>failed</span><strong>{data?.failed ?? 0}</strong></div>
       </div>
-      <button className="auto-task-go-btn" type="button" onClick={() => navigate('/auto-tasks')}>
+      <button className="auto-task-go-btn" type="button" onClick={() => navigate('/scheduler')}>
         查看详情 / 进入系统
       </button>
     </section>
