@@ -8,6 +8,50 @@ import { fetchOfficeInstancesPayload } from './server/officeInstances'
 
 const execFileAsync = promisify(execFile)
 
+type TaskBoardItem = {
+  task_name: string
+  agent: string
+  priority?: number
+  retry_count?: number
+  type?: string
+  status?: string
+  code_snippet?: string
+  timestamp?: string
+  control_status?: string
+  updated_at?: string
+}
+
+type TaskBoardPayload = {
+  generated_at?: string
+  tasks_file?: string
+  total?: number
+  success?: number
+  failed?: number
+  board: TaskBoardItem[]
+}
+
+async function readTaskBoard(filePath: string) {
+  const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
+  payload.board = (payload.board ?? []).map((item) => ({
+    ...item,
+    retry_count: item.retry_count ?? 0,
+    control_status: item.control_status ?? 'active',
+    updated_at: item.updated_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+  }))
+  return payload
+}
+
+function summarizeTaskBoard(payload: TaskBoardPayload) {
+  payload.total = payload.board.length
+  payload.success = payload.board.filter((item) => item.status === 'success' || item.status === 'done').length
+  payload.failed = payload.board.filter((item) => item.status === 'failed').length
+  return payload
+}
+
+async function writeTaskBoard(filePath: string, payload: TaskBoardPayload) {
+  await fs.writeFile(filePath, `${JSON.stringify(summarizeTaskBoard(payload), null, 2)}\n`, 'utf8')
+}
+
 export default defineConfig(({ mode }) => {
   const isInternal = mode === 'internal'
 
@@ -70,11 +114,11 @@ export default defineConfig(({ mode }) => {
 
             if (req.method === 'GET') {
               try {
-                const payload = await fs.readFile(filePath, 'utf8')
+                const payload = await readTaskBoard(filePath)
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
                 res.setHeader('Cache-Control', 'no-store')
-                res.end(payload)
+                res.end(JSON.stringify(summarizeTaskBoard(payload)))
               } catch (error) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
@@ -88,33 +132,82 @@ export default defineConfig(({ mode }) => {
               return
             }
 
-            if (req.method === 'POST') {
+            if (req.method === 'POST' || req.method === 'PATCH') {
               try {
                 const chunks: Buffer[] = []
                 for await (const chunk of req) chunks.push(Buffer.from(chunk))
                 const bodyText = Buffer.concat(chunks).toString('utf8')
                 const body = bodyText ? JSON.parse(bodyText) : {}
-                const taskInput = String(body?.input || '').trim()
-                if (!taskInput) {
-                  res.statusCode = 400
+
+                if (req.method === 'POST') {
+                  const taskInput = String(body?.input || '').trim()
+                  if (!taskInput) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: 'missing input' }))
+                    return
+                  }
+
+                  if (taskInput.startsWith('fail:')) {
+                    throw new Error(taskInput.slice(5).trim() || '模拟失败')
+                  }
+
+                  await execFileAsync(process.execPath, ['simulate-fs-tasks.js', taskInput], {
+                    cwd: '/Users/ztl/OpenClaw-Runner',
+                    maxBuffer: 50 * 1024 * 1024,
+                  })
+
+                  const payload = await readTaskBoard(filePath)
+                  res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'missing input' }))
+                  res.end(JSON.stringify(summarizeTaskBoard(payload)))
                   return
                 }
 
-                if (taskInput.startsWith('fail:')) {
-                  throw new Error(taskInput.slice(5).trim() || '模拟失败')
+                const taskName = String(body?.task_name || '').trim()
+                const action = String(body?.action || '').trim()
+                if (!taskName || !action) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'missing task_name/action' }))
+                  return
                 }
 
-                await execFileAsync(process.execPath, ['simulate-fs-tasks.js', taskInput], {
-                  cwd: '/Users/ztl/OpenClaw-Runner',
-                  maxBuffer: 50 * 1024 * 1024,
-                })
+                const payload = await readTaskBoard(filePath)
+                const target = payload.board.find((item) => item.task_name === taskName)
+                if (!target) {
+                  res.statusCode = 404
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'task not found' }))
+                  return
+                }
 
-                const payload = await fs.readFile(filePath, 'utf8')
+                const now = new Date().toISOString()
+                if (action === 'pause') {
+                  target.control_status = 'paused'
+                  target.status = 'paused'
+                } else if (action === 'resume') {
+                  target.control_status = 'active'
+                  target.status = 'todo'
+                } else if (action === 'cancel') {
+                  target.control_status = 'cancelled'
+                  target.status = 'cancelled'
+                } else if (action === 'priority_up') {
+                  target.priority = Math.max(1, (target.priority ?? 3) - 1)
+                } else if (action === 'priority_down') {
+                  target.priority = Math.min(9, (target.priority ?? 3) + 1)
+                } else {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'unsupported action' }))
+                  return
+                }
+                target.updated_at = now
+                payload.generated_at = now
+                await writeTaskBoard(filePath, payload)
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(payload)
+                res.end(JSON.stringify(await readTaskBoard(filePath)))
               } catch (error) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')

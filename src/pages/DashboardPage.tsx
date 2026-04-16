@@ -162,6 +162,10 @@ type AutoTaskBoardItem = {
   status: string
   type: string
   code_snippet?: string
+  retry_count?: number
+  timestamp?: string
+  control_status?: string
+  updated_at?: string
 }
 
 type AutoTaskBoardPayload = {
@@ -420,6 +424,7 @@ function AutoTaskSystemPanel() {
   const [runningTaskName, setRunningTaskName] = useState('')
   const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [autoRetryState, setAutoRetryState] = useState<{ taskName: string; retryCount: number } | null>(null)
+  const [controlLoadingTask, setControlLoadingTask] = useState('')
 
   const loadBoard = () => {
     setLoading(true)
@@ -534,6 +539,27 @@ function AutoTaskSystemPanel() {
   const failedBoardTask = data?.board?.find((item) => item.status === 'failed')
   const activeRetryCount = autoRetryState?.retryCount ?? failedTask?.retryCount ?? 0
 
+  const controlTask = async (taskName: string, action: 'pause' | 'resume' | 'cancel' | 'priority_up' | 'priority_down') => {
+    if (running || autoRetryState || controlLoadingTask) return
+    setControlLoadingTask(`${taskName}:${action}`)
+    try {
+      const res = await fetch('/api/tasks-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_name: taskName, action }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || err?.error || '操作失败')
+      }
+      setData((await res.json()) as AutoTaskBoardPayload)
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : '操作失败')
+    } finally {
+      setControlLoadingTask('')
+    }
+  }
+
   const latestSummary = failedTask
     ? `${failedTask.taskName} (builder | P- )\n   status: failed\n   error: ${failedTask.message}`
     : failedBoardTask
@@ -554,7 +580,8 @@ function AutoTaskSystemPanel() {
   })
   const pendingTasks = sortedBoard.filter((item) => item.status === 'failed' || item.status === 'todo')
   const runningTasks = sortedBoard.filter((item) => item.status === 'doing' || item.status === 'running')
-  const completedTasks = sortedBoard.filter((item) => item.status === 'success' || item.status === 'done')
+  const pausedTasks = sortedBoard.filter((item) => item.status === 'paused' || item.control_status === 'paused')
+  const completedTasks = sortedBoard.filter((item) => ['success', 'done', 'cancelled'].includes(item.status))
 
   const displayedSummary = summaryExpanded
     ? latestSummary
@@ -613,11 +640,13 @@ function AutoTaskSystemPanel() {
                 <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
                 <div>agent: {item.agent}</div>
                 <div>priority: P{item.priority}</div>
-                <div>retry_count: {autoRetryState?.taskName === item.task_name ? autoRetryState.retryCount : 0}</div>
-                <div>timestamp: {(item as { timestamp?: string }).timestamp || '-'}</div>
-                <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running || !!autoRetryState}>
-                  {running && runningTaskName === item.task_name ? '执行中...' : autoRetryState?.taskName === item.task_name ? '自动重试中...' : '重跑'}
-                </button>
+                <div>retry_count: {item.retry_count ?? 0}</div>
+                <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
+                <div className="auto-task-actions">
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_up')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_up` ? '执行中...' : '提升优先级'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_down')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_down` ? '执行中...' : '降低优先级'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
+                </div>
               </div>
             ))}
             {!pendingTasks.length ? <div className="auto-task-empty">暂无待处理任务</div> : null}
@@ -632,20 +661,34 @@ function AutoTaskSystemPanel() {
                 <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
                 <div>agent: {item.agent}</div>
                 <div>priority: P{item.priority}</div>
-                <div>retry_count: {autoRetryState?.taskName === item.task_name ? autoRetryState.retryCount : 0}</div>
-                <div>timestamp: {(item as { timestamp?: string }).timestamp || '-'}</div>
+                <div>retry_count: {item.retry_count ?? 0}</div>
+                <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
+                <div className="auto-task-actions">
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'pause')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:pause` ? '执行中...' : '暂停'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
+                </div>
               </div>
             ))}
-            {running && runningTaskName && !runningTasks.length ? (
-              <div className="auto-task-card is-running">
-                <div className="auto-task-card-top"><strong>{runningTaskName}</strong><span>running</span></div>
-                <div>agent: builder</div>
-                <div>priority: P-</div>
-                <div>retry_count: {autoRetryState?.retryCount ?? 0}</div>
-                <div>timestamp: now</div>
+            {!runningTasks.length ? <div className="auto-task-empty">暂无进行中任务</div> : null}
+          </div>
+        </div>
+
+        <div className="auto-task-column">
+          <div className="auto-task-column-title">已暂停</div>
+          <div className="auto-task-list">
+            {pausedTasks.map((item, index) => (
+              <div className="auto-task-card is-running" key={`paused-${item.task_name}-${index}`}>
+                <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
+                <div>agent: {item.agent}</div>
+                <div>priority: P{item.priority}</div>
+                <div>retry_count: {item.retry_count ?? 0}</div>
+                <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
+                <div className="auto-task-actions">
+                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'resume')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:resume` ? '执行中...' : '恢复'}</button>
+                </div>
               </div>
-            ) : null}
-            {!runningTasks.length && !(running && runningTaskName) ? <div className="auto-task-empty">暂无进行中任务</div> : null}
+            ))}
+            {!pausedTasks.length ? <div className="auto-task-empty">暂无已暂停任务</div> : null}
           </div>
         </div>
 
@@ -657,8 +700,8 @@ function AutoTaskSystemPanel() {
                 <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
                 <div>agent: {item.agent}</div>
                 <div>priority: P{item.priority}</div>
-                <div>retry_count: {autoRetryState?.taskName === item.task_name ? autoRetryState.retryCount : 0}</div>
-                <div>timestamp: {(item as { timestamp?: string }).timestamp || '-'}</div>
+                <div>retry_count: {item.retry_count ?? 0}</div>
+                <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
               </div>
             ))}
             {!completedTasks.length ? <div className="auto-task-empty">暂无最近完成任务</div> : null}

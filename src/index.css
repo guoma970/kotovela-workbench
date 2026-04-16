@@ -305,6 +305,13 @@ button,
   gap: 10px;
 }
 
+.auto-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .auto-task-card {
   padding: 12px;
   border-radius: 14px;
