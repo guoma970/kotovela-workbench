@@ -175,6 +175,8 @@ type FailedTaskState = {
   taskName: string
   status: 'failed'
   message: string
+  retryCount: number
+  autoRetrying?: boolean
 }
 
 type HomeItem = {
@@ -417,6 +419,7 @@ function AutoTaskSystemPanel() {
   const [failedTask, setFailedTask] = useState<FailedTaskState | null>(null)
   const [runningTaskName, setRunningTaskName] = useState('')
   const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const [autoRetryState, setAutoRetryState] = useState<{ taskName: string; retryCount: number } | null>(null)
 
   const loadBoard = () => {
     setLoading(true)
@@ -437,7 +440,9 @@ function AutoTaskSystemPanel() {
     loadBoard()
   }, [])
 
-  const executeTask = async (input: string) => {
+  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
+
+  const executeTask = async (input: string, options?: { silentFailure?: boolean }) => {
     if (!input || running) return
     setRunning(true)
     setRunningTaskName(input)
@@ -458,28 +463,76 @@ function AutoTaskSystemPanel() {
     } catch (error) {
       const message = error instanceof Error ? error.message : '执行失败'
       setRunError(message)
-      setFailedTask({
-        taskName: input,
-        status: 'failed',
-        message,
-      })
+      if (!options?.silentFailure) {
+        setFailedTask({
+          taskName: input,
+          status: 'failed',
+          message,
+          retryCount: autoRetryState?.taskName === input ? autoRetryState.retryCount : 0,
+        })
+      }
+      throw error instanceof Error ? error : new Error(message)
     } finally {
       setRunning(false)
       setRunningTaskName('')
     }
   }
 
+  const autoRetryTask = async (taskName: string, baseMessage: string) => {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      setAutoRetryState({ taskName, retryCount: attempt })
+      setFailedTask({
+        taskName,
+        status: 'failed',
+        message: baseMessage,
+        retryCount: attempt,
+        autoRetrying: true,
+      })
+      await wait(2000)
+      try {
+        await executeTask(taskName, { silentFailure: true })
+        setFailedTask(null)
+        setAutoRetryState(null)
+        loadBoard()
+        return
+      } catch {
+        // continue to next retry
+      }
+    }
+
+    setFailedTask({
+      taskName,
+      status: 'failed',
+      message: baseMessage,
+      retryCount: 2,
+      autoRetrying: false,
+    })
+    setAutoRetryState(null)
+  }
+
   const runTask = async () => {
     const input = taskInput.trim()
     if (!input || running) return
-    await executeTask(input)
+    try {
+      await executeTask(input)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行失败'
+      await autoRetryTask(input, message)
+    }
   }
 
   const retryTask = async (taskName: string) => {
-    await executeTask(taskName)
+    if (running || autoRetryState) return
+    try {
+      await executeTask(taskName)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行失败'
+      await autoRetryTask(taskName, message)
+    }
   }
 
   const failedBoardTask = data?.board?.find((item) => item.status === 'failed')
+  const activeRetryCount = autoRetryState?.retryCount ?? failedTask?.retryCount ?? 0
 
   const latestSummary = failedTask
     ? `${failedTask.taskName} (builder | P- )\n   status: failed\n   error: ${failedTask.message}`
@@ -526,8 +579,10 @@ function AutoTaskSystemPanel() {
           <div>任务: {failedTask.taskName}</div>
           <div>status: {failedTask.status}</div>
           <div>error: {failedTask.message}</div>
-          <button className="auto-task-retry-btn" type="button" onClick={() => retryTask(failedTask.taskName)} disabled={running}>
-            {running && runningTaskName === failedTask.taskName ? '执行中...' : '重试'}
+          <div>{failedTask.autoRetrying ? '正在自动重试' : '自动重试结束'}</div>
+          <div>已重试次数: {activeRetryCount}</div>
+          <button className="auto-task-retry-btn" type="button" onClick={() => retryTask(failedTask.taskName)} disabled={running || !!autoRetryState}>
+            {autoRetryState?.taskName === failedTask.taskName ? '自动重试中...' : running && runningTaskName === failedTask.taskName ? '执行中...' : '重试'}
           </button>
         </div>
       ) : null}
@@ -549,6 +604,7 @@ function AutoTaskSystemPanel() {
               <th>status</th>
               <th>priority</th>
               <th>type</th>
+              <th>retry_count</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -560,12 +616,13 @@ function AutoTaskSystemPanel() {
                 <td>{running && runningTaskName === item.task_name ? 'running' : item.status}</td>
                 <td>P{item.priority}</td>
                 <td>{item.type}</td>
+                <td>{autoRetryState?.taskName === item.task_name ? autoRetryState.retryCount : 0}</td>
                 <td>
-                  <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running}>
-                    {running && runningTaskName === item.task_name ? '执行中...' : '重跑'}
+                  <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running || !!autoRetryState}>
+                    {running && runningTaskName === item.task_name ? '执行中...' : autoRetryState?.taskName === item.task_name ? '自动重试中...' : '重跑'}
                   </button>
                 </td>
-              </tr>
+                              </tr>
             ))}
           </tbody>
         </table>
