@@ -12,7 +12,7 @@ const getNavItems = (isInternal: boolean) =>
         { group: '驾驶舱层', to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
         { group: '驾驶舱层', to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
         { group: '驾驶舱层', to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
-        { group: '调度系统', to: '/auto-tasks', step: 5, label: '自动调度系统', note: '执行控制 · 队列调度' },
+        { group: '调度系统', to: '/auto-tasks', step: 5, label: '调度系统', note: '执行控制 · 队列调度' },
         { group: '执行层', to: '/agents', step: 6, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
@@ -20,7 +20,7 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Cockpit', to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
         { group: 'Cockpit', to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
         { group: 'Cockpit', to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-        { group: 'Scheduling', to: '/auto-tasks', step: 5, label: 'Auto Scheduling', note: 'Execution control and queue' },
+        { group: 'Scheduling', to: '/auto-tasks', step: 5, label: 'Scheduling', note: 'Execution control and queue' },
         { group: 'Execution', to: '/agents', step: 6, label: 'Agents', note: 'Agent activity and routing' },
       ]
 

@@ -6,7 +6,7 @@ export function AutoTasksPage() {
       <div className="page-header home-header">
         <div>
           <p className="eyebrow">任务系统</p>
-          <h2>自动任务系统</h2>
+          <h2>调度系统</h2>
         </div>
       </div>
       <AutoTaskSystemPanel />
