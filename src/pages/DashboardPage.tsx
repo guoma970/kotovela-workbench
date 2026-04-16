@@ -175,6 +175,10 @@ type AutoTaskBoardItem = {
   control_status?: string
   updated_at?: string
   history?: AutoTaskHistoryEntry[]
+  attention?: boolean
+  stuck?: boolean
+  abnormal?: boolean
+  auto_decision_log?: string[]
 }
 
 type AutoTaskBoardPayload = {
@@ -617,6 +621,7 @@ export function AutoTaskSystemPanel() {
     if (a.status !== 'failed' && b.status === 'failed') return 1
     return (a.priority ?? 99) - (b.priority ?? 99)
   })
+  const attentionTasks = sortedBoard.filter((item) => item.attention || item.stuck || item.abnormal)
   const pendingTasks = sortedBoard.filter((item) => item.status === 'failed' || item.status === 'todo')
   const runningTasks = sortedBoard.filter((item) => item.status === 'doing' || item.status === 'running')
   const pausedTasks = sortedBoard.filter((item) => item.status === 'paused' || item.control_status === 'paused')
@@ -682,6 +687,25 @@ export function AutoTaskSystemPanel() {
 
       <div className="auto-task-columns">
         <div className="auto-task-column">
+          <div className="auto-task-column-title">需关注</div>
+          <div className="auto-task-list">
+            {attentionTasks.map((item, index) => (
+              <div className="auto-task-card is-pending" key={`attention-${item.task_name}-${index}`}>
+                <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
+                <div>agent: {item.agent}</div>
+                <div>priority: P{item.priority}</div>
+                <div className="auto-task-flags">
+                  {item.attention ? <span className="auto-task-flag is-attention">attention</span> : null}
+                  {item.stuck ? <span className="auto-task-flag is-stuck">stuck</span> : null}
+                  {item.abnormal ? <span className="auto-task-flag is-abnormal">abnormal</span> : null}
+                </div>
+              </div>
+            ))}
+            {!attentionTasks.length ? <div className="auto-task-empty">暂无需关注任务</div> : null}
+          </div>
+        </div>
+
+        <div className="auto-task-column">
           <div className="auto-task-column-title">待处理</div>
           <div className="auto-task-list">
             {pendingTasks.map((item, index) => (
@@ -691,6 +715,11 @@ export function AutoTaskSystemPanel() {
                 <div>priority: P{item.priority}</div>
                 <div>retry_count: {item.retry_count ?? 0}</div>
                 <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
+                <div className="auto-task-flags">
+                  {item.attention ? <span className="auto-task-flag is-attention">attention</span> : null}
+                  {item.stuck ? <span className="auto-task-flag is-stuck">stuck</span> : null}
+                  {item.abnormal ? <span className="auto-task-flag is-abnormal">abnormal</span> : null}
+                </div>
                 <div className="auto-task-actions">
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_up')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_up` ? '执行中...' : '提升优先级'}</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_down')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_down` ? '执行中...' : '降低优先级'}</button>
@@ -812,6 +841,7 @@ export function AutoTaskSystemPanel() {
           </button>
         </div>
         <div className="auto-task-last-op">最近关键操作: {latestAction ? `${latestAction.task_name} · ${latestAction.action}` : '-'}</div>
+        <div className="auto-task-last-op">自动决策提示: {data?.board?.flatMap((item) => item.auto_decision_log ?? []).slice(-1)[0] || '-'}</div>
         <pre>{`=== RESULT SUMMARY ===\n\n${displayedSummary}`}</pre>
       </div>
     </section>

@@ -19,6 +19,8 @@ type TaskHistoryEntry = {
     | 'cancel'
     | 'retry'
     | 'priority_change'
+    | 'auto_priority_down'
+    | 'abnormal_detected'
   operator: 'system' | 'builder'
   timestamp: string
   before?: { status?: string; priority?: number }
@@ -37,6 +39,10 @@ type TaskBoardItem = {
   control_status?: string
   updated_at?: string
   history?: TaskHistoryEntry[]
+  attention?: boolean
+  stuck?: boolean
+  abnormal?: boolean
+  auto_decision_log?: string[]
 }
 
 type TaskBoardPayload = {
@@ -55,6 +61,10 @@ async function readTaskBoard(filePath: string) {
     retry_count: item.retry_count ?? 0,
     control_status: item.control_status ?? 'active',
     updated_at: item.updated_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+    attention: item.attention ?? item.status === 'failed',
+    stuck: item.stuck ?? false,
+    abnormal: item.abnormal ?? false,
+    auto_decision_log: item.auto_decision_log ?? [],
     history:
       item.history && item.history.length > 0
         ? item.history
@@ -67,6 +77,52 @@ async function readTaskBoard(filePath: string) {
             },
           ],
   }))
+  const now = Date.now()
+  payload.board = payload.board.map((item) => {
+    const next = { ...item }
+    if (next.status === 'failed') next.attention = true
+    const ageMs = now - new Date(next.updated_at ?? next.timestamp ?? now).getTime()
+    next.stuck = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
+    const recentPauseResume = (next.history ?? []).filter(
+      (entry) => ['pause', 'resume'].includes(entry.action) && now - new Date(entry.timestamp).getTime() <= 60_000,
+    )
+    if (recentPauseResume.length >= 3) {
+      next.abnormal = true
+      const hasMarker = (next.history ?? []).some((entry) => entry.action === 'abnormal_detected')
+      if (!hasMarker) {
+        next.history = [
+          ...(next.history ?? []),
+          {
+            action: 'abnormal_detected',
+            operator: 'system',
+            timestamp: new Date().toISOString(),
+            after: { status: next.status, priority: next.priority },
+          },
+        ]
+        next.auto_decision_log = [...(next.auto_decision_log ?? []), '检测到频繁 pause/resume，已标记 abnormal']
+      }
+    }
+    const failedHistory = [...(next.history ?? [])].slice().reverse().filter((entry) => entry.action === 'fail')
+    if (failedHistory.length >= 2) {
+      const hasAutoDown = (next.history ?? []).some((entry) => entry.action === 'auto_priority_down')
+      if (!hasAutoDown) {
+        const newPriority = Math.min(9, (next.priority ?? 3) + 1)
+        next.history = [
+          ...(next.history ?? []),
+          {
+            action: 'auto_priority_down',
+            operator: 'system',
+            timestamp: new Date().toISOString(),
+            before: { status: next.status, priority: next.priority },
+            after: { status: next.status, priority: newPriority },
+          },
+        ]
+        next.priority = newPriority
+        next.auto_decision_log = [...(next.auto_decision_log ?? []), `连续失败已自动降级到 P${newPriority}`]
+      }
+    }
+    return next
+  })
   return payload
 }
 
@@ -182,6 +238,42 @@ export default defineConfig(({ mode }) => {
                   }
 
                   if (taskInput.startsWith('fail:')) {
+                    const payload = await readTaskBoard(filePath)
+                    const now = new Date().toISOString()
+                    const existing = payload.board.find((item) => item.task_name === taskInput)
+                    if (existing) {
+                      appendHistory(existing, {
+                        action: 'fail',
+                        operator: 'system',
+                        timestamp: now,
+                        before: { status: existing.status, priority: existing.priority },
+                        after: { status: 'failed', priority: existing.priority },
+                      })
+                      existing.status = 'failed'
+                      existing.attention = true
+                      existing.updated_at = now
+                    } else {
+                      payload.board.unshift({
+                        task_name: taskInput,
+                        agent: 'builder',
+                        priority: 3,
+                        retry_count: 0,
+                        type: 'dev',
+                        status: 'failed',
+                        timestamp: now,
+                        updated_at: now,
+                        attention: true,
+                        stuck: false,
+                        abnormal: false,
+                        auto_decision_log: [],
+                        history: [
+                          { action: 'create', operator: 'system', timestamp: now, after: { status: 'failed', priority: 3 } },
+                          { action: 'fail', operator: 'system', timestamp: now, after: { status: 'failed', priority: 3 } },
+                        ],
+                      })
+                    }
+                    payload.generated_at = now
+                    await writeTaskBoard(filePath, payload)
                     throw new Error(taskInput.slice(5).trim() || '模拟失败')
                   }
 
@@ -191,9 +283,25 @@ export default defineConfig(({ mode }) => {
                   })
 
                   const payload = await readTaskBoard(filePath)
+                  const now = new Date().toISOString()
+                  const target = payload.board.find((item) => item.task_name === taskInput)
+                  if (target) {
+                    appendHistory(target, {
+                      action: 'success',
+                      operator: 'system',
+                      timestamp: now,
+                      before: { status: target.status, priority: target.priority },
+                      after: { status: 'success', priority: target.priority },
+                    })
+                    target.status = 'success'
+                    target.attention = false
+                    target.stuck = false
+                    target.updated_at = now
+                  }
+                  await writeTaskBoard(filePath, payload)
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify(summarizeTaskBoard(payload)))
+                  res.end(JSON.stringify(summarizeTaskBoard(await readTaskBoard(filePath))))
                   return
                 }
 

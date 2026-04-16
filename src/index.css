@@ -325,6 +325,35 @@ button,
   margin-top: 6px;
 }
 
+.auto-task-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.auto-task-flag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+.auto-task-flag.is-attention {
+  border-color: rgba(255, 120, 120, 0.55);
+  color: #ffd4d4;
+}
+
+.auto-task-flag.is-stuck {
+  border-color: rgba(255, 195, 94, 0.55);
+  color: #ffe3a8;
+}
+
+.auto-task-flag.is-abnormal {
+  border-color: rgba(188, 125, 255, 0.55);
+  color: #e5d2ff;
+}
+
 .auto-task-history {
   margin-top: 8px;
   display: grid;
