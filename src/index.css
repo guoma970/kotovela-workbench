@@ -266,6 +266,17 @@ button,
   gap: 12px;
 }
 
+.auto-task-scheduler-strip {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(126, 163, 255, 0.22);
+  background: rgba(91, 140, 255, 0.08);
+  font-size: 0.82rem;
+  color: #cfe0ff;
+}
+
 .auto-task-metric {
   padding: 14px;
   border-radius: 14px;

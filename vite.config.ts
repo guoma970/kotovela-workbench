@@ -43,6 +43,8 @@ type TaskBoardItem = {
   stuck?: boolean
   abnormal?: boolean
   auto_decision_log?: string[]
+  queued_at?: string
+  slot_active?: boolean
 }
 
 type TaskBoardPayload = {
@@ -51,7 +53,45 @@ type TaskBoardPayload = {
   total?: number
   success?: number
   failed?: number
+  max_concurrency?: number
+  current_concurrency?: number
   board: TaskBoardItem[]
+}
+
+function applyScheduler(payload: TaskBoardPayload) {
+  const maxConcurrency = payload.max_concurrency ?? 2
+  payload.max_concurrency = maxConcurrency
+  const sorted = [...payload.board].sort((a, b) => {
+    const ap = a.priority ?? 99
+    const bp = b.priority ?? 99
+    if (ap !== bp) return ap - bp
+    return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
+  })
+  let runningCount = sorted.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
+  for (const item of sorted) {
+    item.slot_active = ['doing', 'running'].includes(item.status ?? '')
+    if ((item.status === 'todo' || item.status === 'queued') && runningCount < maxConcurrency) {
+      appendHistory(item, {
+        action: 'start',
+        operator: 'system',
+        timestamp: new Date().toISOString(),
+        before: { status: item.status, priority: item.priority },
+        after: { status: 'running', priority: item.priority },
+      })
+      item.status = 'running'
+      item.slot_active = true
+      item.updated_at = new Date().toISOString()
+      runningCount += 1
+    } else if (item.status === 'todo' || item.status === 'queued') {
+      item.status = 'todo'
+      item.slot_active = false
+    } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
+      item.slot_active = false
+    }
+  }
+  payload.current_concurrency = sorted.filter((item) => item.slot_active).length
+  payload.board = sorted
+  return payload
 }
 
 async function readTaskBoard(filePath: string) {
@@ -65,6 +105,8 @@ async function readTaskBoard(filePath: string) {
     stuck: item.stuck ?? false,
     abnormal: item.abnormal ?? false,
     auto_decision_log: item.auto_decision_log ?? [],
+    queued_at: item.queued_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+    slot_active: item.slot_active ?? false,
     history:
       item.history && item.history.length > 0
         ? item.history
@@ -123,7 +165,7 @@ async function readTaskBoard(filePath: string) {
     }
     return next
   })
-  return payload
+  return applyScheduler(payload)
 }
 
 function summarizeTaskBoard(payload: TaskBoardPayload) {
@@ -237,6 +279,34 @@ export default defineConfig(({ mode }) => {
                     return
                   }
 
+                  if (taskInput.startsWith('queue:')) {
+                    const payload = await readTaskBoard(filePath)
+                    const now = new Date().toISOString()
+                    const taskName = taskInput.slice(6).trim() || `queued-${Date.now()}`
+                    payload.board.unshift({
+                      task_name: taskName,
+                      agent: 'builder',
+                      priority: 3,
+                      retry_count: 0,
+                      type: 'dev',
+                      status: 'todo',
+                      timestamp: now,
+                      queued_at: now,
+                      updated_at: now,
+                      attention: false,
+                      stuck: false,
+                      abnormal: false,
+                      auto_decision_log: [],
+                      history: [{ action: 'create', operator: 'system', timestamp: now, after: { status: 'todo', priority: 3 } }],
+                    })
+                    payload.generated_at = now
+                    await writeTaskBoard(filePath, payload)
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify(summarizeTaskBoard(await readTaskBoard(filePath))))
+                    return
+                  }
+
                   if (taskInput.startsWith('fail:')) {
                     const payload = await readTaskBoard(filePath)
                     const now = new Date().toISOString()
@@ -262,6 +332,7 @@ export default defineConfig(({ mode }) => {
                         status: 'failed',
                         timestamp: now,
                         updated_at: now,
+                        queued_at: now,
                         attention: true,
                         stuck: false,
                         abnormal: false,

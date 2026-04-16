@@ -179,12 +179,16 @@ type AutoTaskBoardItem = {
   stuck?: boolean
   abnormal?: boolean
   auto_decision_log?: string[]
+  queued_at?: string
+  slot_active?: boolean
 }
 
 type AutoTaskBoardPayload = {
   total: number
   success: number
   failed: number
+  max_concurrency?: number
+  current_concurrency?: number
   board: AutoTaskBoardItem[]
 }
 
@@ -626,6 +630,8 @@ export function AutoTaskSystemPanel() {
   const runningTasks = sortedBoard.filter((item) => item.status === 'doing' || item.status === 'running')
   const pausedTasks = sortedBoard.filter((item) => item.status === 'paused' || item.control_status === 'paused')
   const completedTasks = sortedBoard.filter((item) => ['success', 'done', 'cancelled'].includes(item.status))
+  const occupyingTasks = sortedBoard.filter((item) => item.slot_active)
+  const waitingTasks = sortedBoard.filter((item) => item.status === 'todo' && !item.slot_active)
 
   const latestAction = [...(data?.board ?? [])]
     .flatMap((task) =>
@@ -683,6 +689,13 @@ export function AutoTaskSystemPanel() {
         <div className="auto-task-metric"><span>total</span><strong>{data?.total ?? (loading ? '...' : 0)}</strong></div>
         <div className="auto-task-metric"><span>success</span><strong>{data?.success ?? (loading ? '...' : 0)}</strong></div>
         <div className={`auto-task-metric ${(failedTask || (data?.failed ?? 0) > 0) ? 'is-failed' : ''}`}><span>failed</span><strong>{failedTask ? Math.max(1, data?.failed ?? 0) : (data?.failed ?? (loading ? '...' : 0))}</strong></div>
+      </div>
+
+      <div className="auto-task-scheduler-strip">
+        <div>当前并发数: {data?.current_concurrency ?? 0}</div>
+        <div>最大并发数: {data?.max_concurrency ?? 2}</div>
+        <div>占用槽位任务: {occupyingTasks.map((item) => item.task_name).join(' / ') || '-'}</div>
+        <div>等待任务: {waitingTasks.map((item) => item.task_name).join(' / ') || '-'}</div>
       </div>
 
       <div className="auto-task-columns">
