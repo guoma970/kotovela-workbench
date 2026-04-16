@@ -8,6 +8,23 @@ import { fetchOfficeInstancesPayload } from './server/officeInstances'
 
 const execFileAsync = promisify(execFile)
 
+type TaskHistoryEntry = {
+  action:
+    | 'create'
+    | 'start'
+    | 'success'
+    | 'fail'
+    | 'pause'
+    | 'resume'
+    | 'cancel'
+    | 'retry'
+    | 'priority_change'
+  operator: 'system' | 'builder'
+  timestamp: string
+  before?: { status?: string; priority?: number }
+  after?: { status?: string; priority?: number }
+}
+
 type TaskBoardItem = {
   task_name: string
   agent: string
@@ -19,6 +36,7 @@ type TaskBoardItem = {
   timestamp?: string
   control_status?: string
   updated_at?: string
+  history?: TaskHistoryEntry[]
 }
 
 type TaskBoardPayload = {
@@ -37,6 +55,17 @@ async function readTaskBoard(filePath: string) {
     retry_count: item.retry_count ?? 0,
     control_status: item.control_status ?? 'active',
     updated_at: item.updated_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+    history:
+      item.history && item.history.length > 0
+        ? item.history
+        : [
+            {
+              action: 'create',
+              operator: 'system',
+              timestamp: item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+              after: { status: item.status, priority: item.priority },
+            },
+          ],
   }))
   return payload
 }
@@ -50,6 +79,10 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
 
 async function writeTaskBoard(filePath: string, payload: TaskBoardPayload) {
   await fs.writeFile(filePath, `${JSON.stringify(summarizeTaskBoard(payload), null, 2)}\n`, 'utf8')
+}
+
+function appendHistory(target: TaskBoardItem, entry: TaskHistoryEntry) {
+  target.history = [...(target.history ?? []), entry]
 }
 
 export default defineConfig(({ mode }) => {
@@ -184,17 +217,52 @@ export default defineConfig(({ mode }) => {
 
                 const now = new Date().toISOString()
                 if (action === 'pause') {
+                  appendHistory(target, {
+                    action: 'pause',
+                    operator: 'builder',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: 'paused', priority: target.priority },
+                  })
                   target.control_status = 'paused'
                   target.status = 'paused'
                 } else if (action === 'resume') {
+                  appendHistory(target, {
+                    action: 'resume',
+                    operator: 'builder',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: 'todo', priority: target.priority },
+                  })
                   target.control_status = 'active'
                   target.status = 'todo'
                 } else if (action === 'cancel') {
+                  appendHistory(target, {
+                    action: 'cancel',
+                    operator: 'builder',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: 'cancelled', priority: target.priority },
+                  })
                   target.control_status = 'cancelled'
                   target.status = 'cancelled'
                 } else if (action === 'priority_up') {
+                  appendHistory(target, {
+                    action: 'priority_change',
+                    operator: 'builder',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: target.status, priority: Math.max(1, (target.priority ?? 3) - 1) },
+                  })
                   target.priority = Math.max(1, (target.priority ?? 3) - 1)
                 } else if (action === 'priority_down') {
+                  appendHistory(target, {
+                    action: 'priority_change',
+                    operator: 'builder',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: target.status, priority: Math.min(9, (target.priority ?? 3) + 1) },
+                  })
                   target.priority = Math.min(9, (target.priority ?? 3) + 1)
                 } else {
                   res.statusCode = 400

@@ -325,6 +325,28 @@ button,
   margin-top: 6px;
 }
 
+.auto-task-history {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.auto-task-history-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  color: #bcd0f5;
+  font-size: 0.78rem;
+}
+
+.auto-task-last-op {
+  margin-bottom: 8px;
+  color: #9ec1ff;
+  font-size: 0.82rem;
+}
+
 .auto-task-card {
   padding: 12px;
   border-radius: 14px;

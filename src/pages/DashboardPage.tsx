@@ -155,6 +155,14 @@ function InternalControlSummary({
 
 type HomeStatus = 'blocker' | 'active' | 'idle'
 
+type AutoTaskHistoryEntry = {
+  action: string
+  operator: string
+  timestamp: string
+  before?: { status?: string; priority?: number }
+  after?: { status?: string; priority?: number }
+}
+
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
@@ -166,6 +174,7 @@ type AutoTaskBoardItem = {
   timestamp?: string
   control_status?: string
   updated_at?: string
+  history?: AutoTaskHistoryEntry[]
 }
 
 type AutoTaskBoardPayload = {
@@ -454,6 +463,7 @@ export function AutoTaskSystemPanel() {
   const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [autoRetryState, setAutoRetryState] = useState<{ taskName: string; retryCount: number } | null>(null)
   const [controlLoadingTask, setControlLoadingTask] = useState('')
+  const [historyOpenTask, setHistoryOpenTask] = useState('')
 
   const loadBoard = () => {
     setLoading(true)
@@ -612,6 +622,16 @@ export function AutoTaskSystemPanel() {
   const pausedTasks = sortedBoard.filter((item) => item.status === 'paused' || item.control_status === 'paused')
   const completedTasks = sortedBoard.filter((item) => ['success', 'done', 'cancelled'].includes(item.status))
 
+  const latestAction = [...(data?.board ?? [])]
+    .flatMap((task) =>
+      (task.history ?? []).map((entry) => ({
+        task_name: task.task_name,
+        action: entry.action,
+        timestamp: entry.timestamp,
+      })),
+    )
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+
   const displayedSummary = summaryExpanded
     ? latestSummary
     : latestSummary.length > 280
@@ -675,7 +695,21 @@ export function AutoTaskSystemPanel() {
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_up')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_up` ? '执行中...' : '提升优先级'}</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_down')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_down` ? '执行中...' : '降低优先级'}</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
                 </div>
+                {historyOpenTask === item.task_name ? (
+                  <div className="auto-task-history">
+                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => (
+                      <div className="auto-task-history-item" key={`${item.task_name}-history-${historyIndex}`}>
+                        <strong>{entry.action}</strong>
+                        <span>{entry.operator}</span>
+                        <span>{entry.timestamp}</span>
+                        <span>{`${entry.before?.status || '-'} -> ${entry.after?.status || '-'}`}</span>
+                        <span>{`P${entry.before?.priority ?? '-'} -> P${entry.after?.priority ?? '-'}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!pendingTasks.length ? <div className="auto-task-empty">暂无待处理任务</div> : null}
@@ -695,7 +729,17 @@ export function AutoTaskSystemPanel() {
                 <div className="auto-task-actions">
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'pause')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:pause` ? '执行中...' : '暂停'}</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
                 </div>
+                {historyOpenTask === item.task_name ? (
+                  <div className="auto-task-history">
+                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => (
+                      <div className="auto-task-history-item" key={`${item.task_name}-history-${historyIndex}`}>
+                        <strong>{entry.action}</strong><span>{entry.operator}</span><span>{entry.timestamp}</span><span>{`${entry.before?.status || '-'} -> ${entry.after?.status || '-'}`}</span><span>{`P${entry.before?.priority ?? '-'} -> P${entry.after?.priority ?? '-'}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!runningTasks.length ? <div className="auto-task-empty">暂无进行中任务</div> : null}
@@ -714,7 +758,17 @@ export function AutoTaskSystemPanel() {
                 <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
                 <div className="auto-task-actions">
                   <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'resume')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:resume` ? '执行中...' : '恢复'}</button>
+                  <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
                 </div>
+                {historyOpenTask === item.task_name ? (
+                  <div className="auto-task-history">
+                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => (
+                      <div className="auto-task-history-item" key={`${item.task_name}-history-${historyIndex}`}>
+                        <strong>{entry.action}</strong><span>{entry.operator}</span><span>{entry.timestamp}</span><span>{`${entry.before?.status || '-'} -> ${entry.after?.status || '-'}`}</span><span>{`P${entry.before?.priority ?? '-'} -> P${entry.after?.priority ?? '-'}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!pausedTasks.length ? <div className="auto-task-empty">暂无已暂停任务</div> : null}
@@ -731,6 +785,18 @@ export function AutoTaskSystemPanel() {
                 <div>priority: P{item.priority}</div>
                 <div>retry_count: {item.retry_count ?? 0}</div>
                 <div>timestamp: {item.updated_at || item.timestamp || '-'}</div>
+                <div className="auto-task-actions">
+                  <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
+                </div>
+                {historyOpenTask === item.task_name ? (
+                  <div className="auto-task-history">
+                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => (
+                      <div className="auto-task-history-item" key={`${item.task_name}-history-${historyIndex}`}>
+                        <strong>{entry.action}</strong><span>{entry.operator}</span><span>{entry.timestamp}</span><span>{`${entry.before?.status || '-'} -> ${entry.after?.status || '-'}`}</span><span>{`P${entry.before?.priority ?? '-'} -> P${entry.after?.priority ?? '-'}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!completedTasks.length ? <div className="auto-task-empty">暂无最近完成任务</div> : null}
@@ -745,6 +811,7 @@ export function AutoTaskSystemPanel() {
             {summaryExpanded ? '收起' : '展开完整 RESULT SUMMARY'}
           </button>
         </div>
+        <div className="auto-task-last-op">最近关键操作: {latestAction ? `${latestAction.task_name} · ${latestAction.action}` : '-'}</div>
         <pre>{`=== RESULT SUMMARY ===\n\n${displayedSummary}`}</pre>
       </div>
     </section>
