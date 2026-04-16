@@ -45,6 +45,7 @@ type TaskBoardItem = {
   auto_decision_log?: string[]
   queued_at?: string
   slot_active?: boolean
+  health?: 'healthy' | 'warning' | 'critical'
 }
 
 type TaskBoardPayload = {
@@ -55,6 +56,7 @@ type TaskBoardPayload = {
   failed?: number
   max_concurrency?: number
   current_concurrency?: number
+  system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
   board: TaskBoardItem[]
 }
 
@@ -163,8 +165,32 @@ async function readTaskBoard(filePath: string) {
         next.auto_decision_log = [...(next.auto_decision_log ?? []), `连续失败已自动降级到 P${newPriority}`]
       }
     }
+
+    const failCount = failedHistory.length
+    if (failCount >= 3) next.health = 'critical'
+    else if (failCount >= 2 || next.stuck || next.abnormal) next.health = 'warning'
+    else next.health = 'healthy'
+
     return next
   })
+
+  const failByAgent = new Map<string, number>()
+  for (const item of payload.board) {
+    if (item.status === 'failed') failByAgent.set(item.agent ?? 'unknown', (failByAgent.get(item.agent ?? 'unknown') ?? 0) + 1)
+  }
+  const alerts: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[] = []
+  for (const item of payload.board) {
+    if (item.health === 'critical') alerts.push({ level: 'critical', task_name: item.task_name, agent: item.agent, reason: '连续失败 >= 3 次' })
+    else if (item.health === 'warning') {
+      const reason = item.stuck ? '待处理超过 60s' : item.abnormal ? 'pause/resume 频繁切换' : '连续失败 >= 2 次'
+      alerts.push({ level: 'warning', task_name: item.task_name, agent: item.agent, reason })
+    }
+  }
+  for (const [agent, cnt] of failByAgent.entries()) {
+    if (cnt >= 2) alerts.push({ level: 'warning', agent, reason: `实例最近失败任务过多（${cnt}）` })
+  }
+  payload.system_alerts = alerts
+
   return applyScheduler(payload)
 }
 

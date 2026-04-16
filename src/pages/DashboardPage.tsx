@@ -181,6 +181,7 @@ type AutoTaskBoardItem = {
   auto_decision_log?: string[]
   queued_at?: string
   slot_active?: boolean
+  health?: 'healthy' | 'warning' | 'critical'
 }
 
 type AutoTaskBoardPayload = {
@@ -189,6 +190,7 @@ type AutoTaskBoardPayload = {
   failed: number
   max_concurrency?: number
   current_concurrency?: number
+  system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
   board: AutoTaskBoardItem[]
 }
 
@@ -683,6 +685,17 @@ export function AutoTaskSystemPanel() {
 
       {runError ? <div className="auto-task-error">{runError}</div> : null}
 
+      {(data?.system_alerts?.length ?? 0) > 0 ? (
+        <div className="auto-task-alerts">
+          <div className="auto-task-alert-title">系统告警</div>
+          {data?.system_alerts?.map((a, i) => (
+            <div className={`auto-task-alert-item is-${a.level}`} key={`alert-${i}`}>
+              {a.level.toUpperCase()} · 任务:{a.task_name || '-'} · 实例:{a.agent || '-'} · 原因:{a.reason}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="auto-task-scheduler-strip">
         <div>当前并发: {data?.current_concurrency ?? runningCount} / {data?.max_concurrency ?? 2}</div>
         <div>运行中数量: {runningCount}</div>
@@ -699,6 +712,7 @@ export function AutoTaskSystemPanel() {
               return (
                 <div className="auto-task-card is-running" key={`running-${item.task_name}-${index}`}>
                   <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
+                  <div>health: {item.health || 'healthy'}</div>
                   <div>priority: P{item.priority}</div>
                   <div>agent: {item.agent}</div>
                   <div>slot: slot #{index + 1}</div>
@@ -720,6 +734,7 @@ export function AutoTaskSystemPanel() {
             {queuedTasks.map((item, index) => (
               <div className="auto-task-card is-pending" key={`queued-${item.task_name}-${index}`}>
                 <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
+                <div>health: {item.health || 'healthy'}</div>
                 <div>priority: P{item.priority}</div>
                 <div>排队位置: #{index + 1}</div>
                 <div>{index === 0 ? '下一执行任务' : ''}</div>
@@ -740,6 +755,7 @@ export function AutoTaskSystemPanel() {
             {completedTasks.map((item, index) => (
               <div className="auto-task-card is-success" key={`done-${item.task_name}-${index}`}>
                 <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
+                <div>health: {item.health || 'healthy'}</div>
                 <div>priority: P{item.priority}</div>
                 <div>agent: {item.agent}</div>
                 <div>更新时间: {item.updated_at || item.timestamp || '-'}</div>
