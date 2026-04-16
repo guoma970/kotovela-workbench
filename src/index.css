@@ -281,26 +281,65 @@ button,
   color: #ffd6d6;
 }
 
-.auto-task-table-wrap {
-  overflow-x: auto;
+.auto-task-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.auto-task-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
+.auto-task-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.auto-task-table th,
-.auto-task-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.auto-task-table th {
+.auto-task-column-title {
+  font-size: 0.86rem;
   color: #8ea2c6;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.auto-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auto-task-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 4px;
+  font-size: 0.84rem;
+  color: #cfe0ff;
+}
+
+.auto-task-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.auto-task-card.is-pending {
+  border-color: rgba(255, 120, 120, 0.25);
+}
+
+.auto-task-card.is-running {
+  border-color: rgba(126, 163, 255, 0.35);
+}
+
+.auto-task-card.is-success {
+  border-color: rgba(84, 214, 140, 0.3);
+}
+
+.auto-task-empty {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #8ea2c6;
+  font-size: 0.82rem;
 }
 
 .auto-task-summary {
