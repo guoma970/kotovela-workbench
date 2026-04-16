@@ -11,18 +11,27 @@ const execFileAsync = promisify(execFile)
 type TaskHistoryEntry = {
   action:
     | 'create'
-    | 'start'
-    | 'success'
+    | 'run'
     | 'fail'
+    | 'retry'
     | 'pause'
     | 'resume'
     | 'cancel'
-    | 'retry'
     | 'priority_change'
     | 'auto_priority_down'
     | 'abnormal_detected'
-  operator: 'system' | 'builder'
+    | 'stuck_detected'
   timestamp: string
+  status_before?: string
+  status_after?: string
+  priority_before?: number
+  priority_after?: number
+  retry_count?: number
+  error?: string
+  trigger_source?: 'manual' | 'system' | 'rule_engine'
+  decision_type?: 'auto_retry' | 'auto_priority_down' | 'stuck_detected' | 'abnormal_detected'
+  decision_reason?: string
+  operator?: 'system' | 'builder'
   before?: { status?: string; priority?: number }
   after?: { status?: string; priority?: number }
 }
@@ -74,7 +83,7 @@ function applyScheduler(payload: TaskBoardPayload) {
     item.slot_active = ['doing', 'running'].includes(item.status ?? '')
     if ((item.status === 'todo' || item.status === 'queued') && runningCount < maxConcurrency) {
       appendHistory(item, {
-        action: 'start',
+        action: 'run',
         operator: 'system',
         timestamp: new Date().toISOString(),
         before: { status: item.status, priority: item.priority },
@@ -116,8 +125,10 @@ async function readTaskBoard(filePath: string) {
             {
               action: 'create',
               operator: 'system',
+              trigger_source: 'system',
               timestamp: item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
-              after: { status: item.status, priority: item.priority },
+              status_after: item.status,
+              priority_after: item.priority,
             },
           ],
   }))
@@ -126,7 +137,25 @@ async function readTaskBoard(filePath: string) {
     const next = { ...item }
     if (next.status === 'failed') next.attention = true
     const ageMs = now - new Date(next.updated_at ?? next.timestamp ?? now).getTime()
-    next.stuck = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
+    const stuckNow = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
+    next.stuck = stuckNow
+    if (stuckNow) {
+      const hasStuck = (next.history ?? []).some((entry) => entry.decision_type === 'stuck_detected')
+      if (!hasStuck) {
+        next.history = [
+          ...(next.history ?? []),
+          {
+            action: 'stuck_detected',
+            timestamp: new Date().toISOString(),
+            trigger_source: 'rule_engine',
+            decision_type: 'stuck_detected',
+            decision_reason: '待处理超过60s',
+            status_after: next.status,
+            priority_after: next.priority,
+          },
+        ]
+      }
+    }
     const recentPauseResume = (next.history ?? []).filter(
       (entry) => ['pause', 'resume'].includes(entry.action) && now - new Date(entry.timestamp).getTime() <= 60_000,
     )
@@ -139,8 +168,12 @@ async function readTaskBoard(filePath: string) {
           {
             action: 'abnormal_detected',
             operator: 'system',
+            trigger_source: 'rule_engine',
+            decision_type: 'abnormal_detected',
+            decision_reason: '60s 内 pause/resume 频繁切换',
             timestamp: new Date().toISOString(),
-            after: { status: next.status, priority: next.priority },
+            status_after: next.status,
+            priority_after: next.priority,
           },
         ]
         next.auto_decision_log = [...(next.auto_decision_log ?? []), '检测到频繁 pause/resume，已标记 abnormal']
@@ -156,9 +189,14 @@ async function readTaskBoard(filePath: string) {
           {
             action: 'auto_priority_down',
             operator: 'system',
+            trigger_source: 'rule_engine',
+            decision_type: 'auto_priority_down',
+            decision_reason: '连续失败>=2次自动降级优先级',
             timestamp: new Date().toISOString(),
-            before: { status: next.status, priority: next.priority },
-            after: { status: next.status, priority: newPriority },
+            status_before: next.status,
+            status_after: next.status,
+            priority_before: next.priority,
+            priority_after: newPriority,
           },
         ]
         next.priority = newPriority
@@ -206,7 +244,15 @@ async function writeTaskBoard(filePath: string, payload: TaskBoardPayload) {
 }
 
 function appendHistory(target: TaskBoardItem, entry: TaskHistoryEntry) {
-  target.history = [...(target.history ?? []), entry]
+  const normalized: TaskHistoryEntry = {
+    ...entry,
+    status_before: entry.status_before ?? entry.before?.status,
+    status_after: entry.status_after ?? entry.after?.status,
+    priority_before: entry.priority_before ?? entry.before?.priority,
+    priority_after: entry.priority_after ?? entry.after?.priority,
+    trigger_source: entry.trigger_source ?? (entry.operator === 'builder' ? 'manual' : 'system'),
+  }
+  target.history = [...(target.history ?? []), normalized]
 }
 
 export default defineConfig(({ mode }) => {
@@ -323,7 +369,7 @@ export default defineConfig(({ mode }) => {
                       stuck: false,
                       abnormal: false,
                       auto_decision_log: [],
-                      history: [{ action: 'create', operator: 'system', timestamp: now, after: { status: 'todo', priority: 3 } }],
+                      history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'todo', priority_after: 3 }],
                     })
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
@@ -341,9 +387,13 @@ export default defineConfig(({ mode }) => {
                       appendHistory(existing, {
                         action: 'fail',
                         operator: 'system',
+                        trigger_source: 'system',
                         timestamp: now,
-                        before: { status: existing.status, priority: existing.priority },
-                        after: { status: 'failed', priority: existing.priority },
+                        status_before: existing.status,
+                        status_after: 'failed',
+                        priority_before: existing.priority,
+                        priority_after: existing.priority,
+                        error: taskInput.slice(5).trim() || '模拟失败',
                       })
                       existing.status = 'failed'
                       existing.attention = true
@@ -364,8 +414,8 @@ export default defineConfig(({ mode }) => {
                         abnormal: false,
                         auto_decision_log: [],
                         history: [
-                          { action: 'create', operator: 'system', timestamp: now, after: { status: 'failed', priority: 3 } },
-                          { action: 'fail', operator: 'system', timestamp: now, after: { status: 'failed', priority: 3 } },
+                          { action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3 },
+                          { action: 'fail', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3, error: taskInput.slice(5).trim() || '模拟失败' },
                         ],
                       })
                     }
@@ -384,11 +434,14 @@ export default defineConfig(({ mode }) => {
                   const target = payload.board.find((item) => item.task_name === taskInput)
                   if (target) {
                     appendHistory(target, {
-                      action: 'success',
+                      action: 'run',
                       operator: 'system',
+                      trigger_source: 'system',
                       timestamp: now,
-                      before: { status: target.status, priority: target.priority },
-                      after: { status: 'success', priority: target.priority },
+                      status_before: target.status,
+                      status_after: 'success',
+                      priority_before: target.priority,
+                      priority_after: target.priority,
                     })
                     target.status = 'success'
                     target.attention = false
@@ -425,6 +478,7 @@ export default defineConfig(({ mode }) => {
                   appendHistory(target, {
                     action: 'pause',
                     operator: 'builder',
+                    trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
                     after: { status: 'paused', priority: target.priority },
@@ -435,6 +489,7 @@ export default defineConfig(({ mode }) => {
                   appendHistory(target, {
                     action: 'resume',
                     operator: 'builder',
+                    trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
                     after: { status: 'todo', priority: target.priority },
@@ -445,6 +500,7 @@ export default defineConfig(({ mode }) => {
                   appendHistory(target, {
                     action: 'cancel',
                     operator: 'builder',
+                    trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
                     after: { status: 'cancelled', priority: target.priority },
@@ -455,6 +511,7 @@ export default defineConfig(({ mode }) => {
                   appendHistory(target, {
                     action: 'priority_change',
                     operator: 'builder',
+                    trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
                     after: { status: target.status, priority: Math.max(1, (target.priority ?? 3) - 1) },
@@ -464,6 +521,7 @@ export default defineConfig(({ mode }) => {
                   appendHistory(target, {
                     action: 'priority_change',
                     operator: 'builder',
+                    trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
                     after: { status: target.status, priority: Math.min(9, (target.priority ?? 3) + 1) },

@@ -157,8 +157,17 @@ type HomeStatus = 'blocker' | 'active' | 'idle'
 
 type AutoTaskHistoryEntry = {
   action: string
-  operator: string
   timestamp: string
+  status_before?: string
+  status_after?: string
+  priority_before?: number
+  priority_after?: number
+  retry_count?: number
+  error?: string
+  trigger_source?: 'manual' | 'system' | 'rule_engine'
+  decision_type?: 'auto_retry' | 'auto_priority_down' | 'stuck_detected' | 'abnormal_detected'
+  decision_reason?: string
+  operator?: string
   before?: { status?: string; priority?: number }
   after?: { status?: string; priority?: number }
 }
@@ -713,7 +722,10 @@ export function AutoTaskSystemPanel() {
                 <div className="auto-task-card is-running" key={`running-${item.task_name}-${index}`}>
                   <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
                   <div>health: {item.health || 'healthy'}</div>
-                  <div>priority: P{item.priority}</div>
+                  <div>health: {item.health || 'healthy'}</div>
+                  <div>health: {item.health || 'healthy'}</div>
+                <div>health: {item.health || 'healthy'}</div>
+                <div>priority: P{item.priority}</div>
                   <div>agent: {item.agent}</div>
                   <div>slot: slot #{index + 1}</div>
                   <div>开始时间: {startAt}</div>
@@ -762,11 +774,24 @@ export function AutoTaskSystemPanel() {
                 <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
                 {historyOpenTask === item.task_name ? (
                   <div className="auto-task-history">
-                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => (
-                      <div className="auto-task-history-item" key={`${item.task_name}-history-${historyIndex}`}>
-                        <strong>{entry.action}</strong><span>{entry.operator}</span><span>{entry.timestamp}</span>
-                      </div>
-                    ))}
+                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => {
+                      const isFail = entry.action === 'fail'
+                      const isRetry = entry.action === 'retry'
+                      const isDecision = Boolean(entry.decision_type) || entry.trigger_source === 'rule_engine'
+                      const cls = isFail ? 'is-fail' : isRetry ? 'is-retry' : isDecision ? 'is-decision' : ''
+                      return (
+                        <div className={`auto-task-history-item ${cls}`} key={`${item.task_name}-history-${historyIndex}`}>
+                          <strong>{entry.action}</strong>
+                          <span>time: {entry.timestamp}</span>
+                          <span>status: {(entry.status_before || entry.before?.status || '-') + ' -> ' + (entry.status_after || entry.after?.status || '-')}</span>
+                          <span>{`priority: P${entry.priority_before ?? entry.before?.priority ?? '-'} -> P${entry.priority_after ?? entry.after?.priority ?? '-'}`}</span>
+                          <span>retry_count: {entry.retry_count ?? item.retry_count ?? 0}</span>
+                          {entry.error ? <span>error: {entry.error}</span> : null}
+                          <span>trigger_source: {entry.trigger_source || entry.operator || 'system'}</span>
+                          {entry.decision_type ? <span>decision: {entry.decision_type} · {entry.decision_reason || '-'}</span> : null}
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : null}
               </div>
@@ -784,7 +809,7 @@ export function AutoTaskSystemPanel() {
           </button>
         </div>
         <div className="auto-task-last-op">最近关键操作: {latestAction ? `${latestAction.task_name} · ${latestAction.action}` : '-'}</div>
-        <div className="auto-task-last-op">自动决策提示: {data?.board?.flatMap((item) => item.auto_decision_log ?? []).slice(-1)[0] || '-'}</div>
+        <div className="auto-task-last-op">自动决策: {data?.board?.flatMap((item) => item.history ?? []).filter((h) => h.decision_type).slice(-1).map((h) => `${h.decision_reason || h.decision_type}（P${h.priority_before ?? '-'} → P${h.priority_after ?? '-'}）`)[0] || data?.board?.flatMap((item) => item.auto_decision_log ?? []).slice(-1)[0] || '-'}</div>
         <pre>{`=== RESULT SUMMARY ===\n\n${displayedSummary}`}</pre>
       </div>
     </section>

@@ -402,6 +402,22 @@ button,
   background: rgba(255,255,255,0.03);
   color: #bcd0f5;
   font-size: 0.78rem;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.auto-task-history-item.is-fail {
+  border-color: rgba(255, 120, 120, 0.45);
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.auto-task-history-item.is-retry {
+  border-color: rgba(255, 176, 87, 0.45);
+  background: rgba(120, 70, 10, 0.18);
+}
+
+.auto-task-history-item.is-decision {
+  border-color: rgba(188, 125, 255, 0.5);
+  background: rgba(70, 38, 110, 0.2);
 }
 
 .auto-task-last-op {
