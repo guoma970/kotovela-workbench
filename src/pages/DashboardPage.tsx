@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
@@ -154,6 +154,27 @@ function InternalControlSummary({
 }
 
 type HomeStatus = 'blocker' | 'active' | 'idle'
+
+type AutoTaskBoardItem = {
+  task_name: string
+  agent: string
+  priority: number
+  status: string
+  type: string
+}
+
+type AutoTaskBoardPayload = {
+  total: number
+  success: number
+  failed: number
+  board: AutoTaskBoardItem[]
+}
+
+type FailedTaskState = {
+  taskName: string
+  status: 'failed'
+  message: string
+}
 
 type HomeItem = {
   id: string
@@ -386,6 +407,149 @@ function RecentUpdates({
   )
 }
 
+function AutoTaskSystemPanel() {
+  const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [taskInput, setTaskInput] = useState('')
+  const [running, setRunning] = useState(false)
+  const [runError, setRunError] = useState('')
+  const [failedTask, setFailedTask] = useState<FailedTaskState | null>(null)
+
+  const loadBoard = () => {
+    setLoading(true)
+    fetch('/api/tasks-board', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json: AutoTaskBoardPayload) => {
+        setData(json)
+      })
+      .catch(() => {
+        setData(null)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => {
+    loadBoard()
+  }, [])
+
+  const runTask = async () => {
+    const input = taskInput.trim()
+    if (!input || running) return
+    setRunning(true)
+    setRunError('')
+    setFailedTask(null)
+    try {
+      const res = await fetch('/api/tasks-board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.message || data?.error || '执行失败')
+      }
+      setTaskInput('')
+      loadBoard()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行失败'
+      setRunError(message)
+      setFailedTask({
+        taskName: input,
+        status: 'failed',
+        message,
+      })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const failedBoardTask = data?.board?.find((item) => item.status === 'failed')
+
+  const latestSummary = failedTask
+    ? `${failedTask.taskName} (builder | P- )\n   status: failed\n   error: ${failedTask.message}`
+    : failedBoardTask
+      ? `${failedBoardTask.task_name} (${failedBoardTask.agent} | P${failedBoardTask.priority})\n   status: failed`
+      : data?.board?.length
+        ? data.board
+            .map(
+              (item, index) =>
+                `${index + 1}. ${item.task_name} (${item.agent} | P${item.priority})\n   status: ${item.status}`,
+            )
+            .join('\n\n')
+        : '暂无 RESULT SUMMARY'
+
+  return (
+    <section className="home-section panel strong-card auto-task-panel">
+      <div className="home-section-head">
+        <h3>自动任务系统</h3>
+        <span className="home-count">{data?.board?.length ?? 0}</span>
+      </div>
+
+      <div className="auto-task-runner">
+        <input
+          className="auto-task-input"
+          value={taskInput}
+          onChange={(e) => setTaskInput(e.target.value)}
+          placeholder="输入一句话任务，例如：实现注册页面"
+          disabled={running}
+        />
+        <button className="auto-task-run-btn" type="button" onClick={runTask} disabled={running || !taskInput.trim()}>
+          {running ? '执行中...' : '执行'}
+        </button>
+      </div>
+
+      {failedTask ? (
+        <div className="auto-task-failed-box">
+          <div className="auto-task-failed-title">失败提示</div>
+          <div>任务: {failedTask.taskName}</div>
+          <div>status: {failedTask.status}</div>
+          <div>error: {failedTask.message}</div>
+        </div>
+      ) : null}
+
+      {runError ? <div className="auto-task-error">{runError}</div> : null}
+
+      <div className="auto-task-overview">
+        <div className="auto-task-metric"><span>total</span><strong>{data?.total ?? (loading ? '...' : 0)}</strong></div>
+        <div className="auto-task-metric"><span>success</span><strong>{data?.success ?? (loading ? '...' : 0)}</strong></div>
+        <div className={`auto-task-metric ${(failedTask || (data?.failed ?? 0) > 0) ? 'is-failed' : ''}`}><span>failed</span><strong>{failedTask ? Math.max(1, data?.failed ?? 0) : (data?.failed ?? (loading ? '...' : 0))}</strong></div>
+      </div>
+
+      <div className="auto-task-table-wrap">
+        <table className="auto-task-table">
+          <thead>
+            <tr>
+              <th>task_name</th>
+              <th>agent</th>
+              <th>status</th>
+              <th>priority</th>
+              <th>type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.board ?? []).map((item, index) => (
+              <tr key={`${item.task_name}-${index}`}>
+                <td>{item.task_name}</td>
+                <td>{item.agent}</td>
+                <td>{item.status}</td>
+                <td>P{item.priority}</td>
+                <td>{item.type}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="auto-task-summary">
+        <div className="auto-task-summary-label">最近结果</div>
+        <pre>{`=== RESULT SUMMARY ===\n\n${latestSummary}`}</pre>
+      </div>
+    </section>
+  )
+}
+
 export function DashboardPage() {
   const {
     agents,
@@ -554,6 +718,7 @@ export function DashboardPage() {
 
         <div className="home-v1-grid home-v1-grid--internal">
           <div className="home-internal-main-col">
+            <AutoTaskSystemPanel />
             <SectionList
               title="需处理"
               items={blockers}

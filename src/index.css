@@ -175,6 +175,139 @@ button,
   line-height: 1.45;
 }
 
+.auto-task-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auto-task-runner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.auto-task-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e9f1ff;
+}
+
+.auto-task-run-btn {
+  border: 1px solid rgba(126, 163, 255, 0.35);
+  background: rgba(91, 140, 255, 0.16);
+  color: #dbe7ff;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-weight: 600;
+}
+
+.auto-task-run-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auto-task-error {
+  color: #ffb4b4;
+  font-size: 0.84rem;
+}
+
+.auto-task-failed-box {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 120, 120, 0.4);
+  background: rgba(127, 29, 29, 0.22);
+  color: #ffd6d6;
+  display: grid;
+  gap: 4px;
+}
+
+.auto-task-failed-title {
+  font-weight: 700;
+}
+
+.auto-task-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auto-task-metric {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.auto-task-metric span {
+  display: block;
+  font-size: 0.78rem;
+  color: #8ea2c6;
+  margin-bottom: 6px;
+}
+
+.auto-task-metric strong {
+  font-size: 1.4rem;
+  color: #e9f1ff;
+}
+
+.auto-task-metric.is-failed {
+  border-color: rgba(255, 120, 120, 0.45);
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.auto-task-metric.is-failed strong {
+  color: #ffd6d6;
+}
+
+.auto-task-table-wrap {
+  overflow-x: auto;
+}
+
+.auto-task-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.auto-task-table th,
+.auto-task-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auto-task-table th {
+  color: #8ea2c6;
+  font-weight: 600;
+}
+
+.auto-task-summary {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.auto-task-summary-label {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  color: #8ea2c6;
+}
+
+.auto-task-summary pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #dbe7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
 .home-internal-page-note {
   margin-top: 0;
 }

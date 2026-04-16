@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { fetchOfficeInstancesPayload } from './server/officeInstances'
+
+const execFileAsync = promisify(execFile)
 
 export default defineConfig(({ mode }) => {
   const isInternal = mode === 'internal'
@@ -57,6 +63,72 @@ export default defineConfig(({ mode }) => {
                 }),
               )
             }
+          })
+
+          server.middlewares.use('/api/tasks-board', async (req, res, next) => {
+            const filePath = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
+
+            if (req.method === 'GET') {
+              try {
+                const payload = await fs.readFile(filePath, 'utf8')
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(payload)
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(
+                  JSON.stringify({
+                    error: 'tasks-board fetch failed',
+                    message: error instanceof Error ? error.message : String(error),
+                  }),
+                )
+              }
+              return
+            }
+
+            if (req.method === 'POST') {
+              try {
+                const chunks: Buffer[] = []
+                for await (const chunk of req) chunks.push(Buffer.from(chunk))
+                const bodyText = Buffer.concat(chunks).toString('utf8')
+                const body = bodyText ? JSON.parse(bodyText) : {}
+                const taskInput = String(body?.input || '').trim()
+                if (!taskInput) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'missing input' }))
+                  return
+                }
+
+                if (taskInput.startsWith('fail:')) {
+                  throw new Error(taskInput.slice(5).trim() || '模拟失败')
+                }
+
+                await execFileAsync(process.execPath, ['simulate-fs-tasks.js', taskInput], {
+                  cwd: '/Users/ztl/OpenClaw-Runner',
+                  maxBuffer: 50 * 1024 * 1024,
+                })
+
+                const payload = await fs.readFile(filePath, 'utf8')
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(payload)
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(
+                  JSON.stringify({
+                    error: 'tasks-board execute failed',
+                    message: error instanceof Error ? error.message : String(error),
+                  }),
+                )
+              }
+              return
+            }
+
+            next()
           })
         },
       },
