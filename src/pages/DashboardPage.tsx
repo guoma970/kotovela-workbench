@@ -210,7 +210,7 @@ function AutoTaskSystemSummaryCard() {
   return (
     <section className="home-section panel strong-card auto-task-summary-card">
       <div className="home-section-head">
-        <h3>自动任务系统</h3>
+        <h3>自动调度系统</h3>
         <span className="home-count">{data?.total ?? 0}</span>
       </div>
       <div className="auto-task-overview">

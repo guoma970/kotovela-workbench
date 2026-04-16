@@ -8,20 +8,20 @@ import { formatLastSyncedAt } from '../lib/formatSyncTime'
 const getNavItems = (isInternal: boolean) =>
   isInternal
     ? [
-        { to: '/', step: 1, label: 'Dashboard 总览', note: '系统状态 · 同步概览' },
-        { to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
-        { to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
-        { to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
-        { to: '/auto-tasks', step: 5, label: '自动任务系统', note: '执行控制 · 队列调度' },
-        { to: '/agents', step: 6, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { group: '驾驶舱层', to: '/', step: 1, label: 'Dashboard 总览', note: '系统状态 · 同步概览' },
+        { group: '驾驶舱层', to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
+        { group: '驾驶舱层', to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
+        { group: '驾驶舱层', to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
+        { group: '调度系统', to: '/auto-tasks', step: 5, label: '自动调度系统', note: '执行控制 · 队列调度' },
+        { group: '执行层', to: '/agents', step: 6, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
-        { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
-        { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
-        { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
-        { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-        { to: '/auto-tasks', step: 5, label: 'Auto Tasks', note: 'Execution control and queue' },
-        { to: '/agents', step: 6, label: 'Agents', note: 'Agent activity and routing' },
+        { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
+        { group: 'Cockpit', to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
+        { group: 'Cockpit', to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
+        { group: 'Cockpit', to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
+        { group: 'Scheduling', to: '/auto-tasks', step: 5, label: 'Auto Scheduling', note: 'Execution control and queue' },
+        { group: 'Execution', to: '/agents', step: 6, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {
@@ -206,20 +206,24 @@ export function AppShell() {
         </div>
 
         <nav className="nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={{ pathname: item.to, search: location.search }}
-              end={item.to === '/'}
-              onClick={handleNavClick}
-              className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
-            >
-              <span className="nav-link-step">{item.step}</span>
-              <span className="nav-link-copy">
-                <strong>{item.label}</strong>
-                <small>{item.note}</small>
-              </span>
-            </NavLink>
+          {navItems.map((item, index) => (
+            <div key={item.to}>
+              {index === 0 || navItems[index - 1].group !== item.group ? (
+                <div className="nav-group-title">{item.group}</div>
+              ) : null}
+              <NavLink
+                to={{ pathname: item.to, search: location.search }}
+                end={item.to === '/'}
+                onClick={handleNavClick}
+                className={({ isActive }) => (isActive ? 'nav-link nav-link-active' : 'nav-link')}
+              >
+                <span className="nav-link-step">{item.step}</span>
+                <span className="nav-link-copy">
+                  <strong>{item.label}</strong>
+                  <small>{item.note}</small>
+                </span>
+              </NavLink>
+            </div>
           ))}
         </nav>
       </aside>

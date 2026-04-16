@@ -1112,6 +1112,14 @@ button,
   gap: 10px;
 }
 
+.nav-group-title {
+  margin: 10px 6px 6px;
+  font-size: 0.72rem;
+  color: #8ea2c6;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
 .nav-link {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
