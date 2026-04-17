@@ -1426,6 +1426,45 @@ button,
   box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.22) inset;
 }
 
+.scheduler-view-switch,
+.scheduler-summary-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.scheduler-view-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scheduler-view-tab {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 16, 32, 0.78);
+  border-radius: 14px;
+  padding: 12px;
+  color: #dbe7ff;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+}
+
+.scheduler-view-tab span {
+  color: #8ea2c6;
+  font-size: 0.78rem;
+}
+
+.scheduler-view-tab.is-active {
+  border-color: rgba(91, 140, 255, 0.52);
+  box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.22) inset;
+}
+
+.scheduler-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scheduler-overview-grid-ops {
+  margin-bottom: 12px;
+}
+
 .scheduler-hub-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
@@ -1808,9 +1847,14 @@ button,
   .scheduler-pool-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .scheduler-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
+  .scheduler-view-switch,
   .scheduler-template-form,
   .scheduler-queue-grid,
   .scheduler-overview-grid,
