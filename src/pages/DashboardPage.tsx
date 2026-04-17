@@ -174,7 +174,7 @@ type AutoTaskHistoryEntry = {
 
 type AutoDecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down'
   reason: string
   detail: string
 }

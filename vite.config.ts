@@ -68,6 +68,7 @@ type TaskHistoryEntry = {
     | 'resume'
     | 'cancel'
     | 'priority_change'
+    | 'preempt'
     | 'auto_priority_down'
     | 'abnormal_detected'
     | 'stuck_detected'
@@ -90,7 +91,7 @@ type TaskHistoryEntry = {
 
 type DecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down'
   reason: string
   detail: string
 }
@@ -177,10 +178,17 @@ type TaskBoardPayload = {
 const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 const QUEUE_WARNING_MS = 60_000
+const DOMAIN_PRIORITY_MAP: Record<InstancePoolKey, number> = {
+  family: 0,
+  business: 1,
+  builder: 2,
+  media: 2,
+  personal: 3,
+}
 
 function appendDecisionLog(
   item: TaskBoardItem,
-  action: NonNullable<TaskBoardItem['auto_action']>,
+  action: DecisionLogEntry['action'],
   reason: string,
   detail: string,
   timestamp: string,
@@ -189,7 +197,28 @@ function appendDecisionLog(
   if (exists) return
   item.decision_log = [...(item.decision_log ?? []), { timestamp, action, reason, detail }]
   item.auto_decision_log = [...(item.auto_decision_log ?? []), detail]
-  item.auto_action = action
+  if (['retry', 'warning', 'need_human', 'notify_result'].includes(action)) {
+    item.auto_action = action as NonNullable<TaskBoardItem['auto_action']>
+  }
+}
+
+function clampPriority(priority?: number) {
+  const normalized = Number.isFinite(priority) ? Number(priority) : 3
+  return Math.min(3, Math.max(0, normalized))
+}
+
+function priorityLabel(priority?: number) {
+  return `P${clampPriority(priority)}`
+}
+
+function computeBasePriority(item: TaskBoardItem) {
+  return DOMAIN_PRIORITY_MAP[inferPool(item)] ?? 3
+}
+
+function resolvePriority(item: TaskBoardItem) {
+  const basePriority = computeBasePriority(item)
+  if (item.need_human) return 0
+  return clampPriority(item.priority ?? basePriority)
 }
 
 type RoutedTaskSpec = {
@@ -426,6 +455,7 @@ function applyScheduler(payload: TaskBoardPayload) {
     item.preferred_agent = normalizePoolKey(item.preferred_agent) ?? normalizePoolKey(item.agent) ?? poolKey
     item.domain = item.domain ?? poolKey
     item.target_system = item.target_system ?? `openclaw-${poolKey}`
+    item.priority = resolvePriority(item)
     item.slot_id = item.slot_id ?? null
     boardByPool.get(poolKey)?.push(item)
   }
@@ -440,22 +470,73 @@ function applyScheduler(payload: TaskBoardPayload) {
       return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
     })
 
-    let runningCount = items.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
+    const activeRunning = items
+      .filter((item) => ['doing', 'running'].includes(item.status ?? ''))
+      .sort((a, b) => {
+        const ap = clampPriority(a.priority)
+        const bp = clampPriority(b.priority)
+        if (ap !== bp) return ap - bp
+        return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
+      })
+    const queuedCandidates = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '') && !item.stuck)
+    const queueStats = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+    const preemptableRunning = activeRunning.filter((item) => clampPriority(item.priority) >= 2)
+    const urgentQueue = queuedCandidates.find((item) => clampPriority(item.priority) <= 1)
+
+    if (urgentQueue && activeRunning.length >= maxConcurrency && preemptableRunning.length > 0) {
+      const preemptTarget = [...preemptableRunning].sort((a, b) => {
+        const ap = clampPriority(a.priority)
+        const bp = clampPriority(b.priority)
+        if (ap !== bp) return bp - ap
+        return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
+      })[0]
+      if (preemptTarget) {
+        appendHistory(preemptTarget, {
+          action: 'preempt',
+          operator: 'system',
+          trigger_source: 'rule_engine',
+          timestamp: now,
+          before: { status: preemptTarget.status, priority: preemptTarget.priority },
+          after: { status: 'paused', priority: preemptTarget.priority },
+          decision_reason: `高优先级任务 ${urgentQueue.task_name} 抢占`,
+        })
+        appendDecisionLog(preemptTarget, 'preempt', 'preempted_by_higher_priority', `${priorityLabel(urgentQueue.priority)} ${urgentQueue.task_name} 抢占运行槽位`, now)
+        preemptTarget.status = 'paused'
+        preemptTarget.control_status = 'paused'
+        preemptTarget.slot_active = false
+        preemptTarget.slot_id = null
+        preemptTarget.updated_at = now
+      }
+    }
+
+    let runningCount = 0
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
       if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
         if (item.stuck) {
           item.slot_active = false
           item.slot_id = null
-        } else {
+        } else if (runningCount < maxConcurrency) {
           item.slot_active = true
-          item.slot_id = `${poolKey}-slot-${Math.min(runningCount + 1, maxConcurrency)}`
-          runningCount = Math.min(runningCount + 1, maxConcurrency)
+          item.slot_id = `${poolKey}-slot-${runningCount + 1}`
+          runningCount += 1
           runQueuedTask(item, now)
+        } else {
+          item.slot_active = false
+          item.slot_id = null
         }
       } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
         item.slot_active = false
         item.slot_id = null
+      } else if (['doing', 'running'].includes(item.status ?? '')) {
+        if (runningCount < maxConcurrency) {
+          item.slot_active = true
+          item.slot_id = item.slot_id ?? `${poolKey}-slot-${runningCount + 1}`
+          runningCount += 1
+        } else {
+          item.slot_active = false
+          item.slot_id = null
+        }
       } else if (item.slot_active && !item.slot_id) {
         item.slot_id = `${poolKey}-slot-${Math.min(index + 1, maxConcurrency)}`
       }
@@ -464,7 +545,7 @@ function applyScheduler(payload: TaskBoardPayload) {
     const stats = poolStats.get(poolKey)
     if (stats) {
       stats.running = items.filter((item) => item.slot_active).length
-      stats.queue = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+      stats.queue = queueStats
       stats.health = items.some((item) => item.health === 'critical')
         ? 'critical'
         : items.some((item) => item.health === 'warning')
@@ -624,7 +705,7 @@ async function readTaskBoard(filePath: string) {
     if (failedHistory.length >= 2) {
       const hasNeedHuman = (next.history ?? []).some((entry) => entry.decision_type === 'need_human')
       if (!hasNeedHuman) {
-        const newPriority = Math.max(1, (next.priority ?? 3) - 1)
+        const newPriority = 0
         next.need_human = true
         next.priority = newPriority
         next.attention = true
@@ -643,7 +724,7 @@ async function readTaskBoard(filePath: string) {
             priority_after: newPriority,
           },
         ]
-        appendDecisionLog(next, 'need_human', 'continuous_failure', `连续失败 >= 2，已升级人工介入并提升到 P${newPriority}`, decisionTimestamp)
+        appendDecisionLog(next, 'need_human', 'continuous_failure', `连续失败 >= 2，已升级人工介入并提升到 ${priorityLabel(newPriority)}`, decisionTimestamp)
       }
     }
 
@@ -937,6 +1018,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     target.human_owner = owner
     target.taken_over_at = now
     target.need_human = true
+    target.priority = 0
     target.manual_decision = 'taken_over'
     appendManualDecision(target, 'manual_takeover', 'human_takeover', `已由 ${owner} 接管`, now)
     return
@@ -958,6 +1040,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     target.taken_over_at = now
     target.manual_decision = 'assigned'
     target.need_human = true
+    target.priority = 0
     appendManualDecision(target, 'manual_assign', 'human_assign', `已指派给 ${owner}`, now)
     return
   }
@@ -1334,25 +1417,29 @@ export default defineConfig(({ mode }) => {
                   target.control_status = 'cancelled'
                   target.status = 'cancelled'
                 } else if (action === 'priority_up') {
+                  const nextPriority = Math.max(0, clampPriority(target.priority) - 1)
                   appendHistory(target, {
                     action: 'priority_change',
                     operator: 'builder',
                     trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
-                    after: { status: target.status, priority: Math.max(1, (target.priority ?? 3) - 1) },
+                    after: { status: target.status, priority: nextPriority },
                   })
-                  target.priority = Math.max(1, (target.priority ?? 3) - 1)
+                  appendDecisionLog(target, 'priority_up', 'manual_priority_change', `${priorityLabel(clampPriority(target.priority))} -> ${priorityLabel(nextPriority)}`, now)
+                  target.priority = nextPriority
                 } else if (action === 'priority_down') {
+                  const nextPriority = Math.min(3, clampPriority(target.priority) + 1)
                   appendHistory(target, {
                     action: 'priority_change',
                     operator: 'builder',
                     trigger_source: 'manual',
                     timestamp: now,
                     before: { status: target.status, priority: target.priority },
-                    after: { status: target.status, priority: Math.min(9, (target.priority ?? 3) + 1) },
+                    after: { status: target.status, priority: nextPriority },
                   })
-                  target.priority = Math.min(9, (target.priority ?? 3) + 1)
+                  appendDecisionLog(target, 'priority_down', 'manual_priority_change', `${priorityLabel(clampPriority(target.priority))} -> ${priorityLabel(nextPriority)}`, now)
+                  target.priority = nextPriority
                 } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue'].includes(action)) {
                   applyManualTaskAction(target, action, humanOwner, now)
                 } else {
