@@ -164,11 +164,18 @@ type PersonaProfile = {
   interaction_style: string
 }
 
+type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
+type AccountLine = 'yanjia_housing' | 'yannazhuji' | 'mom970' | 'openclaw' | 'business'
+type DistributionChannel = 'short_content' | 'official_account'
+type ContentVariant = 'short' | 'article'
+
 type TaskBoardSource = {
-  source_type: 'book_manuscript'
-  source_project: 'japanese_renovation_guide'
-  chapter_title: string
+  source_type: 'book_manuscript' | 'product_brochure' | 'case_booklet'
+  source_project: 'japanese_renovation_guide' | 'product_material_system' | 'case_library'
+  chapter_title?: string
   core_points: string
+  title?: string
+  source_line?: string
 }
 
 type RoleVersion = 'yanjia_housing' | 'official_account' | 'mom970'
@@ -186,6 +193,11 @@ type TaskBoardItem = {
   domain?: string
   subdomain?: string
   project_line?: string
+  source_line?: string
+  content_line?: ContentLine
+  account_line?: AccountLine
+  distribution_channel?: DistributionChannel
+  content_variant?: ContentVariant
   target_group_id?: string
   notify_mode?: NotifyMode
   preferred_agent?: string
@@ -228,7 +240,9 @@ type TaskBoardItem = {
     title: string
     hook: string
     outline: string[]
+    structure?: string[]
     script: string
+    full_article?: string
     publish_text: string
     publish_ready?: boolean
     archive_ready?: boolean
@@ -290,6 +304,20 @@ type TaskBoardPayload = {
   board: TaskBoardItem[]
 }
 
+type ContentRouteDecision = {
+  contentLine: ContentLine
+  lockedBy: 'source_type' | 'keyword'
+  accountLine: AccountLine
+  sourceLine: string
+  variants: Array<{
+    distributionChannel: DistributionChannel
+    contentVariant: ContentVariant
+    roleVersion?: RoleVersion
+    personaId: PersonaProfile['persona_id']
+    taskSuffix: string
+  }>
+}
+
 const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 const QUEUE_WARNING_MS = 60_000
@@ -306,6 +334,51 @@ const DOMAIN_PRIORITY_MAP: Record<InstancePoolKey, number> = {
   builder: 2,
   media: 2,
   personal: 3,
+}
+
+const CONTENT_LINE_SOURCE_MAP: Record<TaskBoardSource['source_type'], ContentLine> = {
+  book_manuscript: 'layout_renovation',
+  product_brochure: 'material_case',
+  case_booklet: 'material_case',
+}
+
+const CONTENT_LINE_KEYWORDS: Array<{ line: ContentLine; keywords: string[] }> = [
+  { line: 'kitchen_storage', keywords: ['收纳', '橱柜', '厨房'] },
+  { line: 'material_case', keywords: ['材料', '建材', '品牌'] },
+  { line: 'customer_followup', keywords: ['客户', '报价', '跟进'] },
+  { line: 'layout_renovation', keywords: ['户型', '动线', '改造'] },
+]
+
+const CONTENT_ROUTE_MAP: Record<ContentLine, Omit<ContentRouteDecision, 'contentLine' | 'lockedBy'>> = {
+  layout_renovation: {
+    accountLine: 'yanjia_housing',
+    sourceLine: 'housing',
+    variants: [
+      { distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '短内容版' },
+      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
+    ],
+  },
+  kitchen_storage: {
+    accountLine: 'yannazhuji',
+    sourceLine: 'biz_content',
+    variants: [
+      { distributionChannel: 'short_content', contentVariant: 'short', personaId: 'chongming_storage', taskSuffix: '短内容版' },
+      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
+    ],
+  },
+  material_case: {
+    accountLine: 'yanjia_housing',
+    sourceLine: 'housing',
+    variants: [
+      { distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '案例短内容版' },
+      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '案例深度长文版' },
+    ],
+  },
+  customer_followup: {
+    accountLine: 'business',
+    sourceLine: 'tech',
+    variants: [],
+  },
 }
 
 function appendDecisionLog(
@@ -709,10 +782,44 @@ function inferTaskRoute(input: string): RoutedTaskSpec {
   }
 }
 
+function detectContentLine(input: string, source?: Partial<TaskBoardSource>): Pick<ContentRouteDecision, 'contentLine' | 'lockedBy'> | null {
+  const normalized = `${input} ${source?.title ?? ''} ${source?.chapter_title ?? ''} ${source?.core_points ?? ''}`.toLowerCase()
+  for (const rule of CONTENT_LINE_KEYWORDS) {
+    if (rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase()))) {
+      return { contentLine: rule.line, lockedBy: 'keyword' }
+    }
+  }
+  if (source?.source_type && CONTENT_LINE_SOURCE_MAP[source.source_type]) {
+    return { contentLine: CONTENT_LINE_SOURCE_MAP[source.source_type], lockedBy: 'source_type' }
+  }
+  return null
+}
+
+function resolveContentRouteDecision(input: string, source?: Partial<TaskBoardSource>): ContentRouteDecision | null {
+  const detected = detectContentLine(input, source)
+  if (!detected) return null
+  const route = CONTENT_ROUTE_MAP[detected.contentLine]
+  return {
+    contentLine: detected.contentLine,
+    lockedBy: detected.lockedBy,
+    accountLine: route.accountLine,
+    sourceLine: source?.source_line ?? route.sourceLine,
+    variants: route.variants,
+  }
+}
+
+function buildContentTaskName(baseTitle: string, variant: ContentRouteDecision['variants'][number]) {
+  return `${baseTitle} · ${variant.taskSuffix}`
+}
+
+function buildContentSourceText(source?: Partial<TaskBoardSource>, fallbackInput?: string) {
+  return source?.core_points?.trim() || source?.title?.trim() || source?.chapter_title?.trim() || fallbackInput?.trim() || '待补充内容'
+}
+
 function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullable<TaskBoardItem['result']> | null {
   if (item.source?.source_type !== 'book_manuscript' || item.source?.source_project !== 'japanese_renovation_guide' || !item.role_version) return null
 
-  const chapter = item.source.chapter_title.trim()
+  const chapter = (item.source.chapter_title ?? item.source.title ?? item.task_name).trim()
   const core = item.source.core_points.trim()
   const lead = core.split(/\n+/).find(Boolean) ?? core
   const profileMap: Record<RoleVersion, { titlePrefix: string; hookPrefix: string; outlinePrefix: string[]; publishPrefix: string; personaId: PersonaProfile['persona_id']; tone: string; interaction: string }> = {
@@ -908,9 +1015,69 @@ function buildTextResult(content: string, meta?: Record<string, unknown>): NonNu
   }
 }
 
+function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullable<TaskBoardItem['result']> | null {
+  if (!item.content_line || !item.content_variant) return null
+  const sourceText = buildContentSourceText(item.source, item.task_name)
+  const sourceTitle = item.source?.title || item.source?.chapter_title || item.task_name
+  const persona = item.content_variant === 'article' ? PERSONA_REGISTRY.official_account : resolvePersonaProfile(item)
+  if (item.content_variant === 'short') {
+    const title = `${sourceTitle}｜${item.content_line === 'kitchen_storage' ? '收纳短内容' : item.content_line === 'material_case' ? '案例短内容' : '短内容拆解'}`
+    const hook = `先别急着做，${sourceText.slice(0, 28)}，最该先看的是这 3 个动作。`
+    const outline = [
+      `问题切口：${sourceTitle}`,
+      `核心拆解：${sourceText.slice(0, 48)}`,
+      `落地动作：给出马上能执行的 3 步`,
+    ]
+    const script = `开头：${hook}\n\n中段：\n1. 先讲清真实场景。\n2. 再拆最常见误区。\n3. 最后给出立刻能执行的判断动作。\n\n结尾：评论区留下你的户型或问题，我继续拆。`
+    return {
+      type: 'text',
+      content: [title, hook, ...outline, script].join('\n\n'),
+      meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant },
+      title,
+      hook,
+      outline,
+      script,
+      publish_text: `${title}\n\n${hook}\n\n${outline.map((line, index) => `${index + 1}. ${line}`).join('\n')}`,
+      generated_at: now,
+      generator: 'mock',
+      persona_id: persona.persona_id,
+      tone_style: persona.tone_style,
+      interaction_style: persona.interaction_style,
+      publish_ready: item.account_line !== 'business',
+      archive_ready: true,
+    }
+  }
+
+  const articleTitle = `${sourceTitle}｜${item.content_line === 'material_case' ? '案例深度拆解' : item.content_line === 'kitchen_storage' ? '收纳系统长文' : '公众号深度长文'}`
+  const articleHook = `这不是单点技巧，而是一套从场景、问题到落地方案的完整梳理。`
+  const structure = ['问题背景', '核心判断', '方案拆解', '执行建议']
+  const fullArticle = `一、问题背景\n${sourceText}\n\n二、核心判断\n围绕 ${sourceTitle}，先识别真实需求，再判断优先级。\n\n三、方案拆解\n分别拆场景、误区、动作。\n\n四、执行建议\n按预算、空间和实际使用频率来落地。`
+  return {
+    type: 'text',
+    content: [articleTitle, articleHook, ...structure, fullArticle].join('\n\n'),
+    meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant },
+    title: articleTitle,
+    hook: articleHook,
+    outline: structure,
+    structure,
+    script: fullArticle,
+    full_article: fullArticle,
+    publish_text: articleTitle,
+    generated_at: now,
+    generator: 'mock',
+    persona_id: 'official_account',
+    tone_style: PERSONA_REGISTRY.official_account.tone_style,
+    interaction_style: PERSONA_REGISTRY.official_account.interaction_style,
+    publish_ready: item.account_line !== 'business',
+    archive_ready: true,
+  }
+}
+
 function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardItem['result']> {
   const domain = item.domain ?? inferPool(item)
   const matchedTemplate = chooseTemplateForTask(item, templatePoolCache)
+  const contentVariantResult = buildContentVariantResult(item, now)
+  if (contentVariantResult) return contentVariantResult
   const bookRoleResult = buildBookRoleResult(item, now)
   if (bookRoleResult) return bookRoleResult
   if (domain === 'media') {
@@ -1014,6 +1181,105 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
       ],
     } satisfies TaskBoardItem
   })
+}
+
+function createContentRoutingTasks(input: string, now: string, source?: Partial<TaskBoardSource>) {
+  const decision = resolveContentRouteDecision(input, source)
+  if (!decision) return null
+
+  const scenarioId = `content-line-${Date.now()}`
+  const parentTaskId = `${scenarioId}:parent`
+  const baseTitle = source?.title || source?.chapter_title || input.trim() || `内容路由任务-${Date.now()}`
+  const normalizedSource: TaskBoardSource | undefined = source?.source_type
+    ? {
+      source_type: source.source_type,
+      source_project: source.source_project ?? (source.source_type === 'book_manuscript' ? 'japanese_renovation_guide' : source.source_type === 'product_brochure' ? 'product_material_system' : 'case_library'),
+      chapter_title: source.chapter_title,
+      core_points: buildContentSourceText(source, input),
+      title: source.title ?? baseTitle,
+      source_line: decision.sourceLine,
+    }
+    : undefined
+
+  if (decision.contentLine === 'customer_followup') {
+    return [{
+      task_name: `${baseTitle} · 客户跟进业务链`,
+      agent: 'business',
+      parent_task_id: parentTaskId,
+      scenario_id: scenarioId,
+      task_group_id: `${scenarioId}:business`,
+      task_group_label: `${baseTitle} · customer_followup`,
+      domain: 'business',
+      subdomain: 'tech',
+      project_line: decision.sourceLine,
+      source_line: decision.sourceLine,
+      content_line: decision.contentLine,
+      account_line: decision.accountLine,
+      target_group_id: decision.sourceLine,
+      notify_mode: 'default',
+      preferred_agent: 'business',
+      assigned_agent: 'business',
+      target_system: 'openclaw-business',
+      priority: 1,
+      retry_count: 0,
+      type: 'business_task',
+      status: 'queued',
+      timestamp: now,
+      queued_at: now,
+      updated_at: now,
+      auto_generated: true,
+      trigger_source: 'manual',
+      auto_decision_log: [],
+      decision_log: [
+        { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${decision.accountLine} / business_only=true` },
+      ],
+      source: normalizedSource,
+      history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 1 }],
+    } satisfies TaskBoardItem]
+  }
+
+  return decision.variants.map((variant) => ({
+    task_name: buildContentTaskName(baseTitle, variant),
+    agent: variant.distributionChannel === 'official_account' ? 'business' : 'media',
+    parent_task_id: parentTaskId,
+    scenario_id: scenarioId,
+    task_group_id: `${scenarioId}:${decision.contentLine}`,
+    task_group_label: `${baseTitle} · ${decision.contentLine}`,
+    domain: variant.distributionChannel === 'official_account' ? 'business' : 'media',
+    subdomain: variant.distributionChannel === 'official_account' ? 'official_account' : decision.accountLine === 'yannazhuji' ? 'content' : 'housing',
+    project_line: decision.sourceLine,
+    source_line: decision.sourceLine,
+    content_line: decision.contentLine,
+    account_line: decision.accountLine,
+    distribution_channel: variant.distributionChannel,
+    content_variant: variant.contentVariant,
+    target_group_id: variant.distributionChannel === 'official_account' ? 'official_account' : decision.sourceLine,
+    notify_mode: 'default',
+    preferred_agent: variant.distributionChannel === 'official_account' ? 'business' : 'media',
+    assigned_agent: variant.distributionChannel === 'official_account' ? 'business' : 'media',
+    target_system: variant.distributionChannel === 'official_account' ? 'openclaw-business' : 'openclaw-media',
+    slot_id: null,
+    priority: 1,
+    retry_count: 0,
+    type: 'content_task',
+    status: 'queued',
+    timestamp: now,
+    queued_at: now,
+    updated_at: now,
+    auto_generated: true,
+    trigger_source: 'manual',
+    auto_decision_log: [],
+    decision_log: [
+      { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${decision.accountLine} / persona=${variant.personaId}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'variant_generated', detail: `variant=${variant.contentVariant}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'channel_selected', detail: `channel=${variant.distributionChannel}` },
+    ],
+    source: normalizedSource,
+    role_version: variant.roleVersion,
+    history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 1 }],
+  } satisfies TaskBoardItem))
 }
 
 function createScenarioTemplateTasks(templateKey: ScenarioTemplateKey, now: string) {
@@ -1758,7 +2024,7 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
     item.result = {
       ...item.result,
       asset_type: assetType,
-      publish_ready: item.result.publish_ready ?? hasPublishContent,
+      publish_ready: item.result.publish_ready ?? (item.content_line === 'customer_followup' ? false : hasPublishContent),
       archive_ready: item.result.archive_ready ?? ['done', 'success', 'cancelled'].includes(item.status ?? ''),
     }
     return item
@@ -2233,22 +2499,25 @@ export default defineConfig(({ mode }) => {
                     return
                   }
 
-                  const hasBookSource = sourcePayload?.source_type === 'book_manuscript'
-                    && sourcePayload?.source_project === 'japanese_renovation_guide'
-                    && String(sourcePayload?.chapter_title || '').trim()
+                  const hasStructuredSource = ['book_manuscript', 'product_brochure', 'case_booklet'].includes(String(sourcePayload?.source_type || ''))
                     && String(sourcePayload?.core_points || '').trim()
 
-                  if (hasBookSource) {
+                  if (hasStructuredSource) {
                     const payload = await readTaskBoard(filePath)
                     const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
+                    const sourceType = String(sourcePayload?.source_type || '').trim() as TaskBoardSource['source_type']
                     const source: TaskBoardSource = {
-                      source_type: 'book_manuscript',
-                      source_project: 'japanese_renovation_guide',
+                      source_type: sourceType,
+                      source_project: (String(sourcePayload?.source_project || '').trim() as TaskBoardSource['source_project'])
+                        || (sourceType === 'book_manuscript' ? 'japanese_renovation_guide' : sourceType === 'product_brochure' ? 'product_material_system' : 'case_library'),
                       chapter_title: String(sourcePayload?.chapter_title || '').trim(),
                       core_points: String(sourcePayload?.core_points || '').trim(),
+                      title: String(sourcePayload?.title || '').trim(),
+                      source_line: String(sourcePayload?.source_line || '').trim() || undefined,
                     }
-                    const roleTasks = createBookManuscriptTasks(source, now).map((item) => {
+                    const contentRoutingTasks = createContentRoutingTasks(source.title || source.chapter_title || source.core_points, now, source)
+                    const roleTasks = (contentRoutingTasks ?? (source.source_type === 'book_manuscript' ? createBookManuscriptTasks(source, now) : [])).map((item) => {
                       applyUserContextOnCreate(item, memoryRecords)
                       return item
                     })
@@ -2267,6 +2536,26 @@ export default defineConfig(({ mode }) => {
                     res.statusCode = 400
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify({ error: 'missing input' }))
+                    return
+                  }
+
+                  const contentRoutingTasks = createContentRoutingTasks(taskInput, new Date().toISOString())
+                  if (contentRoutingTasks?.length) {
+                    const payload = await readTaskBoard(filePath)
+                    const memoryRecords = await readMemoryStore()
+                    const now = new Date().toISOString()
+                    const tasks = createContentRoutingTasks(taskInput, now)?.map((item) => {
+                      applyUserContextOnCreate(item, memoryRecords)
+                      return item
+                    }) ?? []
+                    payload.board.unshift(...tasks.reverse())
+                    payload.generated_at = now
+                    await writeTaskBoard(filePath, payload)
+                    const executed = await readTaskBoard(filePath)
+                    await writeTaskBoard(filePath, executed)
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify(summarizeTaskBoard(executed)))
                     return
                   }
 
