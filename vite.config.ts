@@ -480,7 +480,14 @@ function resolveNotifyTarget(domain?: string) {
 }
 
 function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEvent) {
-  if (eventType === 'task_done') return item.result?.title || '任务已完成'
+  if (eventType === 'task_done') {
+    if (item.domain === 'media' && item.result) {
+      const hookLines = item.result.hook.split(/[。！？!?\n]/).filter(Boolean).slice(0, 2).join(' / ')
+      const publishShort = item.result.publish_text.split('\n').filter(Boolean).slice(0, 2).join(' ')
+      return `${item.result.title}｜${hookLines}｜${publishShort}`
+    }
+    return item.task_name
+  }
   if (eventType === 'task_failed') return [...(item.history ?? [])].reverse().find((entry) => entry.error)?.error || '任务执行失败'
   if (eventType === 'task_warning') {
     if (item.stuck) return '任务待处理超过 60s'
@@ -531,15 +538,7 @@ async function deliverTaskNotification(record: TaskNotificationRecord) {
     body: JSON.stringify({
       msg_type: 'text',
       content: {
-        text: [
-          `事件类型：${record.event_type}`,
-          `task_name：${record.task_name}`,
-          `domain：${record.domain}`,
-          `assigned_agent：${record.assigned_agent}`,
-          `status：${record.status}`,
-          `摘要：${record.summary}`,
-          `查看 Scheduler：${record.scheduler_hint}`,
-        ].join('\n'),
+        text: record.message,
       },
     }),
   })
@@ -556,6 +555,21 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
     const eventType = inferTaskNotifyEvent(item, previousByName.get(item.task_name))
     if (!eventType) continue
     const target = resolveNotifyTarget(item.domain)
+    const summary = buildNotificationSummary(item, eventType)
+    const messageLines = [
+      eventType === 'task_warning' ? '【任务告警】' : '【任务完成】',
+      `任务：${item.task_name}`,
+      `实例：${item.assigned_agent ?? item.agent ?? 'builder'}`,
+      `状态：${eventType === 'task_warning' ? '告警' : item.status ?? '-'}`,
+      `摘要：${summary}`,
+      '👉 查看：/scheduler',
+    ]
+    if (normalizeNotifyDomain(item.domain) === 'media' && item.result) {
+      const hookLines = item.result.hook.split(/[。！？!?\n]/).filter(Boolean).slice(0, 2)
+      messageLines.splice(1, 0, `标题：${item.result.title}`)
+      messageLines.splice(5, 0, `Hook：${hookLines.join('。')}${hookLines.length ? '。' : ''}`)
+      messageLines.splice(6, 0, `发布文案：${item.result.publish_text.split('\n').filter(Boolean).slice(0, 2).join(' ')}`)
+    }
     const draft: TaskNotificationRecord = {
       id: `${new Date().toISOString()}-${item.task_name}-${eventType}`,
       event_type: eventType,
@@ -563,12 +577,13 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
       domain: normalizeNotifyDomain(item.domain),
       assigned_agent: item.assigned_agent ?? item.agent ?? 'builder',
       status: item.status ?? '-',
-      summary: buildNotificationSummary(item, eventType),
+      summary,
       target_group: target.group,
       target_channel: target.channel,
       scheduler_hint: '打开 KOTOVELA /scheduler 查看详情',
       created_at: new Date().toISOString(),
       delivery: 'mock',
+      message: messageLines.join('\n'),
     }
     nextRecords.push(await deliverTaskNotification(draft))
   }

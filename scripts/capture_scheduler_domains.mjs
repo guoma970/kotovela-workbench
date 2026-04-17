@@ -12,7 +12,7 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 2200 } })
 await page.goto(base, { waitUntil: 'networkidle', timeout: 120000 })
 await page.waitForTimeout(1200)
 for (const shot of shots) {
-  await page.getByRole('button', { name: new RegExp(shot.label, 'i') }).click()
+  await page.locator('.scheduler-notice-tab', { hasText: shot.label }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: new URL(`../screenshots/${shot.name}`, import.meta.url).pathname, fullPage: true })
 }
