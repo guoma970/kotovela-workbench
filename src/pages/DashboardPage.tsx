@@ -232,8 +232,12 @@ type AutoTaskBoardItem = {
   subdomain?: string
   project_line?: string
   source_line?: string
+  brand_line?: 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
+  brand_display?: string
   content_line?: 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
-  account_line?: 'yanjia_housing' | 'yannazhuji' | 'mom970' | 'openclaw' | 'business'
+  account_line?: 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
+  account_display?: string
+  account_type?: 'official' | 'personal' | 'hybrid'
   distribution_channel?: 'short_content' | 'official_account'
   content_variant?: 'short' | 'article'
   target_group_id?: string
@@ -270,7 +274,7 @@ type AutoTaskBoardItem = {
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
   source?: AutoTaskSource
-  role_version?: 'yanjia_housing' | 'official_account' | 'mom970'
+  role_version?: 'yanfami_official' | 'official_account' | 'guoma970' | 'mom970'
   result?: {
     type: 'text'
     content: string
@@ -287,9 +291,11 @@ type AutoTaskBoardItem = {
     asset_type?: 'media' | 'business' | 'family' | 'generic'
     generated_at?: string
     generator?: 'mock' | 'gpt'
+    persona?: string
     persona_id?: string
     tone_style?: string
     interaction_style?: string
+    structure_type?: 'official' | 'personal' | 'hybrid'
     recommend_publish_time?: string
     recommend_frequency?: string
     publish_today?: boolean
@@ -347,8 +353,12 @@ type PublishCenterEntry = {
   updatedAt?: string
   source?: AutoTaskSource
   roleVersion?: AutoTaskBoardItem['role_version']
+  brandLine?: AutoTaskBoardItem['brand_line']
+  brandDisplay?: AutoTaskBoardItem['brand_display']
   contentLine?: AutoTaskBoardItem['content_line']
   accountLine?: AutoTaskBoardItem['account_line']
+  accountDisplay?: AutoTaskBoardItem['account_display']
+  accountType?: AutoTaskBoardItem['account_type']
   distributionChannel?: AutoTaskBoardItem['distribution_channel']
   contentVariant?: AutoTaskBoardItem['content_variant']
   sourceLine?: AutoTaskBoardItem['source_line']
@@ -362,8 +372,12 @@ type ArchiveCenterEntry = {
   updatedAt?: string
   source?: AutoTaskSource
   roleVersion?: AutoTaskBoardItem['role_version']
+  brandLine?: AutoTaskBoardItem['brand_line']
+  brandDisplay?: AutoTaskBoardItem['brand_display']
   contentLine?: AutoTaskBoardItem['content_line']
   accountLine?: AutoTaskBoardItem['account_line']
+  accountDisplay?: AutoTaskBoardItem['account_display']
+  accountType?: AutoTaskBoardItem['account_type']
   distributionChannel?: AutoTaskBoardItem['distribution_channel']
   contentVariant?: AutoTaskBoardItem['content_variant']
   sourceLine?: AutoTaskBoardItem['source_line']
@@ -392,6 +406,7 @@ function buildPublishCenterEntries(board: AutoTaskBoardItem[]): PublishCenterEnt
       roleVersion: item.role_version,
       contentLine: item.content_line,
       accountLine: item.account_line,
+      accountType: item.account_type,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
       sourceLine: item.source_line,
@@ -414,6 +429,7 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
       roleVersion: item.role_version,
       contentLine: item.content_line,
       accountLine: item.account_line,
+      accountType: item.account_type,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
       sourceLine: item.source_line,
@@ -1604,10 +1620,12 @@ export function AutoTaskSystemPanel() {
                         <div className="scheduler-publish-grid">
                           <div><span>content_line</span><p>{entry.contentLine || '-'}</p></div>
                           <div><span>account_line</span><p>{entry.accountLine || '-'}</p></div>
+                          <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
                           <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                           <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
                           <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
-                          <div><span>persona</span><p>{entry.result.persona_id || '-'}</p></div>
+                          <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+                          <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
                           <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
                           <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
                           <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
@@ -1707,9 +1725,12 @@ export function AutoTaskSystemPanel() {
                               <div className="scheduler-publish-grid">
                                 <div><span>content_line</span><p>{entry.contentLine || '-'}</p></div>
                                 <div><span>account_line</span><p>{entry.accountLine || '-'}</p></div>
+                                <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
                                 <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                                 <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
                                 <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
+                                <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+                                <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
                                 <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
                                 <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
                                 <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>

@@ -70,13 +70,20 @@ type UserProfile = {
 const PROJECT_LINE_NOTIFY_TARGET: Record<string, { group: string; groupId: string; channel: string }> = {
   openclaw_content: { group: 'OpenClaw内容运营群', groupId: 'openclaw_content', channel: 'media' },
   account_ops: { group: '账号运营群', groupId: 'account_ops', channel: 'media' },
-  latin_boy: { group: '拉丁男孩果果运营群', groupId: 'latin_boy', channel: 'media' },
-  chongming: { group: '崇明小娘爱收纳运营群', groupId: 'chongming', channel: 'media' },
+  latin_boy_guoguo: { group: '拉丁男孩果果运营群', groupId: 'latin_boy_guoguo', channel: 'media' },
+  latin_boy: { group: '拉丁男孩果果运营群', groupId: 'latin_boy_guoguo', channel: 'media' },
+  chongming_storage: { group: '崇明小娘爱收纳运营群', groupId: 'chongming_storage', channel: 'media' },
+  chongming: { group: '崇明小娘爱收纳运营群', groupId: 'chongming_storage', channel: 'media' },
+  guoma970: { group: '果妈970运营群', groupId: 'guoma970', channel: 'media' },
   mom970: { group: '果妈970运营群', groupId: 'mom970', channel: 'media' },
   book: { group: '日式装修指南书稿群', groupId: 'book', channel: 'media' },
-  tech: { group: '言町科技运营群', groupId: 'tech', channel: 'business' },
-  housing: { group: '言家住宅运营群', groupId: 'housing', channel: 'business' },
-  biz_content: { group: '言纳筑集运营群', groupId: 'biz_content', channel: 'business' },
+  kotovela_official: { group: '言町科技运营群', groupId: 'kotovela_official', channel: 'business' },
+  tech: { group: '言町科技运营群', groupId: 'kotovela_official', channel: 'business' },
+  yanfami_official: { group: '言家住宅运营群', groupId: 'yanfami_official', channel: 'business' },
+  housing: { group: '言家住宅运营群', groupId: 'yanfami_official', channel: 'business' },
+  kotoharo_official: { group: '言纳筑集运营群', groupId: 'kotoharo_official', channel: 'business' },
+  biz_content: { group: '言纳筑集运营群', groupId: 'kotoharo_official', channel: 'business' },
+  guoshituan_official: { group: '果实团运营群', groupId: 'guoshituan_official', channel: 'business' },
   official_account: { group: '公众号运营群', groupId: 'official_account', channel: 'business' },
   family_study: { group: '果果学习协同群', groupId: 'family_study', channel: 'family' },
   family_homework: { group: '果果作业协同群', groupId: 'family_homework', channel: 'family' },
@@ -160,12 +167,16 @@ type DecisionLogEntry = {
 
 type PersonaProfile = {
   persona_id: 'openclaw_content' | 'mom970_content' | 'latin_boy' | 'chongming_storage' | 'official_account'
+  persona: string
   tone_style: string
   interaction_style: string
+  structure_type: 'official' | 'personal' | 'hybrid'
 }
 
+type BrandLine = 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
 type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
-type AccountLine = 'yanjia_housing' | 'yannazhuji' | 'mom970' | 'openclaw' | 'business'
+type AccountType = 'official' | 'personal' | 'hybrid'
+type AccountLine = 'yanjia_housing' | 'yannazhuji' | 'yanting_floor' | 'guoshituan' | 'mom970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'business'
 type DistributionChannel = 'short_content' | 'official_account'
 type ContentVariant = 'short' | 'article'
 
@@ -194,8 +205,12 @@ type TaskBoardItem = {
   subdomain?: string
   project_line?: string
   source_line?: string
+  brand_line?: BrandLine
+  brand_display?: string
   content_line?: ContentLine
   account_line?: AccountLine
+  account_display?: string
+  account_type?: AccountType
   distribution_channel?: DistributionChannel
   content_variant?: ContentVariant
   target_group_id?: string
@@ -249,9 +264,11 @@ type TaskBoardItem = {
     asset_type?: 'media' | 'business' | 'family' | 'generic'
     generated_at?: string
     generator?: 'mock' | 'gpt'
+    persona?: string
     persona_id?: PersonaProfile['persona_id']
     tone_style?: string
     interaction_style?: string
+    structure_type?: 'official' | 'personal' | 'hybrid'
     recommend_publish_time?: string
     recommend_frequency?: string
     publish_today?: boolean
@@ -307,9 +324,12 @@ type TaskBoardPayload = {
 type ContentRouteDecision = {
   contentLine: ContentLine
   lockedBy: 'source_type' | 'keyword'
+  brandLine: BrandLine
   accountLine: AccountLine
   sourceLine: string
   variants: Array<{
+    accountLine: AccountLine
+    accountType: AccountType
     distributionChannel: DistributionChannel
     contentVariant: ContentVariant
     roleVersion?: RoleVersion
@@ -322,11 +342,28 @@ const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 const QUEUE_WARNING_MS = 60_000
 const PERSONA_REGISTRY: Record<string, PersonaProfile> = {
-  openclaw_content: { persona_id: 'openclaw_content', tone_style: '冷静拆解，偏产品方法论', interaction_style: '结尾抛执行问题，鼓励继续追问' },
-  mom970: { persona_id: 'mom970_content', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙' },
-  latin_boy: { persona_id: 'latin_boy', tone_style: '轻快少年感，节奏明亮', interaction_style: '适合互动小游戏和选择题' },
-  chongming: { persona_id: 'chongming_storage', tone_style: '收纳改造型，强调前后对比', interaction_style: '鼓励晒改造前后和提具体困扰' },
-  official_account: { persona_id: 'official_account', tone_style: '正式可信，偏信息整合', interaction_style: '适合引导收藏、转发和留言咨询' },
+  openclaw_content: { persona_id: 'openclaw_content', persona: '言家住宅官方人格', tone_style: '冷静拆解，偏产品方法论', interaction_style: '结尾抛执行问题，鼓励继续追问', structure_type: 'official' },
+  mom970: { persona_id: 'mom970_content', persona: '970经验型人格', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙', structure_type: 'hybrid' },
+  latin_boy: { persona_id: 'latin_boy', persona: '少年感互动人格', tone_style: '轻快少年感，节奏明亮', interaction_style: '适合互动小游戏和选择题', structure_type: 'personal' },
+  chongming: { persona_id: 'chongming_storage', persona: '生活改造人格', tone_style: '收纳改造型，强调前后对比', interaction_style: '鼓励晒改造前后和提具体困扰', structure_type: 'personal' },
+  official_account: { persona_id: 'official_account', persona: '品牌官方人格', tone_style: '正式可信，偏信息整合', interaction_style: '适合引导收藏、转发和留言咨询', structure_type: 'official' },
+}
+const BRAND_DISPLAY_MAP: Record<BrandLine, string> = {
+  kotovela: '言町 Kotovela',
+  yanfami: '言家 Yanfami',
+  kotoharo: '言纳筑集 KOTOHARO',
+  guoshituan: '果实团',
+}
+const ACCOUNT_DISPLAY_MAP: Record<AccountLine, string> = {
+  yanjia_housing: '言家住宅',
+  yannazhuji: '言纳筑集',
+  yanting_floor: '言庭地板',
+  guoshituan: '果实团',
+  mom970: '果妈970',
+  latin_boy_guoguo: '拉丁男孩果果',
+  luyi_children: '六一儿童',
+  chongming_storage: '聪明收纳',
+  business: '业务线',
 }
 const DOMAIN_PRIORITY_MAP: Record<InstancePoolKey, number> = {
   family: 0,
@@ -351,30 +388,35 @@ const CONTENT_LINE_KEYWORDS: Array<{ line: ContentLine; keywords: string[] }> = 
 
 const CONTENT_ROUTE_MAP: Record<ContentLine, Omit<ContentRouteDecision, 'contentLine' | 'lockedBy'>> = {
   layout_renovation: {
+    brandLine: 'yanfami',
     accountLine: 'yanjia_housing',
     sourceLine: 'housing',
     variants: [
-      { distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '短内容版' },
-      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
+      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '言家住宅官方版' },
+      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
     ],
   },
   kitchen_storage: {
+    brandLine: 'kotoharo',
     accountLine: 'yannazhuji',
     sourceLine: 'biz_content',
     variants: [
-      { distributionChannel: 'short_content', contentVariant: 'short', personaId: 'chongming_storage', taskSuffix: '短内容版' },
-      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
+      { accountLine: 'yannazhuji', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'official_account', taskSuffix: '言纳筑集官方版' },
+      { accountLine: 'chongming_storage', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'chongming_storage', taskSuffix: '聪明收纳生活号版' },
+      { accountLine: 'mom970', accountType: 'hybrid', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'mom970', personaId: 'mom970_content', taskSuffix: '970经验号版' },
     ],
   },
   material_case: {
+    brandLine: 'kotovela',
     accountLine: 'yanjia_housing',
     sourceLine: 'housing',
     variants: [
-      { distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '案例短内容版' },
-      { distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '案例深度长文版' },
+      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '案例短内容版' },
+      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '案例深度长文版' },
     ],
   },
   customer_followup: {
+    brandLine: 'guoshituan',
     accountLine: 'business',
     sourceLine: 'tech',
     variants: [],
@@ -802,6 +844,7 @@ function resolveContentRouteDecision(input: string, source?: Partial<TaskBoardSo
   return {
     contentLine: detected.contentLine,
     lockedBy: detected.lockedBy,
+    brandLine: route.brandLine,
     accountLine: route.accountLine,
     sourceLine: source?.source_line ?? route.sourceLine,
     variants: route.variants,
@@ -824,7 +867,7 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
   const lead = core.split(/\n+/).find(Boolean) ?? core
   const profileMap: Record<RoleVersion, { titlePrefix: string; hookPrefix: string; outlinePrefix: string[]; publishPrefix: string; personaId: PersonaProfile['persona_id']; tone: string; interaction: string }> = {
     yanjia_housing: {
-      titlePrefix: '言家住宅｜日式装修落地指南',
+      titlePrefix: '言家 Yanfami｜日式装修落地指南',
       hookPrefix: '把书稿观点改成住宅客户听得懂、愿意咨询的表达。',
       outlinePrefix: ['本土化改造重点', '住宅落地误区', '适配户型建议'],
       publishPrefix: '【言家住宅内容运营版】',
@@ -842,7 +885,7 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
       interaction: '引导收藏、转发、留言咨询。',
     },
     mom970: {
-      titlePrefix: '果妈970｜家的松弛感装修笔记',
+      titlePrefix: '果妈970 Guoma970｜家的松弛感装修笔记',
       hookPrefix: '把书稿观点改成带生活感、能引发评论的内容。',
       outlinePrefix: ['生活场景共鸣', '踩坑提醒', '马上能做的小动作'],
       publishPrefix: '【果妈970运营版】',
@@ -879,9 +922,11 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
     publish_text: publishText,
     generated_at: timestamp,
     generator: 'mock',
+    persona: PERSONA_REGISTRY[profile.personaId === 'official_account' ? 'official_account' : profile.personaId === 'mom970_content' ? 'mom970' : 'openclaw_content'].persona,
     persona_id: profile.personaId,
     tone_style: profile.tone,
     interaction_style: profile.interaction,
+    structure_type: profile.personaId === 'mom970_content' ? 'hybrid' : 'official',
   }
 }
 
@@ -913,12 +958,38 @@ function buildMediaResult(taskName: string, timestamp: string): NonNullable<Task
 }
 
 function resolvePersonaProfile(item: TaskBoardItem): PersonaProfile {
-  const line = `${item.project_line ?? ''} ${item.target_group_id ?? ''} ${item.subdomain ?? ''}`.toLowerCase()
+  const line = `${item.account_line ?? ''} ${item.project_line ?? ''} ${item.target_group_id ?? ''} ${item.subdomain ?? ''}`.toLowerCase()
   if (line.includes('mom970')) return PERSONA_REGISTRY.mom970
   if (line.includes('latin_boy')) return PERSONA_REGISTRY.latin_boy
   if (line.includes('chongming')) return PERSONA_REGISTRY.chongming
-  if (line.includes('official_account')) return PERSONA_REGISTRY.official_account
+  if (item.account_type === 'official' || line.includes('official_account') || line.includes('yannazhuji') || line.includes('yanjia_housing') || line.includes('guoshituan')) return PERSONA_REGISTRY.official_account
   return PERSONA_REGISTRY.openclaw_content
+}
+
+function buildStructuredSections(accountType: AccountType, sourceTitle: string, sourceText: string) {
+  const short = sourceText.slice(0, 48)
+  if (accountType === 'official') {
+    return {
+      structure: ['结论', '方法', '总结'],
+      hook: `先说结论，${sourceTitle} 想真正好用，关键不是堆功能，而是先把 ${short} 这件事做对。`,
+      outline: [`结论：${sourceTitle} 的核心判断先行`, `方法：围绕 ${short} 拆成 3 步`, '总结：回到可执行与可复用'],
+      script: `结论：${sourceTitle} 最重要的是先把关键优先级排清楚。\n\n方法：第一步看真实使用场景，第二步拆常见误区，第三步给出立刻可执行的落地动作。\n\n总结：把复杂问题收束成一套可复制的方法，执行成本才会真正下降。`,
+    }
+  }
+  if (accountType === 'hybrid') {
+    return {
+      structure: ['经验', '方法', '建议'],
+      hook: `我自己的经验是，${sourceTitle} 这类问题，往往不是不会做，而是前面判断顺序错了。`,
+      outline: [`经验：我/客户在 ${sourceTitle} 上最容易踩的坑`, `方法：把 ${short} 变成可执行步骤`, '建议：先做小范围验证，再决定是否放大'],
+      script: `经验：我做过几轮类似内容后发现，大家最容易卡在判断太晚。\n\n方法：先确认场景，再拆误区，最后只保留今天能执行的动作。\n\n建议：别一上来全量铺开，先挑最常用的区域试一版，效果通常更稳。`,
+    }
+  }
+  return {
+    structure: ['场景', '问题', '解决', '感受'],
+    hook: `真实场景里，${sourceTitle} 看起来只是小问题，但真住进去以后，会反复被它影响。`,
+    outline: [`场景：围绕 ${sourceTitle} 的真实使用瞬间`, `问题：${short}`, '解决：拆成马上能试的动作', '感受：做完后的体感变化'],
+    script: `场景：每天真正在用的时候，问题会比想象里更频繁冒出来。\n\n问题：很多人以为忍一忍就过去了，结果越住越别扭。\n\n解决：把需求拆小，一次只改一个关键动作。\n\n感受：当顺手感出来以后，空间会明显轻松很多。`,
+  }
 }
 
 function getPublishRhythm(item: TaskBoardItem) {
@@ -1020,15 +1091,13 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
   const sourceText = buildContentSourceText(item.source, item.task_name)
   const sourceTitle = item.source?.title || item.source?.chapter_title || item.task_name
   const persona = item.content_variant === 'article' ? PERSONA_REGISTRY.official_account : resolvePersonaProfile(item)
+  const accountType = item.account_type ?? persona.structure_type
   if (item.content_variant === 'short') {
+    const sections = buildStructuredSections(accountType, sourceTitle, sourceText)
     const title = `${sourceTitle}｜${item.content_line === 'kitchen_storage' ? '收纳短内容' : item.content_line === 'material_case' ? '案例短内容' : '短内容拆解'}`
-    const hook = `先别急着做，${sourceText.slice(0, 28)}，最该先看的是这 3 个动作。`
-    const outline = [
-      `问题切口：${sourceTitle}`,
-      `核心拆解：${sourceText.slice(0, 48)}`,
-      `落地动作：给出马上能执行的 3 步`,
-    ]
-    const script = `开头：${hook}\n\n中段：\n1. 先讲清真实场景。\n2. 再拆最常见误区。\n3. 最后给出立刻能执行的判断动作。\n\n结尾：评论区留下你的户型或问题，我继续拆。`
+    const hook = sections.hook
+    const outline = sections.outline
+    const script = sections.script
     return {
       type: 'text',
       content: [title, hook, ...outline, script].join('\n\n'),
@@ -1036,13 +1105,16 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
       title,
       hook,
       outline,
+      structure: sections.structure,
       script,
-      publish_text: `${title}\n\n${hook}\n\n${outline.map((line, index) => `${index + 1}. ${line}`).join('\n')}`,
+      publish_text: `${title}\n\n${sections.structure.map((label, index) => `${index + 1}. ${label}：${outline[index] ?? ''}`).join('\n')}\n\n${script}`,
       generated_at: now,
       generator: 'mock',
+      persona: persona.persona,
       persona_id: persona.persona_id,
       tone_style: persona.tone_style,
       interaction_style: persona.interaction_style,
+      structure_type: persona.structure_type,
       publish_ready: item.account_line !== 'business',
       archive_ready: true,
     }
@@ -1065,9 +1137,11 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
     publish_text: articleTitle,
     generated_at: now,
     generator: 'mock',
+    persona: PERSONA_REGISTRY.official_account.persona,
     persona_id: 'official_account',
     tone_style: PERSONA_REGISTRY.official_account.tone_style,
     interaction_style: PERSONA_REGISTRY.official_account.interaction_style,
+    structure_type: 'official',
     publish_ready: item.account_line !== 'business',
     archive_ready: true,
   }
@@ -1125,7 +1199,7 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
   const scenarioId = `book-manuscript-${Date.now()}`
   const parentTaskId = `${scenarioId}:parent`
   const roleSpecs: Array<{ role_version: RoleVersion; routeHint: string; title: string }> = [
-    { role_version: 'yanjia_housing', routeHint: '言家住宅 住宅 户型 housing', title: `言家住宅内容运营版 · ${source.chapter_title}` },
+    { role_version: 'yanjia_housing', routeHint: '言家住宅 住宅 户型', title: `言家住宅官方版 · ${source.chapter_title}` },
     { role_version: 'official_account', routeHint: '公众号 推文 official_account', title: `公众号运营版 · ${source.chapter_title}` },
     { role_version: 'mom970', routeHint: '果妈970 mom970 内容 发布', title: `果妈970运营版 · ${source.chapter_title}` },
   ]
@@ -1165,6 +1239,11 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
       auto_decision_log: [],
       decision_log: [],
       source,
+      brand_line: 'yanfami',
+      brand_display: BRAND_DISPLAY_MAP.yanfami,
+      account_line: spec.role_version === 'mom970' ? 'mom970' : 'yanjia_housing',
+      account_display: spec.role_version === 'mom970' ? ACCOUNT_DISPLAY_MAP.mom970 : ACCOUNT_DISPLAY_MAP.yanjia_housing,
+      account_type: spec.role_version === 'mom970' ? 'hybrid' : 'official',
       role_version: spec.role_version,
       depends_on: [],
       blocked_by: [],
@@ -1213,8 +1292,12 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       subdomain: 'tech',
       project_line: decision.sourceLine,
       source_line: decision.sourceLine,
+      brand_line: decision.brandLine,
+      brand_display: BRAND_DISPLAY_MAP[decision.brandLine],
       content_line: decision.contentLine,
-      account_line: decision.accountLine,
+      account_line: 'business',
+      account_display: ACCOUNT_DISPLAY_MAP.business,
+      account_type: 'official',
       target_group_id: decision.sourceLine,
       notify_mode: 'default',
       preferred_agent: 'business',
@@ -1232,7 +1315,11 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       auto_decision_log: [],
       decision_log: [
         { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
-        { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${decision.accountLine} / business_only=true` },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: 'account_line=business / business_only=true' },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: 'account_line=business / account_type=official' },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'persona_applied', detail: `persona=${PERSONA_REGISTRY.official_account.persona_id}` },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'structure_applied', detail: 'structure_type=official' },
       ],
       source: normalizedSource,
       history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 1 }],
@@ -1247,11 +1334,15 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
     task_group_id: `${scenarioId}:${decision.contentLine}`,
     task_group_label: `${baseTitle} · ${decision.contentLine}`,
     domain: variant.distributionChannel === 'official_account' ? 'business' : 'media',
-    subdomain: variant.distributionChannel === 'official_account' ? 'official_account' : decision.accountLine === 'yannazhuji' ? 'content' : 'housing',
+    subdomain: variant.distributionChannel === 'official_account' ? 'official_account' : variant.accountLine === 'chongming_storage' ? 'chongming_storage' : variant.accountLine === 'mom970' ? 'mom970' : variant.accountLine === 'latin_boy_guoguo' ? 'latin_boy_guoguo' : 'content',
     project_line: decision.sourceLine,
     source_line: decision.sourceLine,
+    brand_line: decision.brandLine,
+    brand_display: BRAND_DISPLAY_MAP[decision.brandLine],
     content_line: decision.contentLine,
-    account_line: decision.accountLine,
+    account_line: variant.accountLine,
+    account_display: ACCOUNT_DISPLAY_MAP[variant.accountLine],
+    account_type: variant.accountType,
     distribution_channel: variant.distributionChannel,
     content_variant: variant.contentVariant,
     target_group_id: variant.distributionChannel === 'official_account' ? 'official_account' : decision.sourceLine,
@@ -1272,7 +1363,11 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
     auto_decision_log: [],
     decision_log: [
       { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
-      { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${decision.accountLine} / persona=${variant.personaId}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${variant.accountLine} / persona=${variant.personaId}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: `account_line=${variant.accountLine} / account_type=${variant.accountType}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'persona_applied', detail: `persona=${variant.personaId}` },
+      { timestamp: now, action: 'strategy_generate_task', reason: 'structure_applied', detail: `structure_type=${variant.accountType}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'variant_generated', detail: `variant=${variant.contentVariant}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'channel_selected', detail: `channel=${variant.distributionChannel}` },
     ],
