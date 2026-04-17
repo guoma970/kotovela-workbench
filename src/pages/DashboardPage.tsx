@@ -354,6 +354,40 @@ type ContentLearningRecord = {
   learning_score: number
 }
 
+type SystemTestCase = {
+  module: string
+  case_id: string
+  input: string
+  expected: string
+  actual: string
+  result: 'pass' | 'fail'
+  note?: string
+}
+
+type SystemTestDefect = {
+  id: string
+  severity: 'P0' | 'P1' | 'P2'
+  reproducible: string
+  suggestion: string
+  note: string
+}
+
+type SystemTestPayload = {
+  summary: {
+    task_id: string
+    run_id: string
+    generated_at: string
+    total_cases: number
+    pass: number
+    fail: number
+    failed_modules: string[]
+    build_status?: string
+    commit_message?: string
+  }
+  cases: SystemTestCase[]
+  defects: SystemTestDefect[]
+}
+
 type AutoTaskBoardPayload = {
   total: number
   success: number
@@ -974,6 +1008,89 @@ function RecentUpdates({
       ) : (
         <p className="empty-state">{emptyText}</p>
       )}
+    </section>
+  )
+}
+
+function SystemTestResultPanel() {
+  const [payload, setPayload] = useState<SystemTestPayload | null>(null)
+
+  useEffect(() => {
+    fetch('/system-test-results.json', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => setPayload(json as SystemTestPayload | null))
+      .catch(() => setPayload(null))
+  }, [])
+
+  if (!payload) return null
+
+  return (
+    <section className="scheduler-system-test-panel" aria-label="系统测试结果">
+      <div className="scheduler-section-title">系统测试结果</div>
+      <div id="system-test-summary" className="scheduler-system-test-summary">
+        <div className="scheduler-overview-grid">
+          <div className="scheduler-overview-metric"><span>total cases</span><strong>{payload.summary.total_cases}</strong></div>
+          <div className="scheduler-overview-metric"><span>pass</span><strong>{payload.summary.pass}</strong></div>
+          <div className="scheduler-overview-metric is-failed"><span>fail</span><strong>{payload.summary.fail}</strong></div>
+          <div className="scheduler-overview-metric is-warning"><span>failed modules</span><strong>{payload.summary.failed_modules.join(' / ') || 'none'}</strong></div>
+        </div>
+      </div>
+      <div id="test-case-table" className="scheduler-routing-table-wrap scheduler-system-test-table-wrap">
+        <table className="scheduler-routing-table scheduler-system-test-table">
+          <thead>
+            <tr>
+              <th>case_id</th>
+              <th>module</th>
+              <th>input</th>
+              <th>expected</th>
+              <th>actual</th>
+              <th>result</th>
+              <th>note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payload.cases.map((item) => (
+              <tr key={item.case_id} className={item.result === 'fail' ? 'is-failed' : ''}>
+                <td>{item.case_id}</td>
+                <td>{item.module}</td>
+                <td>{item.input}</td>
+                <td>{item.expected}</td>
+                <td>{item.actual}</td>
+                <td>{item.result}</td>
+                <td>{item.note || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div id="defect-list" className="scheduler-routing-table-wrap scheduler-system-test-table-wrap">
+        <table className="scheduler-routing-table scheduler-system-test-table">
+          <thead>
+            <tr>
+              <th>id</th>
+              <th>severity</th>
+              <th>reproducible</th>
+              <th>suggestion</th>
+              <th>note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payload.defects.length ? payload.defects.map((item) => (
+              <tr key={item.id}>
+                <td>{item.id}</td>
+                <td>{item.severity}</td>
+                <td>{item.reproducible}</td>
+                <td>{item.suggestion}</td>
+                <td>{item.note}</td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={5}>无缺陷</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }
@@ -2388,6 +2505,8 @@ export function AutoTaskSystemPanel() {
         </aside>
         ) : null}
       </div>
+
+      <SystemTestResultPanel />
     </section>
   )
 }
