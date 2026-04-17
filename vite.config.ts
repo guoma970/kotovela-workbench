@@ -112,7 +112,25 @@ type TaskHistoryEntry = {
 
 type DecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'blocked' | 'unblocked' | 'dependency_resolved'
+  action:
+    | 'retry'
+    | 'warning'
+    | 'need_human'
+    | 'notify_result'
+    | 'manual_takeover'
+    | 'manual_assign'
+    | 'manual_ignore'
+    | 'manual_done'
+    | 'manual_continue'
+    | 'preempt'
+    | 'priority_up'
+    | 'priority_down'
+    | 'blocked'
+    | 'unblocked'
+    | 'dependency_resolved'
+    | 'strategy_generate_task'
+    | 'risk_detected'
+    | 'precheck_block'
   reason: string
   detail: string
   memory_hit?: string
@@ -143,6 +161,10 @@ type TaskBoardItem = {
   retry_count?: number
   type?: string
   status?: string
+  auto_generated?: boolean
+  trigger_source?: 'habit' | 'inactivity' | 'schedule' | 'manual' | 'system' | 'rule_engine'
+  predicted_risk?: 'low' | 'medium' | 'high'
+  predicted_block?: boolean
   code_snippet?: string
   timestamp?: string
   control_status?: string
@@ -682,6 +704,111 @@ function normalizeTaskResult(item: TaskBoardItem) {
   item.result.meta = item.result.meta ?? {}
 }
 
+function createTaskFromStrategy(seed: {
+  task_name: string
+  routeHint: string
+  trigger_source: 'habit' | 'inactivity' | 'schedule'
+  memory_hit?: string
+  profile_rule?: string
+}, now: string, records: MemoryRecord[]) {
+  const route = inferTaskRoute(seed.routeHint)
+  const nextItem: TaskBoardItem = {
+    task_name: seed.task_name,
+    agent: route.assigned_agent,
+    domain: route.domain,
+    subdomain: route.subdomain,
+    project_line: route.project_line,
+    target_group_id: route.target_group_id,
+    notify_mode: route.notify_mode,
+    preferred_agent: route.preferred_agent,
+    assigned_agent: route.assigned_agent,
+    target_system: route.target_system,
+    slot_id: null,
+    priority: 2,
+    retry_count: 0,
+    type: route.type,
+    status: 'queued',
+    auto_generated: true,
+    trigger_source: seed.trigger_source,
+    predicted_risk: 'low',
+    predicted_block: false,
+    timestamp: now,
+    queued_at: now,
+    updated_at: now,
+    attention: false,
+    stuck: false,
+    abnormal: false,
+    auto_decision_log: [],
+    decision_log: [],
+    history: [
+      { action: 'create', operator: 'system', trigger_source: 'rule_engine', timestamp: now, status_after: 'queued', priority_after: 2 },
+    ],
+  }
+  applyUserContextOnCreate(nextItem, records)
+  appendDecisionLog(nextItem, 'strategy_generate_task', 'strategy_engine.run', `自动生成任务: ${seed.task_name}`, now, {
+    memory_hit: seed.memory_hit,
+    profile_rule: seed.profile_rule,
+  })
+  return nextItem
+}
+
+function applyPredictiveSignals(payload: TaskBoardPayload, now: string) {
+  const overlapCounter = new Map<string, number>()
+  for (const item of payload.board) {
+    const slot = item.recommended_execute_at ?? item.queued_at?.slice(11, 16)
+    if (!slot) continue
+    overlapCounter.set(slot, (overlapCounter.get(slot) ?? 0) + 1)
+  }
+
+  for (const item of payload.board) {
+    const failCount = (item.history ?? []).filter((entry) => entry.action === 'fail').length
+    const dependencyDepth = (item.depends_on ?? []).length
+    const overlapKey = item.recommended_execute_at ?? item.queued_at?.slice(11, 16)
+    const overlapCount = overlapKey ? overlapCounter.get(overlapKey) ?? 0 : 0
+    let nextRisk: 'low' | 'medium' | 'high' = 'low'
+    if (failCount >= 2 || overlapCount >= 3) nextRisk = 'high'
+    else if (failCount >= 1 || dependencyDepth >= 1 || overlapCount >= 2) nextRisk = 'medium'
+    const nextPredictedBlock = dependencyDepth >= 2 || (item.blocked_by?.length ?? 0) > 0
+    const riskChanged = item.predicted_risk !== nextRisk || item.predicted_block !== nextPredictedBlock
+    item.predicted_risk = nextRisk
+    item.predicted_block = nextPredictedBlock
+    if ((nextRisk === 'high' || nextPredictedBlock) && riskChanged) {
+      appendDecisionLog(
+        item,
+        nextPredictedBlock ? 'precheck_block' : 'risk_detected',
+        nextPredictedBlock ? 'dependency_precheck' : 'predictive_risk',
+        nextPredictedBlock ? '预计依赖未完成，将阻塞' : `预测风险 ${nextRisk}，失败率/依赖/时间冲突触发`,
+        now,
+      )
+    }
+    if (nextRisk === 'high' && clampPriority(item.priority) > 0) {
+      const boosted = Math.max(0, clampPriority(item.priority) - 1)
+      if (boosted !== item.priority) {
+        item.priority = boosted
+        appendDecisionLog(item, 'priority_up', 'predicted_risk_high', `预测高风险，优先级提升到 ${priorityLabel(boosted)}`, now)
+      }
+      if (failCount >= 2) item.need_human = true
+    }
+  }
+}
+
+function strategyEngineRun(payload: TaskBoardPayload, records: MemoryRecord[], now: string) {
+  const existingNames = new Set(payload.board.map((item) => item.task_name))
+  const seeds = [
+    { task_name: '果果学习任务 · 今晚 20:00 英语复习', routeHint: '果果 学习 英语复习 今晚 20:00', trigger_source: 'habit' as const, memory_hit: '20:00', profile_rule: '晚间学习' },
+    { task_name: '内容发布任务 · 3 天未发内容，补发今日主题', routeHint: '内容 发布 账号运营 今日主题', trigger_source: 'inactivity' as const, memory_hit: 'publish_time_preference', profile_rule: '3d_inactivity' },
+    { task_name: '客户跟进任务 · T+3 未跟进客户', routeHint: '客户 跟进 报价 T+3', trigger_source: 'schedule' as const, memory_hit: 'followup_cadence', profile_rule: 'T+3_followup' },
+  ]
+
+  for (const seed of seeds) {
+    if (existingNames.has(seed.task_name)) continue
+    payload.board.unshift(createTaskFromStrategy(seed, now, records))
+    existingNames.add(seed.task_name)
+  }
+
+  applyPredictiveSignals(payload, now)
+}
+
 function runQueuedTask(item: TaskBoardItem, now: string) {
   appendHistory(item, {
     action: 'run',
@@ -840,8 +967,8 @@ function applyScheduler(payload: TaskBoardPayload) {
       }
     }
 
-    const queuedCandidates = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '') && !item.stuck && (item.blocked_by?.length ?? 0) === 0)
-    const queueStats = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+    const queuedCandidates = items.filter((item) => ['todo', 'queued', 'queue', 'pending', 'preparing'].includes(item.status ?? '') && !item.stuck && (item.blocked_by?.length ?? 0) === 0)
+    const queueStats = items.filter((item) => ['todo', 'queued', 'queue', 'pending', 'preparing'].includes(item.status ?? '')).length
     const preemptableRunning = activeRunning.filter((item) => clampPriority(item.priority) >= 2)
     const urgentQueue = queuedCandidates.find((item) => clampPriority(item.priority) <= 1)
 
@@ -874,7 +1001,7 @@ function applyScheduler(payload: TaskBoardPayload) {
     let runningCount = 0
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
-      if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
+      if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending' || item.status === 'preparing') {
         if ((item.blocked_by?.length ?? 0) > 0) {
           item.slot_active = false
           item.slot_id = null
@@ -885,7 +1012,14 @@ function applyScheduler(payload: TaskBoardPayload) {
           item.slot_active = true
           item.slot_id = `${poolKey}-slot-${runningCount + 1}`
           runningCount += 1
-          runQueuedTask(item, now)
+          if (item.predicted_block) {
+            item.status = 'preparing'
+            item.updated_at = now
+            appendDecisionLog(item, 'precheck_block', 'dependency_precheck', '预计依赖未完成，将阻塞', now)
+          } else {
+            item.status = 'preparing'
+            runQueuedTask(item, now)
+          }
         } else {
           item.slot_active = false
           item.slot_id = null
@@ -1161,6 +1295,8 @@ async function readTaskBoard(filePath: string) {
 
     return next
   })
+
+  strategyEngineRun(payload, memoryRecords, new Date().toISOString())
 
   payload.current_user_id = payload.board[0]?.user_id
   payload.current_profile = payload.current_user_id ? deriveProfile(payload.current_user_id, memoryRecords) : undefined

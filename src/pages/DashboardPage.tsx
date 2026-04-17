@@ -174,7 +174,7 @@ type AutoTaskHistoryEntry = {
 
 type AutoDecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'strategy_generate_task' | 'risk_detected' | 'precheck_block'
   reason: string
   detail: string
   memory_hit?: string
@@ -216,6 +216,10 @@ type AutoTaskBoardItem = {
   instance_pool?: 'builder' | 'media' | 'family' | 'business' | 'personal'
   priority: number
   status: string
+  auto_generated?: boolean
+  trigger_source?: 'habit' | 'inactivity' | 'schedule' | 'manual' | 'system' | 'rule_engine'
+  predicted_risk?: 'low' | 'medium' | 'high'
+  predicted_block?: boolean
   type: string
   code_snippet?: string
   retry_count?: number
@@ -837,7 +841,7 @@ export function AutoTaskSystemPanel() {
   const humanPendingTasks = sortedBoard.filter((item) => item.need_human)
   const poolBoard = sortedBoard.filter((item) => (item.instance_pool ?? 'builder') === normalizedActivePool)
   const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
-  const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status))
+  const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending', 'preparing'].includes(item.status))
   const blockedTasks = queuedTasks.filter((item) => (item.blocked_by?.length ?? 0) > 0)
   const pausedTasks = poolBoard.filter((item) => ['paused', 'pause'].includes(item.status))
   const doneTasks = poolBoard.filter((item) => ['success', 'done', 'cancelled', 'failed'].includes(item.status))
@@ -881,6 +885,10 @@ export function AutoTaskSystemPanel() {
     const resultText = item.result?.content ?? ''
     const expanded = expandedTaskName === item.task_name
     const flags = [
+      item.auto_generated ? 'auto_generated' : '',
+      item.trigger_source ? `trigger_${item.trigger_source}` : '',
+      item.predicted_risk ? `risk_${item.predicted_risk}` : '',
+      item.predicted_block ? 'predicted_block' : '',
       item.attention ? 'attention' : '',
       item.stuck ? 'stuck' : '',
       item.abnormal ? 'abnormal' : '',
@@ -913,6 +921,10 @@ export function AutoTaskSystemPanel() {
           <span>template_task_index: {item.template_task_index ?? '-'}</span>
           <span>slot_id: {item.slot_id ?? '-'}</span>
           <span>status: {item.status}</span>
+          <span>auto_generated: {item.auto_generated ? 'true' : 'false'}</span>
+          <span>trigger_source: {item.trigger_source ?? '-'}</span>
+          <span>predicted_risk: {item.predicted_risk ?? '-'}</span>
+          <span>predicted_block: {item.predicted_block ? 'true' : 'false'}</span>
           <span>dependency_status: {item.dependency_status ?? ((item.blocked_by?.length ?? 0) > 0 ? 'blocked' : 'ready')}</span>
           <span>priority: P{item.priority}</span>
           <span>user_id: {item.user_id ?? '-'}</span>
