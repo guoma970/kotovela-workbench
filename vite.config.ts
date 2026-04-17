@@ -4,6 +4,35 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fetchOfficeInstancesPayload } from './server/officeInstances'
 
+type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
+
+type TaskNotificationRecord = {
+  id: string
+  event_type: TaskNotifyEvent
+  task_name: string
+  domain: string
+  assigned_agent: string
+  status: string
+  summary: string
+  target_group: string
+  target_channel: string
+  scheduler_hint: string
+  created_at: string
+  delivery: 'mock' | 'webhook'
+  message: string
+}
+
+const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
+const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
+
+const DOMAIN_NOTIFY_TARGET: Record<string, { group: string; channel: string }> = {
+  family: { group: '学习协同群', channel: 'family' },
+  media: { group: 'OpenClaw内容运营群', channel: 'media' },
+  business: { group: '业务运营群', channel: 'business' },
+  builder: { group: '系统运维群', channel: 'builder' },
+  system: { group: '系统运维群', channel: 'system' },
+}
+
 type TaskHistoryEntry = {
   action:
     | 'create'
@@ -441,8 +470,124 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
   return payload
 }
 
+function normalizeNotifyDomain(value?: string) {
+  const normalized = normalizePoolKey(value) ?? (value?.trim().toLowerCase() === 'system' ? 'system' : undefined) ?? 'builder'
+  return normalized === 'personal' ? 'builder' : normalized
+}
+
+function resolveNotifyTarget(domain?: string) {
+  return DOMAIN_NOTIFY_TARGET[normalizeNotifyDomain(domain)] ?? DOMAIN_NOTIFY_TARGET.builder
+}
+
+function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEvent) {
+  if (eventType === 'task_done') return item.result?.title || '任务已完成'
+  if (eventType === 'task_failed') return [...(item.history ?? [])].reverse().find((entry) => entry.error)?.error || '任务执行失败'
+  if (eventType === 'task_warning') {
+    if (item.stuck) return '任务待处理超过 60s'
+    if (item.abnormal) return '检测到异常切换或风险状态'
+    if (item.health === 'warning') return '任务处于 warning 状态'
+    return '任务出现预警，请检查 Scheduler'
+  }
+  if (eventType === 'task_need_human') return '任务需要人工介入处理'
+  return '任务已进入调度队列'
+}
+
+function inferTaskNotifyEvent(item: TaskBoardItem, prev?: TaskBoardItem): TaskNotifyEvent | null {
+  const status = item.status ?? ''
+  const prevStatus = prev?.status ?? ''
+  const warningNow = Boolean(item.stuck || item.abnormal || item.health === 'warning')
+  const warningPrev = Boolean(prev?.stuck || prev?.abnormal || prev?.health === 'warning')
+
+  if (!prev && ['queued', 'queue', 'todo', 'pending'].includes(status)) return 'task_queued'
+  if (status === 'failed' && prevStatus !== 'failed') return 'task_failed'
+  if ((status === 'done' || status === 'success') && prevStatus !== status) return 'task_done'
+  if ((status === 'paused' || status === 'cancelled') && prevStatus !== status) return 'task_need_human'
+  if (warningNow && !warningPrev) return 'task_warning'
+  return null
+}
+
+async function readTaskNotifications() {
+  try {
+    const raw = await fs.readFile(TASK_NOTIFY_LOG_FILE, 'utf8')
+    const payload = JSON.parse(raw) as { notifications?: TaskNotificationRecord[] }
+    return payload.notifications ?? []
+  } catch {
+    return []
+  }
+}
+
+async function writeTaskNotifications(notifications: TaskNotificationRecord[]) {
+  await fs.writeFile(TASK_NOTIFY_LOG_FILE, `${JSON.stringify({ notifications }, null, 2)}\n`, 'utf8')
+}
+
+async function deliverTaskNotification(record: TaskNotificationRecord) {
+  const envKey = `${record.target_channel.toUpperCase()}_FEISHU_WEBHOOK_URL`
+  const webhook = process.env[envKey] || process.env.OPENCLAW_FEISHU_WEBHOOK_URL
+  if (!webhook) return record
+
+  await fetch(webhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      msg_type: 'text',
+      content: {
+        text: [
+          `事件类型：${record.event_type}`,
+          `task_name：${record.task_name}`,
+          `domain：${record.domain}`,
+          `assigned_agent：${record.assigned_agent}`,
+          `status：${record.status}`,
+          `摘要：${record.summary}`,
+          `查看 Scheduler：${record.scheduler_hint}`,
+        ].join('\n'),
+      },
+    }),
+  })
+
+  return { ...record, delivery: 'webhook' as const }
+}
+
+async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, nextPayload: TaskBoardPayload) {
+  const previousByName = new Map((previousPayload?.board ?? []).map((item) => [item.task_name, item]))
+  const existing = await readTaskNotifications()
+  const nextRecords: TaskNotificationRecord[] = []
+
+  for (const item of nextPayload.board ?? []) {
+    const eventType = inferTaskNotifyEvent(item, previousByName.get(item.task_name))
+    if (!eventType) continue
+    const target = resolveNotifyTarget(item.domain)
+    const draft: TaskNotificationRecord = {
+      id: `${new Date().toISOString()}-${item.task_name}-${eventType}`,
+      event_type: eventType,
+      task_name: item.task_name,
+      domain: normalizeNotifyDomain(item.domain),
+      assigned_agent: item.assigned_agent ?? item.agent ?? 'builder',
+      status: item.status ?? '-',
+      summary: buildNotificationSummary(item, eventType),
+      target_group: target.group,
+      target_channel: target.channel,
+      scheduler_hint: '打开 KOTOVELA /scheduler 查看详情',
+      created_at: new Date().toISOString(),
+      delivery: 'mock',
+    }
+    nextRecords.push(await deliverTaskNotification(draft))
+  }
+
+  if (nextRecords.length > 0) {
+    await writeTaskNotifications([...nextRecords, ...existing].slice(0, 60))
+  }
+}
+
 async function writeTaskBoard(filePath: string, payload: TaskBoardPayload) {
-  await fs.writeFile(filePath, `${JSON.stringify(summarizeTaskBoard(payload), null, 2)}\n`, 'utf8')
+  let previousPayload: TaskBoardPayload | null = null
+  try {
+    previousPayload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
+  } catch {
+    previousPayload = null
+  }
+  const summarized = summarizeTaskBoard(payload)
+  await emitTaskNotifications(previousPayload, summarized)
+  await fs.writeFile(filePath, `${JSON.stringify(summarized, null, 2)}\n`, 'utf8')
 }
 
 function appendHistory(target: TaskBoardItem, entry: TaskHistoryEntry) {
@@ -515,7 +660,7 @@ export default defineConfig(({ mode }) => {
           })
 
           server.middlewares.use('/api/tasks-board', async (req, res, next) => {
-            const filePath = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
+            const filePath = TASK_BOARD_FILE
 
             if (req.method === 'GET') {
               try {
@@ -780,6 +925,30 @@ export default defineConfig(({ mode }) => {
             }
 
             next()
+          })
+
+          server.middlewares.use('/api/task-notifications', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+
+            try {
+              const notifications = await readTaskNotifications()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(JSON.stringify({ notifications }))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(
+                JSON.stringify({
+                  error: 'task-notifications fetch failed',
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+              )
+            }
           })
         },
       },

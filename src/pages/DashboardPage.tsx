@@ -236,6 +236,21 @@ type AutoTaskBoardPayload = {
   board: AutoTaskBoardItem[]
 }
 
+type TaskNotificationItem = {
+  id: string
+  event_type: 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
+  task_name: string
+  domain: string
+  assigned_agent: string
+  status: string
+  summary: string
+  target_group: string
+  scheduler_hint: string
+  created_at: string
+  delivery: 'mock' | 'webhook'
+  message?: string
+}
+
 type FailedTaskState = {
   taskName: string
   status: 'failed'
@@ -506,6 +521,7 @@ function RecentUpdates({
 
 export function AutoTaskSystemPanel() {
   const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
+  const [notifications, setNotifications] = useState<TaskNotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activePool, setActivePool] = useState<'builder' | 'media' | 'family' | 'business' | 'personal'>('builder')
   const [taskInput, setTaskInput] = useState('')
@@ -517,16 +533,23 @@ export function AutoTaskSystemPanel() {
   const [controlLoadingTask, setControlLoadingTask] = useState('')
   const [expandedTaskName, setExpandedTaskName] = useState('')
   const [copyState, setCopyState] = useState('')
+  const [activeNoticeDomain, setActiveNoticeDomain] = useState<'media' | 'family' | 'business'>('media')
 
   const loadBoard = () => {
     setLoading(true)
-    fetch('/api/tasks-board', { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((json: AutoTaskBoardPayload) => {
+    Promise.all([
+      fetch('/api/tasks-board', { cache: 'no-store' }).then((res) => res.json() as Promise<AutoTaskBoardPayload>),
+      fetch('/api/task-notifications', { cache: 'no-store' })
+        .then((res) => res.json() as Promise<{ notifications?: TaskNotificationItem[] }>)
+        .catch(() => ({ notifications: [] })),
+    ])
+      .then(([json, notifyJson]) => {
         setData(json)
+        setNotifications(notifyJson.notifications ?? [])
       })
       .catch(() => {
         setData(null)
+        setNotifications([])
       })
       .finally(() => {
         setLoading(false)
@@ -811,6 +834,15 @@ export function AutoTaskSystemPanel() {
   }
 
   const recentResults = data?.recent_results ?? []
+  const notificationTabs: Array<{ key: 'media' | 'family' | 'business'; label: string }> = [
+    { key: 'media', label: 'Media' },
+    { key: 'family', label: 'Family' },
+    { key: 'business', label: 'Business' },
+  ]
+  const recentNotifications = notifications
+    .filter((notice) => notificationTabs.some((tab) => tab.key === notice.domain))
+    .slice(0, 12)
+  const visibleNotifications = recentNotifications.filter((notice) => notice.domain === activeNoticeDomain)
 
   return (
     <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
@@ -924,6 +956,28 @@ export function AutoTaskSystemPanel() {
         </div>
 
         <aside className="scheduler-alert-card">
+          <div className="scheduler-section-title">群通知回执</div>
+          <div className="scheduler-notice-tabs" role="tablist" aria-label="群通知域名切换">
+            {notificationTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`scheduler-notice-tab ${activeNoticeDomain === tab.key ? 'is-active' : ''}`}
+                onClick={() => setActiveNoticeDomain(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="scheduler-alert-group">
+            {visibleNotifications.length ? visibleNotifications.map((notice) => (
+              <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
+                <strong>{notice.target_group}</strong>
+                <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\n任务：${notice.task_name}\n实例：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
+                <small>{notice.delivery} · {notice.created_at}</small>
+              </div>
+            )) : <div className="auto-task-empty">暂无通知回执</div>}
+          </div>
           <div className="scheduler-section-title">最近结果</div>
           <div className="scheduler-alert-group">
             {recentResults.length ? recentResults.map((entry, index) => (
