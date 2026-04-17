@@ -2,11 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { fetchOfficeInstancesPayload } from './server/officeInstances'
-
-const execFileAsync = promisify(execFile)
 
 type TaskHistoryEntry = {
   action:
@@ -90,12 +86,41 @@ type TaskBoardPayload = {
 const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 
+type RoutedTaskSpec = {
+  domain: InstancePoolKey
+  type: string
+  preferred_agent: InstancePoolKey
+  assigned_agent: InstancePoolKey
+  target_system: string
+}
+
 const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurrency: number }> = {
   builder: { label: 'Builder', maxConcurrency: 2 },
   media: { label: 'Media', maxConcurrency: 2 },
   family: { label: 'Family', maxConcurrency: 1 },
   business: { label: 'Business', maxConcurrency: 1 },
   personal: { label: 'Personal', maxConcurrency: 1 },
+}
+
+const DOMAIN_RULES: Array<{ domain: InstancePoolKey; keywords: string[]; type: string }> = [
+  { domain: 'family', keywords: ['家庭', '作业', '学习'], type: 'family_task' },
+  { domain: 'media', keywords: ['内容', '文案', '选题', '发布'], type: 'content_task' },
+  { domain: 'business', keywords: ['客户', '方案', '报价', '跟进'], type: 'business_task' },
+  { domain: 'builder', keywords: ['页面', '接口', '开发', '修复'], type: 'builder_task' },
+  { domain: 'personal', keywords: ['提醒', '个人事务'], type: 'personal_task' },
+]
+
+function inferTaskRoute(input: string): RoutedTaskSpec {
+  const normalized = input.trim().toLowerCase()
+  const matched = DOMAIN_RULES.find((rule) => rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())))
+  const domain = matched?.domain ?? 'builder'
+  return {
+    domain,
+    type: matched?.type ?? `${domain}_task`,
+    preferred_agent: domain,
+    assigned_agent: domain,
+    target_system: `openclaw-${domain}`,
+  }
 }
 
 function normalizePoolKey(value?: string): InstancePoolKey | undefined {
@@ -150,7 +175,7 @@ function applyScheduler(payload: TaskBoardPayload) {
     let runningCount = items.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
-      if ((item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') && runningCount < maxConcurrency) {
+      if ((item.status === 'todo' || item.status === 'pending') && runningCount < maxConcurrency) {
         appendHistory(item, {
           action: 'run',
           operator: 'system',
@@ -164,7 +189,6 @@ function applyScheduler(payload: TaskBoardPayload) {
         item.slot_id = `${poolKey}-slot-${runningCount + 1}`
         runningCount += 1
       } else if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
-        item.status = 'todo'
         item.slot_active = false
         item.slot_id = null
       } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
@@ -466,18 +490,19 @@ export default defineConfig(({ mode }) => {
                     const payload = await readTaskBoard(filePath)
                     const now = new Date().toISOString()
                     const taskName = taskInput.slice(6).trim() || `queued-${Date.now()}`
+                    const route = inferTaskRoute(taskName)
                     payload.board.unshift({
                       task_name: taskName,
-                      agent: 'builder',
-                      domain: 'builder',
-                      preferred_agent: 'builder',
-                      assigned_agent: 'builder',
-                      target_system: 'openclaw-builder',
+                      agent: route.assigned_agent,
+                      domain: route.domain,
+                      preferred_agent: route.preferred_agent,
+                      assigned_agent: route.assigned_agent,
+                      target_system: route.target_system,
                       slot_id: null,
                       priority: 3,
                       retry_count: 0,
-                      type: 'dev',
-                      status: 'todo',
+                      type: route.type,
+                      status: 'queued',
                       timestamp: now,
                       queued_at: now,
                       updated_at: now,
@@ -485,7 +510,7 @@ export default defineConfig(({ mode }) => {
                       stuck: false,
                       abnormal: false,
                       auto_decision_log: [],
-                      history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'todo', priority_after: 3 }],
+                      history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 3 }],
                     })
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
@@ -545,30 +570,40 @@ export default defineConfig(({ mode }) => {
                     throw new Error(taskInput.slice(5).trim() || '模拟失败')
                   }
 
-                  await execFileAsync(process.execPath, ['simulate-fs-tasks.js', taskInput], {
-                    cwd: '/Users/ztl/OpenClaw-Runner',
-                    maxBuffer: 50 * 1024 * 1024,
-                  })
-
                   const payload = await readTaskBoard(filePath)
                   const now = new Date().toISOString()
-                  const target = payload.board.find((item) => item.task_name === taskInput)
-                  if (target) {
-                    appendHistory(target, {
-                      action: 'run',
-                      operator: 'system',
-                      trigger_source: 'system',
-                      timestamp: now,
-                      status_before: target.status,
-                      status_after: 'success',
-                      priority_before: target.priority,
-                      priority_after: target.priority,
-                    })
-                    target.status = 'success'
-                    target.attention = false
-                    target.stuck = false
-                    target.updated_at = now
-                  }
+                  const route = inferTaskRoute(taskInput)
+                  payload.board.unshift({
+                    task_name: taskInput,
+                    agent: route.assigned_agent,
+                    domain: route.domain,
+                    preferred_agent: route.preferred_agent,
+                    assigned_agent: route.assigned_agent,
+                    target_system: route.target_system,
+                    slot_id: null,
+                    priority: 3,
+                    retry_count: 0,
+                    type: route.type,
+                    status: 'queued',
+                    timestamp: now,
+                    queued_at: now,
+                    updated_at: now,
+                    attention: false,
+                    stuck: false,
+                    abnormal: false,
+                    auto_decision_log: [],
+                    history: [
+                      {
+                        action: 'create',
+                        operator: 'system',
+                        trigger_source: 'system',
+                        timestamp: now,
+                        status_after: 'queued',
+                        priority_after: 3,
+                      },
+                    ],
+                  })
+                  payload.generated_at = now
                   await writeTaskBoard(filePath, payload)
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
