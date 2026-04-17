@@ -177,6 +177,9 @@ type AutoDecisionLogEntry = {
   action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'strategy_generate_task' | 'risk_detected' | 'precheck_block'
   reason: string
   detail: string
+  publish_rhythm_hit?: string
+  persona_hit?: string
+  publish_risk_warning?: string[]
   memory_hit?: string
   profile_rule?: string
   template_id?: string
@@ -267,6 +270,18 @@ type AutoTaskBoardItem = {
     asset_type?: 'media' | 'business' | 'family' | 'generic'
     generated_at?: string
     generator?: 'mock' | 'gpt'
+    persona_id?: string
+    tone_style?: string
+    interaction_style?: string
+    recommend_publish_time?: string
+    recommend_frequency?: string
+    publish_today?: boolean
+    suggested_title?: string
+    suggested_first_comment?: string
+    suggested_interaction_question?: string
+    publish_risk_warning?: string[]
+    manual_published_at?: string
+    manual_published_by?: string
   }
   depends_on?: string[]
   blocked_by?: string[]
@@ -856,11 +871,11 @@ export function AutoTaskSystemPanel() {
     }
   }
 
-  const manualControlTask = async (taskName: string, action: 'takeover' | 'assign' | 'ignore' | 'manual_done' | 'manual_continue') => {
+  const manualControlTask = async (taskName: string, action: 'takeover' | 'assign' | 'ignore' | 'manual_done' | 'manual_continue' | 'mark_manual_published') => {
     if (running || autoRetryState || controlLoadingTask) return
     const humanOwner = action === 'assign'
       ? window.prompt('请输入指派人', 'builder')?.trim()
-      : action === 'takeover' || action === 'ignore' || action === 'manual_done' || action === 'manual_continue'
+      : action === 'takeover' || action === 'ignore' || action === 'manual_done' || action === 'manual_continue' || action === 'mark_manual_published'
         ? 'builder'
         : ''
     if (action === 'assign' && !humanOwner) return
@@ -1103,7 +1118,7 @@ export function AutoTaskSystemPanel() {
               <div><span>last_action</span><strong>{item.auto_action ?? '-'}</strong></div>
               <div><span>memory_hits</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
               <div><span>profile_tags</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
-              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}${entry.memory_hit ? ` | memory_hit=${entry.memory_hit}` : ''}${entry.profile_rule ? ` | profile_rule=${entry.profile_rule}` : ''}`).join('\n')}</pre></div>
+              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}${entry.publish_rhythm_hit ? ` | publish_rhythm_hit=${entry.publish_rhythm_hit}` : ''}${entry.persona_hit ? ` | persona_hit=${entry.persona_hit}` : ''}${entry.publish_risk_warning?.length ? ` | publish_risk_warning=${entry.publish_risk_warning.join('/')}` : ''}${entry.memory_hit ? ` | memory_hit=${entry.memory_hit}` : ''}${entry.profile_rule ? ` | profile_rule=${entry.profile_rule}` : ''}`).join('\n')}</pre></div>
             </div>
           </div>
         ) : null}
@@ -1507,6 +1522,16 @@ export function AutoTaskSystemPanel() {
                           <strong>{entry.taskName}</strong>
                           <span>{entry.domain} · {entry.assetType}</span>
                         </div>
+                        <div className="scheduler-publish-grid">
+                          <div><span>persona</span><p>{entry.result.persona_id || '-'}</p></div>
+                          <div><span>推荐发布时间</span><p>{entry.result.recommend_publish_time || '-'}</p></div>
+                          <div><span>发布频率</span><p>{entry.result.recommend_frequency || '-'}</p></div>
+                          <div><span>今日建议发</span><p>{typeof entry.result.publish_today === 'boolean' ? (entry.result.publish_today ? 'true' : 'false') : '-'}</p></div>
+                          <div><span>建议标题</span><p>{entry.result.suggested_title || entry.result.title || '-'}</p></div>
+                          <div><span>首评建议</span><p>{entry.result.suggested_first_comment || '-'}</p></div>
+                          <div><span>互动问题</span><p>{entry.result.suggested_interaction_question || '-'}</p></div>
+                          <div><span>风控提示</span><p>{entry.result.publish_risk_warning?.join(' / ') || '无'}</p></div>
+                        </div>
                         {entry.assetType === 'media' ? (
                           <div className="scheduler-publish-grid">
                             <div><span>title</span><p>{entry.result.title || '-'}</p></div>
@@ -1537,8 +1562,12 @@ export function AutoTaskSystemPanel() {
                           <button className="auto-task-row-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(entry.result.publish_text || entry.result.content || '') }}>
                             复制可发布内容
                           </button>
+                          <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(entry.taskName, 'mark_manual_published')}>
+                            {controlLoadingTask === `${entry.taskName}:mark_manual_published` ? '记录中...' : '人工已发布'}
+                          </button>
                           <small>{entry.updatedAt ?? '-'}</small>
                         </div>
+                        {entry.result.manual_published_at ? <small>已由 {entry.result.manual_published_by || '-'} 于 {entry.result.manual_published_at} 记录人工发布</small> : null}
                         <div className="scheduler-template-recommendations">
                           <span>推荐相似模板</span>
                           {recommendedTemplates.length ? recommendedTemplates.map((template) => (

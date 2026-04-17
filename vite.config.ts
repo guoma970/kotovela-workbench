@@ -150,9 +150,18 @@ type DecisionLogEntry = {
     | 'precheck_block'
   reason: string
   detail: string
+  publish_rhythm_hit?: string
+  persona_hit?: string
+  publish_risk_warning?: string[]
   memory_hit?: string
   profile_rule?: string
   template_id?: string
+}
+
+type PersonaProfile = {
+  persona_id: 'openclaw_content' | 'mom970_content' | 'latin_boy' | 'chongming_storage' | 'official_account'
+  tone_style: string
+  interaction_style: string
 }
 
 type TaskBoardItem = {
@@ -215,6 +224,18 @@ type TaskBoardItem = {
     asset_type?: 'media' | 'business' | 'family' | 'generic'
     generated_at?: string
     generator?: 'mock' | 'gpt'
+    persona_id?: PersonaProfile['persona_id']
+    tone_style?: string
+    interaction_style?: string
+    recommend_publish_time?: string
+    recommend_frequency?: string
+    publish_today?: boolean
+    suggested_title?: string
+    suggested_first_comment?: string
+    suggested_interaction_question?: string
+    publish_risk_warning?: string[]
+    manual_published_at?: string
+    manual_published_by?: string
   }
   depends_on?: string[]
   blocked_by?: string[]
@@ -261,6 +282,13 @@ type TaskBoardPayload = {
 const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 const QUEUE_WARNING_MS = 60_000
+const PERSONA_REGISTRY: Record<string, PersonaProfile> = {
+  openclaw_content: { persona_id: 'openclaw_content', tone_style: '冷静拆解，偏产品方法论', interaction_style: '结尾抛执行问题，鼓励继续追问' },
+  mom970: { persona_id: 'mom970_content', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙' },
+  latin_boy: { persona_id: 'latin_boy', tone_style: '轻快少年感，节奏明亮', interaction_style: '适合互动小游戏和选择题' },
+  chongming: { persona_id: 'chongming_storage', tone_style: '收纳改造型，强调前后对比', interaction_style: '鼓励晒改造前后和提具体困扰' },
+  official_account: { persona_id: 'official_account', tone_style: '正式可信，偏信息整合', interaction_style: '适合引导收藏、转发和留言咨询' },
+}
 const DOMAIN_PRIORITY_MAP: Record<InstancePoolKey, number> = {
   family: 0,
   business: 1,
@@ -695,6 +723,94 @@ function buildMediaResult(taskName: string, timestamp: string): NonNullable<Task
     generated_at: timestamp,
     generator: 'mock',
   }
+}
+
+function resolvePersonaProfile(item: TaskBoardItem): PersonaProfile {
+  const line = `${item.project_line ?? ''} ${item.target_group_id ?? ''} ${item.subdomain ?? ''}`.toLowerCase()
+  if (line.includes('mom970')) return PERSONA_REGISTRY.mom970
+  if (line.includes('latin_boy')) return PERSONA_REGISTRY.latin_boy
+  if (line.includes('chongming')) return PERSONA_REGISTRY.chongming
+  if (line.includes('official_account')) return PERSONA_REGISTRY.official_account
+  return PERSONA_REGISTRY.openclaw_content
+}
+
+function getPublishRhythm(item: TaskBoardItem) {
+  const persona = resolvePersonaProfile(item)
+  switch (persona.persona_id) {
+    case 'mom970_content':
+      return { recommend_publish_time: '08:30', recommend_frequency: '1/day', publish_today: true }
+    case 'latin_boy':
+      return { recommend_publish_time: '17:30', recommend_frequency: '1-2/day', publish_today: true }
+    case 'chongming_storage':
+      return { recommend_publish_time: '19:30', recommend_frequency: '4/week', publish_today: true }
+    case 'official_account':
+      return { recommend_publish_time: '21:00', recommend_frequency: '3/week', publish_today: false }
+    default:
+      return { recommend_publish_time: '11:30', recommend_frequency: '1/day', publish_today: true }
+  }
+}
+
+function buildPublishEnhancement(board: TaskBoardItem[], item: TaskBoardItem) {
+  const persona = resolvePersonaProfile(item)
+  const rhythm = getPublishRhythm(item)
+  const sameLineDoneItems = board.filter((entry) =>
+    entry.task_name !== item.task_name
+    && entry.project_line === item.project_line
+    && ['done', 'success', 'cancelled'].includes(entry.status ?? '')
+    && entry.result,
+  )
+  const sameTimeWindowCount = sameLineDoneItems.filter((entry) => (entry.result?.recommend_publish_time ?? getPublishRhythm(entry).recommend_publish_time) === rhythm.recommend_publish_time).length
+  const sameTitleCount = sameLineDoneItems.filter((entry) => entry.result?.title && entry.result.title === item.result?.title).length
+  const highFreqCount = sameLineDoneItems.filter((entry) => {
+    const updatedAt = new Date(entry.updated_at ?? entry.timestamp ?? 0).getTime()
+    const currentAt = new Date(item.updated_at ?? item.timestamp ?? 0).getTime()
+    return Number.isFinite(updatedAt) && Number.isFinite(currentAt) && Math.abs(currentAt - updatedAt) <= 6 * 60 * 60 * 1000
+  }).length
+  const warnings: string[] = []
+  if (sameTimeWindowCount >= 1) warnings.push('同时段连续发布过密')
+  if (sameTitleCount >= 1) warnings.push('模板重复率高')
+  if (highFreqCount >= 2) warnings.push('高频输出未间隔')
+  const topic = item.result?.title || item.task_name
+  return {
+    persona,
+    rhythm,
+    warnings,
+    suggested_title: item.result?.title || `建议标题｜${topic}`,
+    suggested_first_comment: `首评建议：补一句真实场景，强调 ${persona.tone_style}`,
+    suggested_interaction_question: persona.persona_id === 'official_account'
+      ? '你更想先看案例拆解，还是避坑清单？'
+      : persona.persona_id === 'latin_boy'
+        ? '如果是你，你会先试哪一步？'
+        : '你现在最卡的是哪一步？我继续拆给你。',
+  }
+}
+
+function syncPublishDecisionLog(item: TaskBoardItem, enhancement: ReturnType<typeof buildPublishEnhancement>, now: string) {
+  item.decision_log = item.decision_log ?? []
+  item.auto_decision_log = item.auto_decision_log ?? []
+  const logExists = item.decision_log.some((entry) => entry.reason === 'publish_engine.enriched')
+  if (logExists) {
+    item.decision_log = item.decision_log.map((entry) => entry.reason === 'publish_engine.enriched'
+      ? {
+        ...entry,
+        timestamp: now,
+        detail: `persona=${enhancement.persona.persona_id} / recommend=${enhancement.rhythm.recommend_publish_time}`,
+        publish_rhythm_hit: `${enhancement.rhythm.recommend_publish_time} · ${enhancement.rhythm.recommend_frequency} · today=${enhancement.rhythm.publish_today}`,
+        persona_hit: `${enhancement.persona.persona_id} · ${enhancement.persona.tone_style} · ${enhancement.persona.interaction_style}`,
+        publish_risk_warning: enhancement.warnings,
+      }
+      : entry)
+    return
+  }
+  item.decision_log.push({
+    timestamp: now,
+    action: 'warning',
+    reason: 'publish_engine.enriched',
+    detail: `persona=${enhancement.persona.persona_id} / recommend=${enhancement.rhythm.recommend_publish_time}`,
+    publish_rhythm_hit: `${enhancement.rhythm.recommend_publish_time} · ${enhancement.rhythm.recommend_frequency} · today=${enhancement.rhythm.publish_today}`,
+    persona_hit: `${enhancement.persona.persona_id} · ${enhancement.persona.tone_style} · ${enhancement.persona.interaction_style}`,
+    publish_risk_warning: enhancement.warnings,
+  })
 }
 
 function buildTextResult(content: string, meta?: Record<string, unknown>): NonNullable<TaskBoardItem['result']> {
@@ -1503,6 +1619,26 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
     }
     return item
   })
+  const now = new Date().toISOString()
+  payload.board = payload.board.map((item) => {
+    if (!item.result || item.domain !== 'media') return item
+    const enhancement = buildPublishEnhancement(payload.board, item)
+    item.result = {
+      ...item.result,
+      persona_id: enhancement.persona.persona_id,
+      tone_style: enhancement.persona.tone_style,
+      interaction_style: enhancement.persona.interaction_style,
+      recommend_publish_time: enhancement.rhythm.recommend_publish_time,
+      recommend_frequency: enhancement.rhythm.recommend_frequency,
+      publish_today: enhancement.rhythm.publish_today,
+      suggested_title: enhancement.suggested_title,
+      suggested_first_comment: enhancement.suggested_first_comment,
+      suggested_interaction_question: enhancement.suggested_interaction_question,
+      publish_risk_warning: enhancement.warnings,
+    }
+    syncPublishDecisionLog(item, enhancement, now)
+    return item
+  })
   payload.total = payload.board.length
   payload.success = payload.board.filter((item) => item.status === 'success' || item.status === 'done').length
   payload.failed = payload.board.filter((item) => item.status === 'failed').length
@@ -1792,7 +1928,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     return
   }
 
-  if (action === 'manual_done') {
+  if (action === 'manual_done' || action === 'mark_manual_published') {
     const owner = humanOwner || target.human_owner || 'builder'
     appendHistory(target, {
       action: 'resume',
@@ -1809,6 +1945,9 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     target.status = 'done'
     target.control_status = 'done'
     target.attention = false
+    target.result = target.result ?? buildTextResult(target.task_name)
+    target.result.manual_published_at = now
+    target.result.manual_published_by = owner
     appendManualDecision(target, 'manual_done', 'human_done', `${owner} 已确认处理完成`, now)
     return
   }
@@ -2196,7 +2335,7 @@ export default defineConfig(({ mode }) => {
                   target.result = target.result ?? buildTextResult(target.task_name)
                   target.result.meta = { ...(target.result.meta ?? {}), template_source: true }
                   appendDecisionLog(target, 'manual_done', 'template_source_marked', '已标记为模板来源', now)
-                } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue'].includes(action)) {
+                } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue', 'mark_manual_published'].includes(action)) {
                   applyManualTaskAction(target, action, humanOwner, now)
                 } else {
                   res.statusCode = 400
