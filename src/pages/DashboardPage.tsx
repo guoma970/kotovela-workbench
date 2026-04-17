@@ -177,6 +177,15 @@ type AutoDecisionLogEntry = {
   action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down'
   reason: string
   detail: string
+  memory_hit?: string
+  profile_rule?: string
+}
+
+type UserProfile = {
+  user_id: string
+  tags: string[]
+  preferences: Record<string, unknown>
+  behavior_patterns: Record<string, unknown>
 }
 
 type AutoTaskBoardItem = {
@@ -242,6 +251,10 @@ type AutoTaskBoardItem = {
   depends_on?: string[]
   blocked_by?: string[]
   dependency_status?: 'ready' | 'blocked' | 'resolved'
+  user_id?: string
+  memory_hits?: string[]
+  profile_tags?: string[]
+  recommended_execute_at?: string
 }
 
 type AutoTaskBoardPayload = {
@@ -269,6 +282,8 @@ type AutoTaskBoardPayload = {
     updated_at?: string
     result: NonNullable<AutoTaskBoardItem['result']>
   }>
+  current_user_id?: string
+  current_profile?: UserProfile
   board: AutoTaskBoardItem[]
 }
 
@@ -900,6 +915,8 @@ export function AutoTaskSystemPanel() {
           <span>status: {item.status}</span>
           <span>dependency_status: {item.dependency_status ?? ((item.blocked_by?.length ?? 0) > 0 ? 'blocked' : 'ready')}</span>
           <span>priority: P{item.priority}</span>
+          <span>user_id: {item.user_id ?? '-'}</span>
+          <span>recommended_execute_at: {item.recommended_execute_at ?? '-'}</span>
           <span>retry_count: {item.retry_count ?? 0}</span>
           <span>need_human: {item.need_human ? 'true' : 'false'}</span>
           <span>human_owner: {item.human_owner ?? '-'}</span>
@@ -967,7 +984,9 @@ export function AutoTaskSystemPanel() {
             <div className="scheduler-task-result-head"><strong>自动决策</strong></div>
             <div className="scheduler-task-result-content">
               <div><span>last_action</span><strong>{item.auto_action ?? '-'}</strong></div>
-              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}`).join('\n')}</pre></div>
+              <div><span>memory_hits</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
+              <div><span>profile_tags</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
+              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}${entry.memory_hit ? ` | memory_hit=${entry.memory_hit}` : ''}${entry.profile_rule ? ` | profile_rule=${entry.profile_rule}` : ''}`).join('\n')}</pre></div>
             </div>
           </div>
         ) : null}
@@ -1024,6 +1043,7 @@ export function AutoTaskSystemPanel() {
   }
 
   const recentResults = data?.recent_results ?? []
+  const currentProfile = data?.current_profile
   const taskGroups = Array.from(
     new Map(
       sortedBoard
@@ -1148,6 +1168,17 @@ export function AutoTaskSystemPanel() {
 
       <div className="scheduler-hub-layout">
         <div className="scheduler-hub-main">
+          {currentProfile ? (
+            <section className="scheduler-overview-card">
+              <div className="scheduler-section-title">用户画像卡片</div>
+              <div className="scheduler-task-result-content">
+                <div><span>user_id</span><strong>{currentProfile.user_id}</strong></div>
+                <div><span>tags</span><strong>{currentProfile.tags.join(' / ') || '-'}</strong></div>
+                <div><span>preferences</span><pre>{JSON.stringify(currentProfile.preferences, null, 2)}</pre></div>
+                <div><span>behavior_patterns</span><pre>{JSON.stringify(currentProfile.behavior_patterns, null, 2)}</pre></div>
+              </div>
+            </section>
+          ) : null}
           <section className="scheduler-overview-card">
             <div className="scheduler-section-title">调度概览</div>
             {parentTaskViews.length ? (

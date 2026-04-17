@@ -1,0 +1,95 @@
+{
+  "records": [
+    {
+      "user_id": "guoguo",
+      "memory_type": "habit",
+      "key": "study_time_preference",
+      "value": "20:00",
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "guoguo",
+      "memory_type": "preference",
+      "key": "focus_duration",
+      "value": 25,
+      "updated_at": "2026-04-16T20:00:00.000+08:00"
+    },
+    {
+      "user_id": "content_ops",
+      "memory_type": "habit",
+      "key": "publish_time_preference",
+      "value": "09:00",
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "client_followup",
+      "memory_type": "habit",
+      "key": "followup_cadence",
+      "value": "T+1 / T+3",
+      "updated_at": "2026-04-16T10:00:00.000+08:00"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "constraint",
+      "key": "need_human_builder",
+      "value": true,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "history",
+      "key": "task_success_builder",
+      "value": 476,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "client_followup",
+      "memory_type": "history",
+      "key": "task_success_builder",
+      "value": 68,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "content_ops",
+      "memory_type": "history",
+      "key": "task_success_media",
+      "value": 476,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "habit",
+      "key": "study_time_preference",
+      "value": "20:00",
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "history",
+      "key": "task_success_family",
+      "value": 68,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "client_followup",
+      "memory_type": "history",
+      "key": "task_success_business",
+      "value": 204,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "history",
+      "key": "task_success_business",
+      "value": 68,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    },
+    {
+      "user_id": "guoguo",
+      "memory_type": "history",
+      "key": "task_success_family",
+      "value": 26,
+      "updated_at": "2026-04-17T09:42:21.149Z"
+    }
+  ]
+}

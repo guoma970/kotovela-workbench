@@ -31,6 +31,24 @@ type TaskNotificationRecord = {
 
 const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
 const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
+const MEMORY_STORE_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-memory.json')
+
+type MemoryType = 'preference' | 'habit' | 'history' | 'constraint'
+
+type MemoryRecord = {
+  user_id: string
+  memory_type: MemoryType
+  key: string
+  value: unknown
+  updated_at: string
+}
+
+type UserProfile = {
+  user_id: string
+  tags: string[]
+  preferences: Record<string, unknown>
+  behavior_patterns: Record<string, unknown>
+}
 
 const PROJECT_LINE_NOTIFY_TARGET: Record<string, { group: string; groupId: string; channel: string }> = {
   openclaw_content: { group: 'OpenClaw内容运营群', groupId: 'openclaw_content', channel: 'media' },
@@ -97,6 +115,8 @@ type DecisionLogEntry = {
   action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'blocked' | 'unblocked' | 'dependency_resolved'
   reason: string
   detail: string
+  memory_hit?: string
+  profile_rule?: string
 }
 
 type TaskBoardItem = {
@@ -156,6 +176,10 @@ type TaskBoardItem = {
   depends_on?: string[]
   blocked_by?: string[]
   dependency_status?: 'ready' | 'blocked' | 'resolved'
+  user_id?: string
+  memory_hits?: string[]
+  profile_tags?: string[]
+  recommended_execute_at?: string
 }
 
 type TaskBoardPayload = {
@@ -185,6 +209,8 @@ type TaskBoardPayload = {
     updated_at?: string
     result: NonNullable<TaskBoardItem['result']>
   }>
+  current_user_id?: string
+  current_profile?: UserProfile
   board: TaskBoardItem[]
 }
 
@@ -205,10 +231,11 @@ function appendDecisionLog(
   reason: string,
   detail: string,
   timestamp: string,
+  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule'>,
 ) {
   const exists = (item.decision_log ?? []).some((entry) => entry.action === action && entry.reason === reason && entry.detail === detail)
   if (exists) return
-  item.decision_log = [...(item.decision_log ?? []), { timestamp, action, reason, detail }]
+  item.decision_log = [...(item.decision_log ?? []), { timestamp, action, reason, detail, ...extras }]
   item.auto_decision_log = [...(item.auto_decision_log ?? []), detail]
   if (['retry', 'warning', 'need_human', 'notify_result'].includes(action)) {
     item.auto_action = action as NonNullable<TaskBoardItem['auto_action']>
@@ -222,6 +249,97 @@ function clampPriority(priority?: number) {
 
 function priorityLabel(priority?: number) {
   return `P${clampPriority(priority)}`
+}
+
+const DEFAULT_MEMORY_SEED: MemoryRecord[] = [
+  { user_id: 'guoguo', memory_type: 'habit', key: 'study_time_preference', value: '20:00', updated_at: '2026-04-16T20:00:00.000+08:00' },
+  { user_id: 'guoguo', memory_type: 'preference', key: 'focus_duration', value: 25, updated_at: '2026-04-16T20:00:00.000+08:00' },
+  { user_id: 'guoguo', memory_type: 'history', key: 'task_success_family_study', value: 3, updated_at: '2026-04-16T20:00:00.000+08:00' },
+  { user_id: 'content_ops', memory_type: 'habit', key: 'publish_time_preference', value: '09:00', updated_at: '2026-04-16T09:00:00.000+08:00' },
+  { user_id: 'client_followup', memory_type: 'habit', key: 'followup_cadence', value: 'T+1 / T+3', updated_at: '2026-04-16T10:00:00.000+08:00' },
+]
+
+async function readMemoryStore() {
+  try {
+    const raw = await fs.readFile(MEMORY_STORE_FILE, 'utf8')
+    const payload = JSON.parse(raw) as { records?: MemoryRecord[] }
+    return payload.records ?? DEFAULT_MEMORY_SEED
+  } catch {
+    await writeMemoryStore(DEFAULT_MEMORY_SEED)
+    return DEFAULT_MEMORY_SEED
+  }
+}
+
+async function writeMemoryStore(records: MemoryRecord[]) {
+  await fs.mkdir(path.dirname(MEMORY_STORE_FILE), { recursive: true })
+  await fs.writeFile(MEMORY_STORE_FILE, `${JSON.stringify({ records }, null, 2)}\n`, 'utf8')
+}
+
+function inferUserId(task: Pick<TaskBoardItem, 'task_name' | 'domain' | 'project_line'>) {
+  const normalized = `${task.task_name} ${task.domain ?? ''} ${task.project_line ?? ''}`.toLowerCase()
+  if (normalized.includes('果果') || normalized.includes('学习') || normalized.includes('作业')) return 'guoguo'
+  if (normalized.includes('发布') || normalized.includes('内容') || normalized.includes('账号')) return 'content_ops'
+  if (normalized.includes('客户') || normalized.includes('报价') || normalized.includes('跟进')) return 'client_followup'
+  return 'default_user'
+}
+
+function deriveProfile(userId: string, records: MemoryRecord[]): UserProfile {
+  const mine = records.filter((record) => record.user_id === userId)
+  const preferences: Record<string, unknown> = {}
+  const behaviorPatterns: Record<string, unknown> = {}
+  const tags = new Set<string>()
+
+  for (const record of mine) {
+    if (record.memory_type === 'preference') preferences[record.key] = record.value
+    if (record.memory_type === 'habit') behaviorPatterns[record.key] = record.value
+    if (record.key.includes('study') || String(record.value).includes('20:00')) tags.add('晚间学习')
+    if (record.key.includes('focus_duration') || record.value === 25) tags.add('番茄节奏')
+    if (record.key.includes('followup')) tags.add('规律跟进')
+    if (userId === 'guoguo') {
+      tags.add('低年级')
+      tags.add('需要陪伴')
+    }
+  }
+
+  return {
+    user_id: userId,
+    tags: [...tags],
+    preferences,
+    behavior_patterns: behaviorPatterns,
+  }
+}
+
+function upsertMemoryRecord(records: MemoryRecord[], nextRecord: MemoryRecord) {
+  const index = records.findIndex((record) => record.user_id === nextRecord.user_id && record.memory_type === nextRecord.memory_type && record.key === nextRecord.key)
+  if (index >= 0) records[index] = nextRecord
+  else records.push(nextRecord)
+}
+
+function applyUserContextOnCreate(item: TaskBoardItem, records: MemoryRecord[]) {
+  const userId = inferUserId(item)
+  const profile = deriveProfile(userId, records)
+  const timestamp = new Date().toISOString()
+  item.user_id = userId
+  item.profile_tags = profile.tags
+  item.memory_hits = []
+  if (typeof profile.behavior_patterns.study_time_preference === 'string') {
+    item.recommended_execute_at = profile.behavior_patterns.study_time_preference
+    item.memory_hits.push(String(profile.behavior_patterns.study_time_preference))
+  } else if (typeof profile.behavior_patterns.publish_time_preference === 'string') {
+    item.recommended_execute_at = profile.behavior_patterns.publish_time_preference
+    item.memory_hits.push(String(profile.behavior_patterns.publish_time_preference))
+  }
+
+  if (profile.tags.includes('晚间学习') || profile.tags.includes('规律跟进')) {
+    const nextPriority = Math.max(0, clampPriority(item.priority) - 1)
+    if (nextPriority !== item.priority) {
+      item.priority = nextPriority
+      appendDecisionLog(item, 'priority_up', 'profile_bootstrap', `创建任务时命中画像规则，建议执行时间 ${item.recommended_execute_at ?? '按习惯时间'}，优先级提升`, timestamp, {
+        memory_hit: item.memory_hits[0],
+        profile_rule: profile.tags.join(' / '),
+      })
+    }
+  }
 }
 
 function computeBasePriority(item: TaskBoardItem) {
@@ -823,6 +941,7 @@ function applyScheduler(payload: TaskBoardPayload) {
 
 async function readTaskBoard(filePath: string) {
   const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
+  const memoryRecords = await readMemoryStore()
   payload.board = (payload.board ?? []).map((rawItem) => {
     const routed = enrichTaskRouting({
       ...rawItem,
@@ -866,11 +985,17 @@ async function readTaskBoard(filePath: string) {
             },
           ],
     })
+    routed.user_id = rawItem.user_id ?? inferUserId(routed)
+    const profile = deriveProfile(routed.user_id, memoryRecords)
+    routed.profile_tags = profile.tags
+    routed.memory_hits = []
+    routed.recommended_execute_at = undefined
     return routed
   })
   const now = Date.now()
   payload.board = payload.board.map((item) => {
     const next = { ...item }
+    const profile = deriveProfile(next.user_id ?? inferUserId(next), memoryRecords)
     normalizeTaskResult(next)
     if (next.status === 'failed') next.attention = true
 
@@ -954,6 +1079,35 @@ async function readTaskBoard(filePath: string) {
       appendDecisionLog(next, 'retry', 'task_failed', `任务失败后自动重试，第 ${next.retry_count} / 2 次`, decisionTimestamp)
     }
 
+    const studyTime = profile.behavior_patterns.study_time_preference
+    const publishTime = profile.behavior_patterns.publish_time_preference
+    const matchedTime = typeof studyTime === 'string' ? studyTime : typeof publishTime === 'string' ? publishTime : undefined
+    if (matchedTime) {
+      next.recommended_execute_at = matchedTime
+      next.memory_hits = [...new Set([...(next.memory_hits ?? []), matchedTime])]
+      const isStudyTask = (next.task_name ?? '').includes('学习') || (next.task_name ?? '').includes('果果')
+      const isPublishTask = (next.task_name ?? '').includes('发布') || (next.task_name ?? '').includes('内容')
+      if ((isStudyTask || isPublishTask) && clampPriority(next.priority) > 0) {
+        const boosted = Math.max(0, clampPriority(next.priority) - 1)
+        if (boosted !== next.priority) {
+          appendDecisionLog(next, 'priority_up', 'profile_preference_match', `命中用户习惯时间 ${matchedTime}，优先级提升到 ${priorityLabel(boosted)}`, decisionTimestamp, {
+            memory_hit: matchedTime,
+            profile_rule: profile.tags.join(' / ') || 'habit_match',
+          })
+          next.priority = boosted
+        }
+      }
+    }
+
+    const failedCountForType = failedHistory.length
+    if (failedCountForType >= 2 && ((next.domain ?? '') === 'family' || (next.task_name ?? '').includes('学习'))) {
+      next.need_human = true
+      appendDecisionLog(next, 'need_human', 'profile_failure_guard', '同类任务历史连续失败，提前触发人工介入', decisionTimestamp, {
+        memory_hit: `history_failures=${failedCountForType}`,
+        profile_rule: 'repeat_failure_guard',
+      })
+    }
+
     if (failedHistory.length >= 2) {
       const hasNeedHuman = (next.history ?? []).some((entry) => entry.decision_type === 'need_human')
       if (!hasNeedHuman) {
@@ -1008,6 +1162,9 @@ async function readTaskBoard(filePath: string) {
     return next
   })
 
+  payload.current_user_id = payload.board[0]?.user_id
+  payload.current_profile = payload.current_user_id ? deriveProfile(payload.current_user_id, memoryRecords) : undefined
+
   const failByAgent = new Map<string, number>()
   for (const item of payload.board) {
     if (item.status === 'failed') failByAgent.set(item.agent ?? 'unknown', (failByAgent.get(item.agent ?? 'unknown') ?? 0) + 1)
@@ -1024,6 +1181,39 @@ async function readTaskBoard(filePath: string) {
     if (cnt >= 2) alerts.push({ level: 'warning', agent, reason: `实例最近失败任务过多（${cnt}）` })
   }
   payload.system_alerts = alerts
+
+  for (const item of payload.board) {
+    const userId = item.user_id ?? inferUserId(item)
+    if (['done', 'success'].includes(item.status ?? '')) {
+      const learnedTime = item.domain === 'family' ? '20:00' : item.domain === 'media' ? '09:00' : undefined
+      if (learnedTime) {
+        upsertMemoryRecord(memoryRecords, {
+          user_id: userId,
+          memory_type: 'habit',
+          key: item.domain === 'family' ? 'study_time_preference' : 'publish_time_preference',
+          value: learnedTime,
+          updated_at: new Date().toISOString(),
+        })
+      }
+      upsertMemoryRecord(memoryRecords, {
+        user_id: userId,
+        memory_type: 'history',
+        key: `task_success_${item.domain ?? 'builder'}`,
+        value: ((memoryRecords.find((record) => record.user_id === userId && record.memory_type === 'history' && record.key === `task_success_${item.domain ?? 'builder'}`)?.value as number | undefined) ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+    }
+    if (item.need_human || item.status === 'failed') {
+      upsertMemoryRecord(memoryRecords, {
+        user_id: userId,
+        memory_type: 'constraint',
+        key: `need_human_${item.domain ?? 'builder'}`,
+        value: true,
+        updated_at: new Date().toISOString(),
+      })
+    }
+  }
+  await writeMemoryStore(memoryRecords)
 
   return applyScheduler(payload)
 }
@@ -1458,8 +1648,12 @@ export default defineConfig(({ mode }) => {
 
                   if (templateKey && templateKey in SCENARIO_TEMPLATES) {
                     const payload = await readTaskBoard(filePath)
+                    const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
-                    const scenarioTasks = createScenarioTemplateTasks(templateKey, now)
+                    const scenarioTasks = createScenarioTemplateTasks(templateKey, now).map((item) => {
+                      applyUserContextOnCreate(item, memoryRecords)
+                      return item
+                    })
                     payload.board.unshift(...scenarioTasks.reverse())
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
@@ -1480,10 +1674,11 @@ export default defineConfig(({ mode }) => {
 
                   if (taskInput.startsWith('queue:')) {
                     const payload = await readTaskBoard(filePath)
+                    const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
                     const taskName = taskInput.slice(6).trim() || `queued-${Date.now()}`
                     const route = inferTaskRoute(taskName)
-                    payload.board.unshift({
+                    const nextItem: TaskBoardItem = {
                       task_name: taskName,
                       agent: route.assigned_agent,
                       domain: route.domain,
@@ -1511,7 +1706,9 @@ export default defineConfig(({ mode }) => {
                       taken_over_at: undefined,
                       manual_decision: undefined,
                       history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 3 }],
-                    })
+                    }
+                    applyUserContextOnCreate(nextItem, memoryRecords)
+                    payload.board.unshift(nextItem)
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
                     const executed = await readTaskBoard(filePath)
@@ -1581,6 +1778,7 @@ export default defineConfig(({ mode }) => {
                   }
 
                   const payload = await readTaskBoard(filePath)
+                  const memoryRecords = await readMemoryStore()
                   const now = new Date().toISOString()
                   const route = inferTaskRoute(taskInput)
                   const nextItem: TaskBoardItem = {
@@ -1621,6 +1819,7 @@ export default defineConfig(({ mode }) => {
                       },
                     ],
                   }
+                  applyUserContextOnCreate(nextItem, memoryRecords)
                   payload.board.unshift(nextItem)
                   payload.generated_at = now
                   await writeTaskBoard(filePath, payload)
@@ -1737,6 +1936,75 @@ export default defineConfig(({ mode }) => {
             }
 
             next()
+          })
+
+          server.middlewares.use('/api/memory', async (req, res, next) => {
+            if (req.method === 'GET') {
+              try {
+                const userId = String(new URL(req.url ?? '', 'http://localhost').searchParams.get('user_id') ?? '').trim()
+                const records = await readMemoryStore()
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ user_id: userId, records: userId ? records.filter((record) => record.user_id === userId) : records }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'memory fetch failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            if (req.method === 'POST') {
+              try {
+                const chunks: Buffer[] = []
+                for await (const chunk of req) chunks.push(Buffer.from(chunk))
+                const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Partial<MemoryRecord>
+                if (!body.user_id || !body.memory_type || !body.key) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'missing memory fields' }))
+                  return
+                }
+                const records = await readMemoryStore()
+                const nextRecord: MemoryRecord = { user_id: body.user_id, memory_type: body.memory_type, key: body.key, value: body.value, updated_at: new Date().toISOString() }
+                upsertMemoryRecord(records, nextRecord)
+                await writeMemoryStore(records)
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ ok: true, record: nextRecord }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'memory write failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            next()
+          })
+
+          server.middlewares.use('/api/profile', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+            try {
+              const userId = String(new URL(req.url ?? '', 'http://localhost').searchParams.get('user_id') ?? '').trim()
+              if (!userId) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'missing user_id' }))
+                return
+              }
+              const records = await readMemoryStore()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(deriveProfile(userId, records)))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'profile fetch failed', message: error instanceof Error ? error.message : String(error) }))
+            }
           })
 
           server.middlewares.use('/api/task-notification-actions', async (req, res, next) => {
