@@ -33,16 +33,16 @@ const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notif
 
 const PROJECT_LINE_NOTIFY_TARGET: Record<string, { group: string; groupId: string; channel: string }> = {
   openclaw_content: { group: 'OpenClaw内容运营群', groupId: 'openclaw_content', channel: 'media' },
-  latin_boy_guoguo: { group: '拉丁男孩果果运营群', groupId: 'latin_boy_guoguo', channel: 'media' },
-  chongming_storage: { group: '崇明小娘爱收纳运营群', groupId: 'chongming_storage', channel: 'media' },
-  mom970_content: { group: '果妈970运营群', groupId: 'mom970_content', channel: 'media' },
-  book_manuscript: { group: '日式装修指南书稿群', groupId: 'book_manuscript', channel: 'media' },
-  tech_ops: { group: '言町科技运营群', groupId: 'tech_ops', channel: 'business' },
-  housing_ops: { group: '言家住宅运营群', groupId: 'housing_ops', channel: 'business' },
-  biz_content_ops: { group: '言纳筑集运营群', groupId: 'biz_content_ops', channel: 'business' },
+  latin_boy: { group: '拉丁男孩果果运营群', groupId: 'latin_boy', channel: 'media' },
+  chongming: { group: '崇明小娘爱收纳运营群', groupId: 'chongming', channel: 'media' },
+  mom970: { group: '果妈970运营群', groupId: 'mom970', channel: 'media' },
+  book: { group: '日式装修指南书稿群', groupId: 'book', channel: 'media' },
+  tech: { group: '言町科技运营群', groupId: 'tech', channel: 'business' },
+  housing: { group: '言家住宅运营群', groupId: 'housing', channel: 'business' },
+  biz_content: { group: '言纳筑集运营群', groupId: 'biz_content', channel: 'business' },
   official_account: { group: '公众号运营群', groupId: 'official_account', channel: 'business' },
-  family_collab: { group: '果果学习协同群', groupId: 'family_collab', channel: 'family' },
-  family_assign: { group: '果果学习布置群', groupId: 'family_assign', channel: 'family' },
+  confirm: { group: '果果学习协同群', groupId: 'confirm', channel: 'family' },
+  assign: { group: '果果学习布置群', groupId: 'assign', channel: 'family' },
   builder_default: { group: '系统运维群', groupId: 'builder_default', channel: 'builder' },
   system_default: { group: '系统运维群', groupId: 'system_default', channel: 'system' },
 }
@@ -170,21 +170,21 @@ const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurre
 
 const PROJECT_LINE_RULES: Array<Omit<RoutedTaskSpec, 'preferred_agent' | 'assigned_agent' | 'target_system'> & { keywords: string[] }> = [
   { domain: 'media', subdomain: 'content', project_line: 'openclaw_content', target_group_id: 'openclaw_content', notify_mode: 'default', type: 'content_task', keywords: ['openclaw', 'open claw', '内容中台'] },
-  { domain: 'media', subdomain: 'content', project_line: 'latin_boy_guoguo', target_group_id: 'latin_boy_guoguo', notify_mode: 'default', type: 'content_task', keywords: ['拉丁', '男孩果果', 'latin boy', 'guoguo'] },
-  { domain: 'media', subdomain: 'content', project_line: 'chongming_storage', target_group_id: 'chongming_storage', notify_mode: 'default', type: 'content_task', keywords: ['崇明', '收纳', 'storage'] },
-  { domain: 'media', subdomain: 'content', project_line: 'mom970_content', target_group_id: 'mom970_content', notify_mode: 'default', type: 'content_task', keywords: ['果妈970', '970内容', 'mom970'] },
-  { domain: 'media', subdomain: 'content', project_line: 'book_manuscript', target_group_id: 'book_manuscript', notify_mode: 'default', type: 'content_task', keywords: ['书稿', '装修指南', 'manuscript'] },
-  { domain: 'business', subdomain: 'ops', project_line: 'tech_ops', target_group_id: 'tech_ops', notify_mode: 'default', type: 'business_task', keywords: ['言町科技', '科技运营', 'tech ops', 'tech_ops'] },
-  { domain: 'business', subdomain: 'ops', project_line: 'housing_ops', target_group_id: 'housing_ops', notify_mode: 'default', type: 'business_task', keywords: ['言家住宅', '住宅运营', 'housing ops', 'housing_ops'] },
-  { domain: 'business', subdomain: 'ops', project_line: 'biz_content_ops', target_group_id: 'biz_content_ops', notify_mode: 'default', type: 'business_task', keywords: ['言纳筑集', '筑集', 'biz content', 'biz_content_ops'] },
+  { domain: 'media', subdomain: 'content', project_line: 'latin_boy', target_group_id: 'latin_boy', notify_mode: 'default', type: 'content_task', keywords: ['拉丁', '男孩果果', 'latin boy', 'guoguo'] },
+  { domain: 'media', subdomain: 'content', project_line: 'chongming', target_group_id: 'chongming', notify_mode: 'default', type: 'content_task', keywords: ['崇明', '收纳', 'storage'] },
+  { domain: 'media', subdomain: 'content', project_line: 'mom970', target_group_id: 'mom970', notify_mode: 'default', type: 'content_task', keywords: ['果妈970', '970内容', 'mom970'] },
+  { domain: 'media', subdomain: 'content', project_line: 'book', target_group_id: 'book', notify_mode: 'default', type: 'content_task', keywords: ['书稿', '装修指南', 'manuscript'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'tech', target_group_id: 'tech', notify_mode: 'default', type: 'business_task', keywords: ['言町科技', '科技运营', 'tech ops', 'tech_ops'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'housing', target_group_id: 'housing', notify_mode: 'default', type: 'business_task', keywords: ['言家住宅', '住宅运营', 'housing ops', 'housing_ops'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'biz_content', target_group_id: 'biz_content', notify_mode: 'default', type: 'business_task', keywords: ['言纳筑集', '筑集', 'biz content', 'biz_content_ops'] },
   { domain: 'business', subdomain: 'ops', project_line: 'official_account', target_group_id: 'official_account', notify_mode: 'default', type: 'business_task', keywords: ['公众号', '公号', 'official account', 'official_account'] },
-  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_collab', notify_mode: 'need_human', type: 'family_task', keywords: ['need_human', '人工介入', '家长确认'] },
-  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_collab', notify_mode: 'confirm', type: 'family_task', keywords: ['confirm', '确认', '待确认'] },
-  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'assigned', type: 'family_task', keywords: ['assigned', '布置', '分配作业'] },
-  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'reminder', type: 'family_task', keywords: ['reminder', '提醒', '作业提醒', '学习提醒'] },
-  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'default', type: 'family_task', keywords: ['家庭', '作业', '学习'] },
+  { domain: 'family', subdomain: 'study', project_line: 'confirm', target_group_id: 'confirm', notify_mode: 'need_human', type: 'family_task', keywords: ['need_human', '人工介入', '家长确认'] },
+  { domain: 'family', subdomain: 'study', project_line: 'confirm', target_group_id: 'confirm', notify_mode: 'confirm', type: 'family_task', keywords: ['confirm', '确认', '待确认'] },
+  { domain: 'family', subdomain: 'study', project_line: 'assign', target_group_id: 'assign', notify_mode: 'assigned', type: 'family_task', keywords: ['assigned', '布置', '分配作业'] },
+  { domain: 'family', subdomain: 'study', project_line: 'assign', target_group_id: 'assign', notify_mode: 'reminder', type: 'family_task', keywords: ['reminder', '提醒', '作业提醒', '学习提醒'] },
+  { domain: 'family', subdomain: 'study', project_line: 'assign', target_group_id: 'assign', notify_mode: 'default', type: 'family_task', keywords: ['家庭', '作业', '学习'] },
   { domain: 'media', subdomain: 'content', project_line: 'openclaw_content', target_group_id: 'openclaw_content', notify_mode: 'default', type: 'content_task', keywords: ['内容', '文案', '选题', '发布'] },
-  { domain: 'business', subdomain: 'ops', project_line: 'tech_ops', target_group_id: 'tech_ops', notify_mode: 'default', type: 'business_task', keywords: ['客户', '方案', '报价', '跟进'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'tech', target_group_id: 'tech', notify_mode: 'default', type: 'business_task', keywords: ['客户', '方案', '报价', '跟进'] },
   { domain: 'builder', subdomain: 'engineering', project_line: 'builder_default', target_group_id: 'builder_default', notify_mode: 'default', type: 'builder_task', keywords: ['页面', '接口', '开发', '修复'] },
   { domain: 'personal', subdomain: 'personal', project_line: 'builder_default', target_group_id: 'builder_default', notify_mode: 'default', type: 'personal_task', keywords: ['提醒', '个人事务'] },
 ]
@@ -529,16 +529,24 @@ function enrichTaskRouting(item: TaskBoardItem) {
   return item
 }
 
-function resolveNotifyTarget(item: Pick<TaskBoardItem, 'task_name' | 'domain' | 'project_line' | 'target_group_id' | 'notify_mode'>) {
+function resolveNotifyTarget(item: Pick<TaskBoardItem, 'task_name' | 'domain' | 'subdomain' | 'project_line' | 'target_group_id' | 'notify_mode' | 'status'>, eventType?: TaskNotifyEvent) {
   const inferred = inferTaskRoute(item.task_name)
   const domain = normalizeNotifyDomain(item.domain)
   const notifyMode = item.notify_mode ?? inferred.notify_mode
-  const targetGroupId = item.target_group_id
-    ?? (domain === 'family' && ['need_human', 'confirm'].includes(notifyMode) ? 'family_collab' : undefined)
-    ?? (domain === 'family' && ['assigned', 'reminder', 'default'].includes(notifyMode) ? 'family_assign' : undefined)
-    ?? item.project_line
-    ?? inferred.target_group_id
-    ?? (domain === 'system' ? 'system_default' : 'builder_default')
+
+  let targetGroupId = item.target_group_id ?? item.project_line ?? inferred.target_group_id
+
+  if (domain === 'family') {
+    if (eventType === 'task_need_human' || notifyMode === 'need_human' || notifyMode === 'confirm') {
+      targetGroupId = 'confirm'
+    } else if (eventType === 'task_queued' || eventType === 'task_done') {
+      targetGroupId = 'assign'
+    } else {
+      targetGroupId = targetGroupId ?? 'assign'
+    }
+  }
+
+  targetGroupId = targetGroupId ?? (domain === 'system' ? 'system_default' : 'builder_default')
   return PROJECT_LINE_NOTIFY_TARGET[targetGroupId] ?? PROJECT_LINE_NOTIFY_TARGET.builder_default
 }
 
@@ -618,10 +626,16 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
     const eventType = inferTaskNotifyEvent(item, previousByName.get(item.task_name))
     if (!eventType) continue
     enrichTaskRouting(item)
-    const target = resolveNotifyTarget(item)
+    const target = resolveNotifyTarget(item, eventType)
     const summary = buildNotificationSummary(item, eventType)
     const messageLines = [
-      eventType === 'task_warning' ? '【任务告警】' : '【任务完成】',
+      eventType === 'task_warning'
+        ? '【任务告警】'
+        : eventType === 'task_need_human'
+          ? '【任务需人工介入】'
+          : eventType === 'task_queued'
+            ? '【任务已进入队列】'
+            : '【任务完成】',
       `任务：${item.task_name}`,
       `实例：${item.assigned_agent ?? item.agent ?? 'builder'}`,
       `状态：${eventType === 'task_warning' ? '告警' : item.status ?? '-'}`,
