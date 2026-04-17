@@ -1351,6 +1351,47 @@ button,
   font-size: 0.84rem;
 }
 
+.scheduler-template-strip,
+.scheduler-task-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.scheduler-template-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.scheduler-template-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scheduler-template-chip,
+.scheduler-task-group-chip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 16, 32, 0.78);
+  border-radius: 14px;
+  padding: 12px;
+  color: #dbe7ff;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+}
+
+.scheduler-template-chip span,
+.scheduler-task-group-chip span {
+  color: #8ea2c6;
+  font-size: 0.78rem;
+}
+
+.scheduler-template-chip.is-active {
+  border-color: rgba(91, 140, 255, 0.52);
+  box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.22) inset;
+}
+
 .scheduler-hub-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
@@ -1722,6 +1763,10 @@ button,
     grid-template-columns: 1fr;
   }
 
+  .scheduler-template-chips {
+    grid-template-columns: 1fr;
+  }
+
   .scheduler-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1732,6 +1777,7 @@ button,
 }
 
 @media (max-width: 900px) {
+  .scheduler-template-form,
   .scheduler-queue-grid,
   .scheduler-overview-grid,
   .scheduler-task-meta-grid {

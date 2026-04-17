@@ -182,6 +182,11 @@ type AutoDecisionLogEntry = {
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
+  task_group_id?: string
+  task_group_label?: string
+  template_key?: 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+  template_source?: string
+  template_task_index?: number
   domain?: string
   subdomain?: string
   project_line?: string
@@ -286,6 +291,17 @@ type FailedTaskState = {
   retryCount: number
   autoRetrying?: boolean
 }
+
+const scenarioTemplates: Array<{
+  key: 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+  label: string
+  description: string
+}> = [
+  { key: 'family_study_evening', label: 'family_study_evening', description: '晚间学习任务链' },
+  { key: 'media_publish_flow', label: 'media_publish_flow', description: '内容发布任务链' },
+  { key: 'business_followup_flow', label: 'business_followup_flow', description: '客户跟进任务链' },
+  { key: 'builder_delivery_flow', label: 'builder_delivery_flow', description: '研发交付任务链' },
+]
 
 function AutoTaskSystemSummaryCard() {
   const navigate = useNavigate()
@@ -562,6 +578,7 @@ export function AutoTaskSystemPanel() {
   const [expandedTaskName, setExpandedTaskName] = useState('')
   const [copyState, setCopyState] = useState('')
   const [activeNoticeDomain, setActiveNoticeDomain] = useState<'builder' | 'media' | 'family' | 'business'>('builder')
+  const [activeTemplateKey, setActiveTemplateKey] = useState<'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'>('builder_delivery_flow')
 
   const loadBoard = () => {
     setLoading(true)
@@ -622,6 +639,31 @@ export function AutoTaskSystemPanel() {
         })
       }
       throw error instanceof Error ? error : new Error(message)
+    } finally {
+      setRunning(false)
+      setRunningTaskName('')
+    }
+  }
+
+  const createScenarioTemplate = async () => {
+    if (running) return
+    setRunning(true)
+    setRunningTaskName(activeTemplateKey)
+    setRunError('')
+    setFailedTask(null)
+    try {
+      const res = await fetch('/api/tasks-board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template_key: activeTemplateKey }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.message || data?.error || '模板创建失败')
+      }
+      loadBoard()
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : '模板创建失败')
     } finally {
       setRunning(false)
       setRunningTaskName('')
@@ -818,6 +860,8 @@ export function AutoTaskSystemPanel() {
           <span>agent: {item.agent}</span>
           <span>pool: {item.instance_pool ?? '-'}</span>
           <span>domain: {item.domain ?? '-'}</span>
+          <span>task_group: {item.task_group_label ?? '-'}</span>
+          <span>template_source: {item.template_source ?? item.template_key ?? '-'}</span>
           <span>subdomain: {item.subdomain ?? '-'}</span>
           <span>project_line: {item.project_line ?? '-'}</span>
           <span>notify_mode: {item.notify_mode ?? '-'}</span>
@@ -825,6 +869,7 @@ export function AutoTaskSystemPanel() {
           <span>preferred_agent: {item.preferred_agent ?? '-'}</span>
           <span>assigned_agent: {item.assigned_agent ?? '-'}</span>
           <span>target_system: {item.target_system ?? '-'}</span>
+          <span>template_task_index: {item.template_task_index ?? '-'}</span>
           <span>slot_id: {item.slot_id ?? '-'}</span>
           <span>status: {item.status}</span>
           <span>dependency_status: {item.dependency_status ?? ((item.blocked_by?.length ?? 0) > 0 ? 'blocked' : 'ready')}</span>
@@ -953,6 +998,23 @@ export function AutoTaskSystemPanel() {
   }
 
   const recentResults = data?.recent_results ?? []
+  const taskGroups = Array.from(
+    new Map(
+      sortedBoard
+        .filter((item) => item.task_group_id)
+        .map((item) => [
+          item.task_group_id as string,
+          {
+            id: item.task_group_id as string,
+            label: item.task_group_label ?? item.task_group_id ?? '-',
+            template: item.template_source ?? item.template_key ?? '-',
+            domain: item.domain ?? '-',
+            projectLine: item.project_line ?? '-',
+            count: sortedBoard.filter((entry) => entry.task_group_id === item.task_group_id).length,
+          },
+        ]),
+    ).values(),
+  )
   const notificationTabs: Array<{ key: 'builder' | 'media' | 'family' | 'business'; label: string }> = [
     { key: 'builder', label: 'Builder' },
     { key: 'media', label: 'Media' },
@@ -987,6 +1049,32 @@ export function AutoTaskSystemPanel() {
         </button>
       </div>
 
+      <div className="scheduler-template-strip">
+        <div className="scheduler-template-form">
+          <select className="auto-task-input" value={activeTemplateKey} onChange={(e) => setActiveTemplateKey(e.target.value as typeof activeTemplateKey)} disabled={running}>
+            {scenarioTemplates.map((template) => (
+              <option key={template.key} value={template.key}>{template.label}</option>
+            ))}
+          </select>
+          <button className="auto-task-run-btn" type="button" onClick={createScenarioTemplate} disabled={running}>
+            {running && runningTaskName === activeTemplateKey ? '创建中...' : '从模板创建任务组'}
+          </button>
+        </div>
+        <div className="scheduler-template-chips">
+          {scenarioTemplates.map((template) => (
+            <button
+              key={template.key}
+              type="button"
+              className={`scheduler-template-chip ${activeTemplateKey === template.key ? 'is-active' : ''}`}
+              onClick={() => setActiveTemplateKey(template.key)}
+            >
+              <strong>{template.label}</strong>
+              <span>{template.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {failedTask ? (
         <div className="auto-task-failed-box">
           <div className="auto-task-failed-title">失败提示</div>
@@ -1007,6 +1095,16 @@ export function AutoTaskSystemPanel() {
         <div className="scheduler-hub-main">
           <section className="scheduler-overview-card">
             <div className="scheduler-section-title">调度概览</div>
+            {taskGroups.length ? (
+              <div className="scheduler-task-groups">
+                {taskGroups.slice(0, 6).map((group) => (
+                  <div className="scheduler-task-group-chip" key={group.id}>
+                    <strong>{group.label}</strong>
+                    <span>{group.template} · {group.count} tasks · {group.domain} / {group.projectLine}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="scheduler-pool-overview">
               {poolTabs.map((pool) => (
                 <button

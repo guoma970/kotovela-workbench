@@ -102,6 +102,11 @@ type DecisionLogEntry = {
 type TaskBoardItem = {
   task_name: string
   agent: string
+  task_group_id?: string
+  task_group_label?: string
+  template_key?: string
+  template_source?: string
+  template_task_index?: number
   domain?: string
   subdomain?: string
   project_line?: string
@@ -237,6 +242,69 @@ type RoutedTaskSpec = {
   preferred_agent: InstancePoolKey
   assigned_agent: InstancePoolKey
   target_system: string
+}
+
+type ScenarioTemplateKey = 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+
+type ScenarioTemplateTaskSeed = {
+  title: string
+  routeHint?: string
+  priority?: number
+  dependsOnIndexes?: number[]
+}
+
+type ScenarioTemplateDefinition = {
+  key: ScenarioTemplateKey
+  label: string
+  description: string
+  tasks: ScenarioTemplateTaskSeed[]
+}
+
+const SCENARIO_TEMPLATES: Record<ScenarioTemplateKey, ScenarioTemplateDefinition> = {
+  family_study_evening: {
+    key: 'family_study_evening',
+    label: 'family_study_evening',
+    description: '晚间学习编排，自动串联提醒、作业、复盘。',
+    tasks: [
+      { title: '家庭提醒：确认今晚学习时间与书包物料', routeHint: '家庭提醒 果果 学习', priority: 0 },
+      { title: '果果作业：完成晚间作业检查与口算练习', routeHint: '果果 作业 口算 练习', priority: 0, dependsOnIndexes: [0] },
+      { title: '果果学习：安排英语复习与课文朗读', routeHint: '果果 学习 复习 读书', priority: 1, dependsOnIndexes: [1] },
+      { title: '家庭复盘：记录晚间学习完成情况并提醒明早事项', routeHint: '家庭 学习 提醒果果', priority: 1, dependsOnIndexes: [2] },
+    ],
+  },
+  media_publish_flow: {
+    key: 'media_publish_flow',
+    label: 'media_publish_flow',
+    description: '内容从选题到发布复盘的全链路。',
+    tasks: [
+      { title: '内容选题：整理今日发布主题与核心 hook', routeHint: '内容 选题 文案 发布', priority: 1 },
+      { title: '内容脚本：输出短视频脚本与封面文案', routeHint: '内容 文案 发布', priority: 1, dependsOnIndexes: [0] },
+      { title: '账号发布：执行账号运营发布并检查评论引导', routeHint: '账号运营 发布 小红书', priority: 1, dependsOnIndexes: [1] },
+      { title: '内容复盘：记录发布结果与下一轮优化建议', routeHint: '内容 复盘 发布', priority: 2, dependsOnIndexes: [2] },
+    ],
+  },
+  business_followup_flow: {
+    key: 'business_followup_flow',
+    label: 'business_followup_flow',
+    description: '客户跟进、报价、确认与同步。',
+    tasks: [
+      { title: '客户跟进：梳理客户当前需求与关键顾虑', routeHint: '客户 跟进 报价', priority: 0 },
+      { title: '报价准备：补充报价说明与方案对比清单', routeHint: '客户 报价 技术方案', priority: 0, dependsOnIndexes: [0] },
+      { title: '客户确认：发送跟进回复并确认下一次沟通时间', routeHint: '客户 合同 报价 跟进', priority: 1, dependsOnIndexes: [1] },
+      { title: '业务同步：沉淀本轮跟进结论与内部协同事项', routeHint: '客户 技术支持 言町科技', priority: 1, dependsOnIndexes: [2] },
+    ],
+  },
+  builder_delivery_flow: {
+    key: 'builder_delivery_flow',
+    label: 'builder_delivery_flow',
+    description: '研发交付，从实现到验证和回传。',
+    tasks: [
+      { title: '研发实现：完成需求改动与最小验证方案', routeHint: '开发 实现 功能 页面', priority: 0 },
+      { title: '接口联调：确认接口数据与页面联动行为', routeHint: '接口 api 联调 后端', priority: 1, dependsOnIndexes: [0] },
+      { title: '回归验证：执行关键路径回归与异常检查', routeHint: '修复 回归 异常', priority: 1, dependsOnIndexes: [1] },
+      { title: '交付回执：整理 commit、截图与交付说明', routeHint: '开发 实现 功能', priority: 2, dependsOnIndexes: [2] },
+    ],
+  },
 }
 
 const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurrency: number }> = {
@@ -386,6 +454,67 @@ function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardIte
     `执行建议：已生成开发执行草案，下一步先确认范围、风险点与最小可验证改动，再进入实现。`,
     { domain: domain ?? 'builder', executor: 'code_executor' },
   )
+}
+
+function createScenarioTemplateTasks(templateKey: ScenarioTemplateKey, now: string) {
+  const template = SCENARIO_TEMPLATES[templateKey]
+  const taskGroupId = `${templateKey}-${Date.now()}`
+  const taskGroupLabel = `${template.label}-${new Date(now).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })}`
+
+  return template.tasks.map((seed, index) => {
+    const route = inferTaskRoute(seed.routeHint ?? seed.title)
+    const taskName = `${taskGroupLabel} · ${seed.title}`
+    const dependsOn = (seed.dependsOnIndexes ?? [])
+      .map((dependencyIndex) => `${taskGroupLabel} · ${template.tasks[dependencyIndex]?.title ?? ''}`)
+      .filter(Boolean)
+
+    return {
+      task_name: taskName,
+      agent: route.assigned_agent,
+      task_group_id: taskGroupId,
+      task_group_label: taskGroupLabel,
+      template_key: template.key,
+      template_source: template.label,
+      template_task_index: index + 1,
+      domain: route.domain,
+      subdomain: route.subdomain,
+      project_line: route.project_line,
+      target_group_id: route.target_group_id,
+      notify_mode: route.notify_mode,
+      preferred_agent: route.preferred_agent,
+      assigned_agent: route.assigned_agent,
+      target_system: route.target_system,
+      slot_id: null,
+      priority: seed.priority ?? 3,
+      retry_count: 0,
+      type: route.type,
+      status: 'queued',
+      timestamp: now,
+      queued_at: now,
+      updated_at: now,
+      attention: false,
+      stuck: false,
+      abnormal: false,
+      auto_decision_log: [],
+      decision_log: [],
+      human_owner: undefined,
+      taken_over_at: undefined,
+      manual_decision: undefined,
+      depends_on: dependsOn,
+      blocked_by: dependsOn.length ? [...dependsOn] : [],
+      dependency_status: dependsOn.length ? 'blocked' : 'ready',
+      history: [
+        {
+          action: 'create',
+          operator: 'system',
+          trigger_source: 'system',
+          timestamp: now,
+          status_after: 'queued',
+          priority_after: seed.priority ?? 3,
+        },
+      ],
+    } satisfies TaskBoardItem
+  })
 }
 
 function normalizeTaskResult(item: TaskBoardItem) {
@@ -1287,6 +1416,23 @@ export default defineConfig(({ mode }) => {
 
                 if (req.method === 'POST') {
                   const taskInput = String(body?.input || '').trim()
+                  const templateKey = String(body?.template_key || '').trim() as ScenarioTemplateKey
+
+                  if (templateKey && templateKey in SCENARIO_TEMPLATES) {
+                    const payload = await readTaskBoard(filePath)
+                    const now = new Date().toISOString()
+                    const scenarioTasks = createScenarioTemplateTasks(templateKey, now)
+                    payload.board.unshift(...scenarioTasks.reverse())
+                    payload.generated_at = now
+                    await writeTaskBoard(filePath, payload)
+                    const executed = await readTaskBoard(filePath)
+                    await writeTaskBoard(filePath, executed)
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify(summarizeTaskBoard(executed)))
+                    return
+                  }
+
                   if (!taskInput) {
                     res.statusCode = 400
                     res.setHeader('Content-Type', 'application/json')
