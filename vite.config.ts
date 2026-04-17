@@ -33,8 +33,9 @@ const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.jso
 const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
 const MEMORY_STORE_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-memory.json')
 const TEMPLATE_POOL_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-template-pool.json')
+const CONTENT_LEARNING_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/content-learning.json')
 
-type TemplateAssetType = 'script' | 'reply' | 'plan' | 'generic'
+type TemplateAssetType = 'script' | 'reply' | 'plan' | 'generic' | 'content_structure'
 
 type TemplateRecord = {
   template_id: string
@@ -48,7 +49,24 @@ type TemplateRecord = {
   updated_at: string
 }
 
+type ContentLearningRecord = {
+  key: string
+  content_line: string
+  account_line: string
+  structure_id: string
+  structure_type: string
+  impressions: number
+  feedback_count: number
+  positive_count: number
+  negative_count: number
+  avg_score: number
+  learning_score: number
+  last_feedback_at: string
+  last_updated_at: string
+}
+
 let templatePoolCache: TemplateRecord[] = []
+let contentLearningCache: ContentLearningRecord[] = []
 
 type MemoryType = 'preference' | 'habit' | 'history' | 'constraint'
 
@@ -163,6 +181,11 @@ type DecisionLogEntry = {
   memory_hit?: string
   profile_rule?: string
   template_id?: string
+  learning_key?: string
+  learning_score?: number
+  learning_rank?: number
+  learning_top_n?: number
+  learning_total_candidates?: number
 }
 
 type PersonaProfile = {
@@ -174,8 +197,8 @@ type PersonaProfile = {
 }
 
 type BrandLine = 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
-type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup' | 'growth_record' | 'ai_tools'
-type AccountType = 'official' | 'personal' | 'hybrid'
+type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'floor_heating' | 'group_buy_material' | 'customer_followup' | 'growth_record' | 'ai_tools'
+type AccountType = 'official' | 'personal' | 'hybrid' | 'external_partner'
 type AccountLine = 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
 type DistributionChannel = 'short_content' | 'official_account'
 type ContentVariant = 'short' | 'article'
@@ -268,7 +291,11 @@ type TaskBoardItem = {
     persona_id?: PersonaProfile['persona_id']
     tone_style?: string
     interaction_style?: string
-    structure_type?: 'official' | 'personal' | 'hybrid'
+    structure_type?: 'official' | 'personal' | 'hybrid' | 'short_content' | 'article' | 'consult_content'
+    structure_id?: string
+    section_map?: Record<string, string>
+    cta_policy?: 'default' | 'consult_only' | 'planting_only'
+    structure_summary?: string
     recommend_publish_time?: string
     recommend_frequency?: string
     publish_today?: boolean
@@ -286,6 +313,7 @@ type TaskBoardItem = {
   memory_hits?: string[]
   profile_tags?: string[]
   recommended_execute_at?: string
+  learning_score?: number
 }
 
 type TaskBoardPayload = {
@@ -318,6 +346,11 @@ type TaskBoardPayload = {
   current_user_id?: string
   current_profile?: UserProfile
   template_pool?: TemplateRecord[]
+  learning_summary?: {
+    total_records: number
+    avg_learning_score: number
+    high_score_records: number
+  }
   board: TaskBoardItem[]
 }
 
@@ -384,6 +417,8 @@ const CONTENT_LINE_SOURCE_MAP: Record<TaskBoardSource['source_type'], ContentLin
 const CONTENT_LINE_KEYWORDS: Array<{ line: ContentLine; keywords: string[] }> = [
   { line: 'kitchen_storage', keywords: ['收纳', '橱柜', '厨房'] },
   { line: 'material_case', keywords: ['材料', '建材', '品牌', '岩板', '热系统', '地暖'] },
+  { line: 'floor_heating', keywords: ['地暖', '采暖', '采暖系统', '热源'] },
+  { line: 'group_buy_material', keywords: ['团购', '拼团', '限时', '名额'] },
   { line: 'customer_followup', keywords: ['客户', '报价', '跟进'] },
   { line: 'layout_renovation', keywords: ['户型', '动线', '改造'] },
 ]
@@ -392,6 +427,8 @@ const CONTENT_LINE_ALLOWED_ACCOUNT_LINES: Record<ContentLine, AccountLine[]> = {
   layout_renovation: ['yanfami_official', 'guoma970'],
   kitchen_storage: ['kotoharo_official', 'chongming_storage'],
   material_case: ['yanfami_official', 'guoshituan_official', 'guoma970'],
+  floor_heating: ['yanfami_official', 'guoma970'],
+  group_buy_material: ['guoshituan_official'],
   customer_followup: ['guoshituan_official'],
   growth_record: ['latin_boy_guoguo'],
   ai_tools: ['luyi_children'],
@@ -428,6 +465,23 @@ const CONTENT_ROUTE_MAP: Record<Exclude<ContentLine, 'growth_record' | 'ai_tools
       { accountLine: 'luyi_children', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'official_account', taskSuffix: '六一儿童版' },
     ],
   },
+  floor_heating: {
+    brandLine: 'yanfami',
+    accountLine: 'yanfami_official',
+    sourceLine: 'yanfami_official',
+    variants: [
+      { accountLine: 'guoma970', accountType: 'hybrid', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'guoma970', personaId: 'guoma970_content', taskSuffix: '果妈970地暖体验版' },
+      { accountLine: 'yanfami_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '官方地暖长文版' },
+    ],
+  },
+  group_buy_material: {
+    brandLine: 'guoshituan',
+    accountLine: 'guoshituan_official',
+    sourceLine: 'guoshituan_official',
+    variants: [
+      { accountLine: 'guoshituan_official', accountType: 'external_partner', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '合作团购种草版' },
+    ],
+  },
   customer_followup: {
     brandLine: 'guoshituan',
     accountLine: 'guoshituan_official',
@@ -442,7 +496,7 @@ function appendDecisionLog(
   reason: string,
   detail: string,
   timestamp: string,
-  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule' | 'template_id'>,
+  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule' | 'template_id' | 'learning_key' | 'learning_score' | 'learning_rank' | 'learning_top_n' | 'learning_total_candidates'>,
 ) {
   const exists = (item.decision_log ?? []).some((entry) => entry.action === action && entry.reason === reason && entry.detail === detail)
   if (exists) return
@@ -503,6 +557,70 @@ async function writeTemplateStore(templates: TemplateRecord[]) {
   templatePoolCache = templates
   await fs.mkdir(path.dirname(TEMPLATE_POOL_FILE), { recursive: true })
   await fs.writeFile(TEMPLATE_POOL_FILE, `${JSON.stringify({ templates }, null, 2)}\n`, 'utf8')
+}
+
+async function readContentLearningStore() {
+  try {
+    const raw = await fs.readFile(CONTENT_LEARNING_FILE, 'utf8')
+    const payload = JSON.parse(raw) as { records?: ContentLearningRecord[] }
+    contentLearningCache = payload.records ?? []
+    return contentLearningCache
+  } catch {
+    await writeContentLearningStore([])
+    contentLearningCache = []
+    return []
+  }
+}
+
+async function writeContentLearningStore(records: ContentLearningRecord[]) {
+  contentLearningCache = records
+  await fs.mkdir(path.dirname(CONTENT_LEARNING_FILE), { recursive: true })
+  await fs.writeFile(CONTENT_LEARNING_FILE, `${JSON.stringify({ records }, null, 2)}\n`, 'utf8')
+}
+
+function toLearningKey(contentLine?: string, accountLine?: string, structureId?: string) {
+  return [contentLine ?? '-', accountLine ?? '-', structureId ?? '-'].join('|')
+}
+
+function recomputeLearningScore(record: Pick<ContentLearningRecord, 'positive_count' | 'negative_count' | 'feedback_count' | 'avg_score'>) {
+  if (record.feedback_count <= 0) return 0
+  const positivity = (record.positive_count - record.negative_count) / Math.max(1, record.feedback_count)
+  return Number((((record.avg_score / 5) * 0.7) + ((positivity + 1) / 2) * 0.3).toFixed(4))
+}
+
+function buildLearningIndex(records: ContentLearningRecord[]) {
+  return new Map(records.map((record) => [record.key, record]))
+}
+
+function upsertLearningFeedback(
+  records: ContentLearningRecord[],
+  input: { content_line: string; account_line: string; structure_id: string; structure_type: string; score: number; sentiment?: 'positive' | 'negative' | 'neutral'; timestamp: string },
+) {
+  const key = toLearningKey(input.content_line, input.account_line, input.structure_id)
+  const existing = records.find((record) => record.key === key)
+  const nextScore = Math.max(1, Math.min(5, input.score))
+  const feedbackCount = (existing?.feedback_count ?? 0) + 1
+  const positiveCount = (existing?.positive_count ?? 0) + (input.sentiment === 'positive' || nextScore >= 4 ? 1 : 0)
+  const negativeCount = (existing?.negative_count ?? 0) + (input.sentiment === 'negative' || nextScore <= 2 ? 1 : 0)
+  const avgScore = Number((((existing?.avg_score ?? 0) * (existing?.feedback_count ?? 0) + nextScore) / feedbackCount).toFixed(4))
+  const next: ContentLearningRecord = {
+    key,
+    content_line: input.content_line,
+    account_line: input.account_line,
+    structure_id: input.structure_id,
+    structure_type: input.structure_type,
+    impressions: Math.max(existing?.impressions ?? 0, feedbackCount),
+    feedback_count: feedbackCount,
+    positive_count: positiveCount,
+    negative_count: negativeCount,
+    avg_score: avgScore,
+    learning_score: recomputeLearningScore({ positive_count: positiveCount, negative_count: negativeCount, feedback_count: feedbackCount, avg_score: avgScore }),
+    last_feedback_at: input.timestamp,
+    last_updated_at: input.timestamp,
+  }
+  if (existing) Object.assign(existing, next)
+  else records.push(next)
+  return next
 }
 
 function toTemplateAssetType(item: TaskBoardItem): TemplateAssetType {
@@ -648,7 +766,8 @@ function computeBasePriority(item: TaskBoardItem) {
 function resolvePriority(item: TaskBoardItem) {
   const basePriority = computeBasePriority(item)
   if (item.need_human) return 0
-  return clampPriority(item.priority ?? basePriority)
+  const learningBoost = typeof item.learning_score === 'number' && item.learning_score >= 0.75 ? -1 : 0
+  return clampPriority((item.priority ?? basePriority) + learningBoost)
 }
 
 type RoutedTaskSpec = {
@@ -1010,29 +1129,90 @@ function resolvePersonaProfile(item: TaskBoardItem): PersonaProfile {
   return PERSONA_REGISTRY.openclaw_content
 }
 
-function buildStructuredSections(accountType: AccountType, sourceTitle: string, sourceText: string) {
-  const short = sourceText.slice(0, 48)
-  if (accountType === 'official') {
+function buildContentStructureResult(item: TaskBoardItem, sourceTitle: string, sourceText: string): {
+  structureId: string
+  structureType: 'short_content' | 'article' | 'consult_content'
+  sectionMap: Record<string, string>
+  ctaPolicy: 'default' | 'consult_only' | 'planting_only'
+  variantType: 'official' | 'personal' | 'hybrid'
+  summary?: string
+} {
+  const line = item.content_line ?? 'layout_renovation'
+  const variant = item.content_variant ?? 'short'
+  const accountType = item.account_type ?? 'official'
+  const isExternalPartner = accountType === 'external_partner'
+  const snippet = sourceText.slice(0, 48)
+  const ctaPolicy: 'default' | 'consult_only' | 'planting_only' = isExternalPartner || line === 'customer_followup' ? 'consult_only' : accountType === 'personal' ? 'planting_only' : 'default'
+  const variantType: 'official' | 'personal' | 'hybrid' = accountType === 'external_partner' ? 'official' : accountType
+
+  if (line === 'customer_followup') {
     return {
-      structure: ['结论', '方法', '总结'],
-      hook: `先说结论，${sourceTitle} 想真正好用，关键不是堆功能，而是先把 ${short} 这件事做对。`,
-      outline: [`结论：${sourceTitle} 的核心判断先行`, `方法：围绕 ${short} 拆成 3 步`, '总结：回到可执行与可复用'],
-      script: `结论：${sourceTitle} 最重要的是先把关键优先级排清楚。\n\n方法：第一步看真实使用场景，第二步拆常见误区，第三步给出立刻可执行的落地动作。\n\n总结：把复杂问题收束成一套可复制的方法，执行成本才会真正下降。`,
+      structureId: 'consult_followup_v1',
+      structureType: 'consult_content',
+      sectionMap: {
+        pain_point: `当前客户卡点：${snippet}`,
+        solution_hint: '先缩小决策范围，再给一版低压力建议。',
+        transfer_prompt: '如果你愿意，我可以按你的预算和时间节点继续细化下一步。',
+      },
+      ctaPolicy: 'consult_only' as const,
+      variantType,
     }
   }
-  if (accountType === 'hybrid') {
-    return {
-      structure: ['经验', '方法', '建议'],
-      hook: `我自己的经验是，${sourceTitle} 这类问题，往往不是不会做，而是前面判断顺序错了。`,
-      outline: [`经验：我/客户在 ${sourceTitle} 上最容易踩的坑`, `方法：把 ${short} 变成可执行步骤`, '建议：先做小范围验证，再决定是否放大'],
-      script: `经验：我做过几轮类似内容后发现，大家最容易卡在判断太晚。\n\n方法：先确认场景，再拆误区，最后只保留今天能执行的动作。\n\n建议：别一上来全量铺开，先挑最常用的区域试一版，效果通常更稳。`,
-    }
+
+  const shortMap: Record<string, { id: string; summary: string; sections: [string, string][] }> = {
+    layout_renovation: { id: 'layout_short_v1', summary: '问题 → 改造点 → 动线价值 → 引导', sections: [['hook', `户型问题别急着硬装，先看 ${sourceTitle} 里的真实动线冲突。`], ['common_mistake', '误区是只盯局部尺寸，不先看人怎么走。'], ['method', '改造点先聚焦通行、转身、收纳三个关键动作。'], ['action_prompt', '先圈出每天最堵的一步，再决定是否改墙、改柜、改门洞。'], ['interaction_question', '你家最想优先解决的是玄关、厨房还是客厅动线？']] },
+    kitchen_storage: { id: 'kitchen_short_v1', summary: '场景 → 收纳误区 → 小方法 → 行动', sections: [['hook', `做饭高峰最乱的，往往不是东西太多，而是 ${sourceTitle} 没按使用顺序放。`], ['common_mistake', '误区是先买收纳盒，再想每天到底怎么拿。'], ['method', '把高频、低频、备货三层重新分区。'], ['action_prompt', '今天先只整理一个最常开的抽屉。'], ['interaction_question', '你厨房最常乱的是台面、吊柜还是转角？']] },
+    material_case: { id: 'material_short_v1', summary: '产品点 → 为什么值得看 → 场景适配 → 提示', sections: [['hook', `${sourceTitle} 值不值得看，不只看参数，还要看它适不适合真实生活场景。`], ['common_mistake', '误区是只被单一卖点打动，忽略长期使用体验。'], ['method', '先看产品点，再看适配空间和维护成本。'], ['action_prompt', '把你家最核心的使用场景先写出来再选。'], ['interaction_question', '你更在意颜值、耐用还是后期打理？']] },
+    floor_heating: { id: 'floor_heating_short_v1', summary: '痛点 → 舒适体验 → 技术点 → 适合谁', sections: [['hook', `地暖好不好，不是看热不热，而是 ${sourceTitle} 能不能稳定舒服。`], ['common_mistake', '误区是只问温度，不问热源、层高和维护逻辑。'], ['method', '先确认痛点，再看舒适体验背后的系统配置。'], ['action_prompt', '先列出你最担心的能耗、升温速度和适配户型。'], ['interaction_question', '你更担心费电、层高损失，还是后期维护？']] },
+    group_buy_material: { id: 'group_buy_short_v1', summary: '为什么现在买 → 优势 → 名额/时机 → 引导', sections: [['hook', `现在看 ${sourceTitle}，关键不是便宜多少，而是这次时机值不值得你锁定。`], ['common_mistake', '误区是只看低价，不看交付边界和适配前提。'], ['method', '先看当前优势，再看名额节奏和咨询窗口。'], ['action_prompt', '先来问清适配范围，再决定要不要占位。'], ['interaction_question', '你更想先看价格机制，还是适配你家场景的建议？']] },
+    ai_tools: { id: 'ai_tools_short_v1', summary: '痛点 → 工具演示 → 省事点 → 行动', sections: [['hook', `${sourceTitle} 真正省事的地方，不是炫技，而是把重复动作直接省掉。`], ['common_mistake', '误区是先研究功能表，反而没解决眼前问题。'], ['method', '先演示一个最小可用场景，再决定是否扩展。'], ['action_prompt', '先拿一个今天反复做的动作来试。'], ['interaction_question', '你最想让它帮你省掉哪一步？']] },
+    growth_record: { id: 'growth_record_short_v1', summary: '生活瞬间 → 感受 → 互动提问', sections: [['hook', `今天这个小瞬间，让我重新想到 ${sourceTitle} 其实很值得记录。`], ['common_mistake', '很多人只记录结果，不记录当下感受。'], ['method', '先留住瞬间，再说一点真实体感。'], ['action_prompt', '把今天最想记住的一幕写下来。'], ['interaction_question', '你最近最想留住的一个生活瞬间是什么？']] },
   }
+
+  const articleMap: Record<string, { id: string; summary: string; sections: [string, string][] }> = {
+    layout_renovation: { id: 'layout_article_v1', summary: '户型问题 → 改造逻辑 → 案例 → 建议', sections: [['opening', `很多户型问题，不是面积小，而是 ${sourceTitle} 的动线没有被梳理清楚。`], ['problem', '先定位最影响日常效率的户型问题。'], ['analysis', '分析改造前后的使用逻辑差异。'], ['method', '按动线、收纳、采光三个层次给出方法。'], ['case_or_example', '用一个常见家庭案例说明怎么落地。'], ['conclusion', '先改最影响体验的一步，效果会比大拆大改更稳。'], ['CTA', ctaPolicy === 'consult_only' ? '如果你愿意，可以把户型发来，我帮你先做一轮判断。' : '想看你家户型适合怎么改，可以留言或咨询。']] },
+    kitchen_storage: { id: 'kitchen_article_v1', summary: '生活场景 → 常见问题 → 收纳逻辑 → 方法', sections: [['opening', `${sourceTitle} 最终不是比谁柜子多，而是比谁做饭更顺手。`], ['problem', '先列出做饭、备餐、囤货最常见的混乱点。'], ['analysis', '把问题对应到动线和收纳层级。'], ['method', '按台面、抽屉、吊柜重排使用逻辑。'], ['case_or_example', '举一个三口之家厨房的调整案例。'], ['conclusion', '顺手感出来后，厨房会明显轻松。'], ['CTA', ctaPolicy === 'consult_only' ? '如果想看适不适合你家厨房，可以先来聊场景。' : '想让我继续拆你家厨房，也可以留言交流。']] },
+    material_case: { id: 'material_article_v1', summary: '材料背景 → 使用场景 → 选择逻辑 → 案例', sections: [['opening', `${sourceTitle} 的价值，不在宣传词，而在真实使用场景里能不能成立。`], ['problem', '很多人选材料时只抓单点卖点。'], ['analysis', '把材料背景和实际使用条件对齐。'], ['method', '按预算、耐用、维护成本建立选择逻辑。'], ['case_or_example', '结合一个落地案例看取舍。'], ['conclusion', '选材先看匹配，再看参数。'], ['CTA', ctaPolicy === 'consult_only' ? '如果你想先判断适不适合你家，可以先咨询。' : '需要我继续拆材料适配逻辑，欢迎留言。']] },
+    floor_heating: { id: 'floor_heating_article_v1', summary: '采暖问题 → 地暖方案 → 技术说明 → 适配人群', sections: [['opening', `${sourceTitle} 适不适合做地暖，先看采暖问题，不只看流行不流行。`], ['problem', '先明确舒适、能耗、层高之间的优先级。'], ['analysis', '拆清地暖方案背后的热源和系统逻辑。'], ['method', '按房型、使用频率、预算给出选择方法。'], ['case_or_example', '用一个典型家庭采暖案例说明差异。'], ['conclusion', '适合自己的系统，才是舒服且长期可控的方案。'], ['CTA', ctaPolicy === 'consult_only' ? '如果你想先判断适不适合装，可以先咨询。' : '想继续看不同户型的地暖适配，也可以留言。']] },
+    group_buy_material: { id: 'group_buy_article_v1', summary: '选购背景 → 产品对比 → 团购理由 → 行动', sections: [['opening', `${sourceTitle} 这类团购内容，最怕只看价格，不看前提。`], ['problem', '很多人只盯折扣，却忽略适配和交付边界。'], ['analysis', '先做产品对比，再看这次团购的真正理由。'], ['method', '用适配条件、时机、名额节奏来判断是否值得参与。'], ['case_or_example', '举一个用户如何判断要不要占位的例子。'], ['conclusion', '先问清边界，再决定是否入场。'], ['CTA', '如果你想先判断这轮是否适合你，可以先来咨询。']] },
+    ai_tools: { id: 'ai_tools_article_v1', summary: '问题背景 → 工具方案 → 用法 → 适用人群', sections: [['opening', `${sourceTitle} 最有价值的地方，是把高频重复动作替你接住。`], ['problem', '先明确今天最浪费时间的问题是什么。'], ['analysis', '把问题和工具方案一一对应。'], ['method', '用一个最小流程讲清怎么上手。'], ['case_or_example', '举一个真实省时场景做示例。'], ['conclusion', '先小范围验证，再决定扩展。'], ['CTA', ctaPolicy === 'consult_only' ? '如果想先看适不适合你的场景，可以先咨询。' : '想看我继续拆具体用法，可以留言。']] },
+  }
+
+  const selected = variant === 'article' ? articleMap[line] : shortMap[line]
   return {
-    structure: ['场景', '问题', '解决', '感受'],
-    hook: `真实场景里，${sourceTitle} 看起来只是小问题，但真住进去以后，会反复被它影响。`,
-    outline: [`场景：围绕 ${sourceTitle} 的真实使用瞬间`, `问题：${short}`, '解决：拆成马上能试的动作', '感受：做完后的体感变化'],
-    script: `场景：每天真正在用的时候，问题会比想象里更频繁冒出来。\n\n问题：很多人以为忍一忍就过去了，结果越住越别扭。\n\n解决：把需求拆小，一次只改一个关键动作。\n\n感受：当顺手感出来以后，空间会明显轻松很多。`,
+    structureId: selected.id,
+    structureType: (variant === 'article' ? 'article' : 'short_content') as 'article' | 'short_content',
+    sectionMap: Object.fromEntries(selected.sections),
+    ctaPolicy,
+    variantType,
+    summary: selected.summary,
+  }
+}
+
+function selectStructureCandidate(
+  item: TaskBoardItem,
+  sourceTitle: string,
+  sourceText: string,
+  learningIndex: Map<string, ContentLearningRecord>,
+) {
+  const base = buildContentStructureResult(item, sourceTitle, sourceText)
+  const candidates = [base]
+  if (item.content_variant === 'short' && base.structureId !== 'growth_record_short_v1') {
+    candidates.push({ ...base, structureId: 'growth_record_short_v1', summary: `${base.summary ?? ''} / 生活感补充结构` })
+  }
+  const scored = candidates
+    .map((candidate, index) => {
+      const learningKey = toLearningKey(item.content_line, item.account_line, candidate.structureId)
+      const learned = learningIndex.get(learningKey)
+      const learningScore = learned?.learning_score ?? 0
+      const score = Number((0.55 + learningScore * 0.45 - index * 0.01).toFixed(4))
+      return { ...candidate, learningKey, learningScore, score }
+    })
+    .sort((a, b) => b.score - a.score)
+  return {
+    selected: scored[0],
+    topN: scored.slice(0, Math.min(3, scored.length)),
+    totalCandidates: scored.length,
   }
 }
 
@@ -1134,59 +1314,79 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
   if (!item.content_line || !item.content_variant) return null
   const sourceText = buildContentSourceText(item.source, item.task_name)
   const sourceTitle = item.source?.title || item.source?.chapter_title || item.task_name
-  const persona = item.content_variant === 'article' ? PERSONA_REGISTRY.official_account : resolvePersonaProfile(item)
-  const accountType = item.account_type ?? persona.structure_type
+  const persona = item.content_variant === 'article' && item.account_type !== 'hybrid' && item.account_type !== 'personal'
+    ? PERSONA_REGISTRY.official_account
+    : resolvePersonaProfile(item)
+  const selection = selectStructureCandidate(item, sourceTitle, sourceText, buildLearningIndex(contentLearningCache))
+  const structure = selection.selected
+  item.learning_score = structure.learningScore
+  appendDecisionLog(item, 'strategy_generate_task', 'structure_selected', `structure_selected=${structure.structureId}`, now, {
+    learning_key: structure.learningKey,
+    learning_score: structure.learningScore,
+    learning_rank: 1,
+    learning_top_n: selection.topN.length,
+    learning_total_candidates: selection.totalCandidates,
+  })
+  appendDecisionLog(item, 'strategy_generate_task', 'structure_variant_applied', `structure_variant_applied=${structure.variantType}`, now)
+  appendDecisionLog(item, 'strategy_generate_task', 'cta_policy_applied', `cta_policy_applied=${structure.ctaPolicy}`, now)
   if (item.content_variant === 'short') {
-    const sections = buildStructuredSections(accountType, sourceTitle, sourceText)
+    const outline = Object.entries(structure.sectionMap).map(([key, value]) => `${key}：${value}`)
     const title = `${sourceTitle}｜${item.content_line === 'kitchen_storage' ? '收纳短内容' : item.content_line === 'material_case' ? '案例短内容' : '短内容拆解'}`
-    const hook = sections.hook
-    const outline = sections.outline
-    const script = sections.script
+    const hook = structure.sectionMap['hook'] ?? Object.values(structure.sectionMap)[0] ?? sourceTitle
+    const script = outline.join('\n')
     return {
       type: 'text',
       content: [title, hook, ...outline, script].join('\n\n'),
-      meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant },
+      meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant, structure_id: structure.structureId, cta_policy: structure.ctaPolicy },
       title,
       hook,
       outline,
-      structure: sections.structure,
+      structure: Object.keys(structure.sectionMap),
       script,
-      publish_text: `${title}\n\n${sections.structure.map((label, index) => `${index + 1}. ${label}：${outline[index] ?? ''}`).join('\n')}\n\n${script}`,
+      publish_text: `${title}\n\n${outline.map((line, index) => `${index + 1}. ${line}`).join('\n')}\n\n${script}`,
       generated_at: now,
       generator: 'mock',
       persona: persona.persona,
       persona_id: persona.persona_id,
       tone_style: persona.tone_style,
       interaction_style: persona.interaction_style,
-      structure_type: persona.structure_type,
-      publish_ready: item.account_line !== 'guoshituan_official',
+      structure_type: structure.structureType,
+      structure_id: structure.structureId,
+      section_map: structure.sectionMap,
+      cta_policy: structure.ctaPolicy,
+      structure_summary: structure.summary,
+      publish_ready: true,
       archive_ready: true,
     }
   }
 
   const articleTitle = `${sourceTitle}｜${item.content_line === 'material_case' ? '案例深度拆解' : item.content_line === 'kitchen_storage' ? '收纳系统长文' : '公众号深度长文'}`
-  const articleHook = `这不是单点技巧，而是一套从场景、问题到落地方案的完整梳理。`
-  const structure = ['问题背景', '核心判断', '方案拆解', '执行建议']
-  const fullArticle = `一、问题背景\n${sourceText}\n\n二、核心判断\n围绕 ${sourceTitle}，先识别真实需求，再判断优先级。\n\n三、方案拆解\n分别拆场景、误区、动作。\n\n四、执行建议\n按预算、空间和实际使用频率来落地。`
+  const articleHook = structure.sectionMap['opening'] ?? '这不是单点技巧，而是一套完整梳理。'
+  const outline = Object.entries(structure.sectionMap).map(([key, value]) => `${key}：${value}`)
+  const fullArticle = outline.map((line, index) => `${index + 1}. ${line}`).join('\n\n')
   return {
     type: 'text',
-    content: [articleTitle, articleHook, ...structure, fullArticle].join('\n\n'),
-    meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant },
+    content: [articleTitle, articleHook, ...outline, fullArticle].join('\n\n'),
+    meta: { source_line: item.source_line, content_line: item.content_line, distribution_channel: item.distribution_channel, content_variant: item.content_variant, structure_id: structure.structureId, cta_policy: structure.ctaPolicy },
     title: articleTitle,
     hook: articleHook,
-    outline: structure,
-    structure,
+    outline,
+    structure: Object.keys(structure.sectionMap),
     script: fullArticle,
     full_article: fullArticle,
     publish_text: articleTitle,
     generated_at: now,
     generator: 'mock',
-    persona: PERSONA_REGISTRY.official_account.persona,
-    persona_id: 'official_account',
-    tone_style: PERSONA_REGISTRY.official_account.tone_style,
-    interaction_style: PERSONA_REGISTRY.official_account.interaction_style,
-    structure_type: 'official',
-    publish_ready: item.account_line !== 'guoshituan_official',
+    persona: persona.persona,
+    persona_id: persona.persona_id,
+    tone_style: persona.tone_style,
+    interaction_style: persona.interaction_style,
+    structure_type: structure.structureType,
+    structure_id: structure.structureId,
+    section_map: structure.sectionMap,
+    cta_policy: structure.ctaPolicy,
+    structure_summary: structure.summary,
+    publish_ready: true,
     archive_ready: true,
   }
 }
@@ -1921,7 +2121,9 @@ async function readTaskBoard(filePath: string) {
   const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
   const memoryRecords = await readMemoryStore()
   const templateRecords = await readTemplateStore()
+  const learningRecords = await readContentLearningStore()
   templatePoolCache = templateRecords
+  contentLearningCache = learningRecords
   payload.board = (payload.board ?? []).map((rawItem) => {
     const routed = enrichTaskRouting({
       ...rawItem,
@@ -1970,6 +2172,9 @@ async function readTaskBoard(filePath: string) {
     routed.profile_tags = profile.tags
     routed.memory_hits = []
     routed.recommended_execute_at = undefined
+    if (routed.content_line && routed.account_line && routed.result?.structure_id) {
+      routed.learning_score = learningRecords.find((record) => record.key === toLearningKey(routed.content_line, routed.account_line, routed.result?.structure_id))?.learning_score
+    }
     return routed
   })
   const now = Date.now()
@@ -2196,6 +2401,13 @@ async function readTaskBoard(filePath: string) {
     }
   }
   await writeMemoryStore(memoryRecords)
+  for (const item of payload.board) {
+    const structureId = item.result?.structure_id
+    if (!item.content_line || !item.account_line || !structureId || !isTaskDone(item.status)) continue
+    const learned = learningRecords.find((record) => record.key === toLearningKey(item.content_line, item.account_line, structureId))
+    if (learned) item.learning_score = learned.learning_score
+  }
+  await writeContentLearningStore(learningRecords)
   const scheduledPayload = applyScheduler(payload)
   scheduledPayload.template_pool = await syncTemplatePool(scheduledPayload.board)
   return scheduledPayload
@@ -2242,6 +2454,12 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
   payload.queue_count = payload.board.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
   payload.failed_count = payload.failed
   payload.abnormal_count = payload.board.filter((item) => item.abnormal || item.attention).length
+  const learningItems = payload.board.filter((item) => typeof item.learning_score === 'number')
+  payload.learning_summary = {
+    total_records: learningItems.length,
+    avg_learning_score: Number((learningItems.reduce((sum, item) => sum + (item.learning_score ?? 0), 0) / Math.max(1, learningItems.length)).toFixed(4)),
+    high_score_records: learningItems.filter((item) => (item.learning_score ?? 0) >= 0.75).length,
+  }
   payload.recent_results = payload.board
     .filter((item) => item.result)
     .sort((a, b) => new Date(b.updated_at ?? b.timestamp ?? 0).getTime() - new Date(a.updated_at ?? a.timestamp ?? 0).getTime())
@@ -3053,6 +3271,64 @@ export default defineConfig(({ mode }) => {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: 'memory write failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            next()
+          })
+
+          server.middlewares.use('/api/content-feedback', async (req, res, next) => {
+            if (req.method === 'GET') {
+              try {
+                const records = await readContentLearningStore()
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(JSON.stringify({ records: records.sort((a, b) => b.learning_score - a.learning_score) }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'content-feedback fetch failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            if (req.method === 'POST') {
+              try {
+                const chunks: Buffer[] = []
+                for await (const chunk of req) chunks.push(Buffer.from(chunk))
+                const bodyText = Buffer.concat(chunks).toString('utf8')
+                const body = bodyText ? JSON.parse(bodyText) : {}
+                const contentLine = String(body?.content_line || '').trim()
+                const accountLine = String(body?.account_line || '').trim()
+                const structureId = String(body?.structure_id || '').trim()
+                const structureType = String(body?.structure_type || 'short_content').trim()
+                const score = Number(body?.score ?? 0)
+                if (!contentLine || !accountLine || !structureId || !Number.isFinite(score) || score <= 0) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'missing learning feedback fields' }))
+                  return
+                }
+                const records = await readContentLearningStore()
+                const record = upsertLearningFeedback(records, {
+                  content_line: contentLine,
+                  account_line: accountLine,
+                  structure_id: structureId,
+                  structure_type: structureType,
+                  score,
+                  sentiment: body?.sentiment,
+                  timestamp: new Date().toISOString(),
+                })
+                await writeContentLearningStore(records)
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ ok: true, record }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'content-feedback write failed', message: error instanceof Error ? error.message : String(error) }))
               }
               return
             }
