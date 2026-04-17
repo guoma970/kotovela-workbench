@@ -70,6 +70,8 @@ type TaskHistoryEntry = {
     | 'auto_priority_down'
     | 'abnormal_detected'
     | 'stuck_detected'
+    | 'auto_notify'
+    | 'need_human'
   timestamp: string
   status_before?: string
   status_after?: string
@@ -78,11 +80,18 @@ type TaskHistoryEntry = {
   retry_count?: number
   error?: string
   trigger_source?: 'manual' | 'system' | 'rule_engine'
-  decision_type?: 'auto_retry' | 'auto_priority_down' | 'stuck_detected' | 'abnormal_detected'
+  decision_type?: 'auto_retry' | 'auto_priority_down' | 'stuck_detected' | 'abnormal_detected' | 'need_human' | 'auto_notify'
   decision_reason?: string
   operator?: 'system' | 'builder'
   before?: { status?: string; priority?: number }
   after?: { status?: string; priority?: number }
+}
+
+type DecisionLogEntry = {
+  timestamp: string
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result'
+  reason: string
+  detail: string
 }
 
 type TaskBoardItem = {
@@ -111,6 +120,9 @@ type TaskBoardItem = {
   stuck?: boolean
   abnormal?: boolean
   auto_decision_log?: string[]
+  decision_log?: DecisionLogEntry[]
+  need_human?: boolean
+  auto_action?: 'retry' | 'warning' | 'need_human' | 'notify_result'
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
@@ -160,6 +172,21 @@ type TaskBoardPayload = {
 
 const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
 type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
+const QUEUE_WARNING_MS = 60_000
+
+function appendDecisionLog(
+  item: TaskBoardItem,
+  action: NonNullable<TaskBoardItem['auto_action']>,
+  reason: string,
+  detail: string,
+  timestamp: string,
+) {
+  const exists = (item.decision_log ?? []).some((entry) => entry.action === action && entry.reason === reason && entry.detail === detail)
+  if (exists) return
+  item.decision_log = [...(item.decision_log ?? []), { timestamp, action, reason, detail }]
+  item.auto_decision_log = [...(item.auto_decision_log ?? []), detail]
+  item.auto_action = action
+}
 
 type RoutedTaskSpec = {
   domain: InstancePoolKey
@@ -413,10 +440,15 @@ function applyScheduler(payload: TaskBoardPayload) {
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
       if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
-        item.slot_active = true
-        item.slot_id = `${poolKey}-slot-${Math.min(runningCount + 1, maxConcurrency)}`
-        runningCount = Math.min(runningCount + 1, maxConcurrency)
-        runQueuedTask(item, now)
+        if (item.stuck) {
+          item.slot_active = false
+          item.slot_id = null
+        } else {
+          item.slot_active = true
+          item.slot_id = `${poolKey}-slot-${Math.min(runningCount + 1, maxConcurrency)}`
+          runningCount = Math.min(runningCount + 1, maxConcurrency)
+          runQueuedTask(item, now)
+        }
       } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
         item.slot_active = false
         item.slot_id = null
@@ -474,6 +506,9 @@ async function readTaskBoard(filePath: string) {
       stuck: rawItem.stuck ?? false,
       abnormal: rawItem.abnormal ?? false,
       auto_decision_log: rawItem.auto_decision_log ?? [],
+      decision_log: rawItem.decision_log ?? [],
+      need_human: rawItem.need_human ?? false,
+      auto_action: rawItem.auto_action,
       queued_at: rawItem.queued_at ?? rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
       slot_active: rawItem.slot_active ?? false,
       result: rawItem.result,
@@ -498,26 +533,30 @@ async function readTaskBoard(filePath: string) {
     const next = { ...item }
     normalizeTaskResult(next)
     if (next.status === 'failed') next.attention = true
-    const ageMs = now - new Date(next.updated_at ?? next.timestamp ?? now).getTime()
-    const stuckNow = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
-    next.stuck = stuckNow
-    if (stuckNow) {
+
+    const decisionTimestamp = new Date().toISOString()
+    const queuedAgeMs = now - new Date(next.queued_at ?? next.timestamp ?? now).getTime()
+    const queueTimedOut = ['todo', 'queued', 'queue', 'pending'].includes(next.status ?? '') && queuedAgeMs > QUEUE_WARNING_MS
+    next.stuck = queueTimedOut
+    if (queueTimedOut) {
       const hasStuck = (next.history ?? []).some((entry) => entry.decision_type === 'stuck_detected')
       if (!hasStuck) {
         next.history = [
           ...(next.history ?? []),
           {
             action: 'stuck_detected',
-            timestamp: new Date().toISOString(),
+            timestamp: decisionTimestamp,
             trigger_source: 'rule_engine',
             decision_type: 'stuck_detected',
-            decision_reason: '待处理超过60s',
+            decision_reason: '队列等待超过60s',
             status_after: next.status,
             priority_after: next.priority,
           },
         ]
       }
+      appendDecisionLog(next, 'warning', 'queue_timeout', '队列超时，已自动发送 warning 通知', decisionTimestamp)
     }
+
     const recentPauseResume = (next.history ?? []).filter(
       (entry) => ['pause', 'resume'].includes(entry.action) && now - new Date(entry.timestamp).getTime() <= 60_000,
     )
@@ -533,42 +572,97 @@ async function readTaskBoard(filePath: string) {
             trigger_source: 'rule_engine',
             decision_type: 'abnormal_detected',
             decision_reason: '60s 内 pause/resume 频繁切换',
-            timestamp: new Date().toISOString(),
+            timestamp: decisionTimestamp,
             status_after: next.status,
             priority_after: next.priority,
           },
         ]
-        next.auto_decision_log = [...(next.auto_decision_log ?? []), '检测到频繁 pause/resume，已标记 abnormal']
+        appendDecisionLog(next, 'warning', 'abnormal_detected', '检测到频繁 pause/resume，已标记 abnormal', decisionTimestamp)
       }
     }
-    const failedHistory = [...(next.history ?? [])].slice().reverse().filter((entry) => entry.action === 'fail')
+
+    const failedHistory = [...(next.history ?? [])].filter((entry) => entry.action === 'fail')
+    const latestFail = [...failedHistory].slice(-1)[0]
+    const retryCount = next.retry_count ?? 0
+    const hasRetryAfterLatestFail = latestFail
+      ? (next.history ?? []).some((entry) => entry.action === 'retry' && new Date(entry.timestamp).getTime() >= new Date(latestFail.timestamp).getTime())
+      : false
+
+    if (next.status === 'failed' && retryCount < 2 && latestFail && !hasRetryAfterLatestFail) {
+      next.retry_count = retryCount + 1
+      next.status = 'queued'
+      next.control_status = 'active'
+      next.updated_at = decisionTimestamp
+      next.queued_at = decisionTimestamp
+      next.attention = false
+      next.history = [
+        ...(next.history ?? []),
+        {
+          action: 'retry',
+          operator: 'system',
+          trigger_source: 'rule_engine',
+          timestamp: decisionTimestamp,
+          status_before: 'failed',
+          status_after: 'queued',
+          priority_before: next.priority,
+          priority_after: next.priority,
+          retry_count: next.retry_count,
+          decision_type: 'auto_retry',
+          decision_reason: `失败后自动重试，第 ${next.retry_count} 次`,
+        },
+      ]
+      appendDecisionLog(next, 'retry', 'task_failed', `任务失败后自动重试，第 ${next.retry_count} / 2 次`, decisionTimestamp)
+    }
+
     if (failedHistory.length >= 2) {
-      const hasAutoDown = (next.history ?? []).some((entry) => entry.action === 'auto_priority_down')
-      if (!hasAutoDown) {
-        const newPriority = Math.min(9, (next.priority ?? 3) + 1)
+      const hasNeedHuman = (next.history ?? []).some((entry) => entry.decision_type === 'need_human')
+      if (!hasNeedHuman) {
+        const newPriority = Math.max(1, (next.priority ?? 3) - 1)
+        next.need_human = true
+        next.priority = newPriority
+        next.attention = true
         next.history = [
           ...(next.history ?? []),
           {
-            action: 'auto_priority_down',
+            action: 'need_human',
             operator: 'system',
             trigger_source: 'rule_engine',
-            decision_type: 'auto_priority_down',
-            decision_reason: '连续失败>=2次自动降级优先级',
-            timestamp: new Date().toISOString(),
+            decision_type: 'need_human',
+            decision_reason: '连续失败>=2次，升级人工介入',
+            timestamp: decisionTimestamp,
             status_before: next.status,
             status_after: next.status,
-            priority_before: next.priority,
+            priority_before: item.priority,
             priority_after: newPriority,
           },
         ]
-        next.priority = newPriority
-        next.auto_decision_log = [...(next.auto_decision_log ?? []), `连续失败已自动降级到 P${newPriority}`]
+        appendDecisionLog(next, 'need_human', 'continuous_failure', `连续失败 >= 2，已升级人工介入并提升到 P${newPriority}`, decisionTimestamp)
+      }
+    }
+
+    if (['done', 'success'].includes(next.status ?? '') && next.result) {
+      const hasNotify = (next.history ?? []).some((entry) => entry.decision_type === 'auto_notify')
+      if (!hasNotify) {
+        next.history = [
+          ...(next.history ?? []),
+          {
+            action: 'auto_notify',
+            operator: 'system',
+            trigger_source: 'rule_engine',
+            decision_type: 'auto_notify',
+            decision_reason: `任务完成后按 ${next.domain ?? 'builder'} 域自动通知结果`,
+            timestamp: decisionTimestamp,
+            status_after: next.status,
+            priority_after: next.priority,
+          },
+        ]
+        appendDecisionLog(next, 'notify_result', 'task_done', `任务完成，已按 ${next.domain ?? 'builder'} 域自动发送结果通知`, decisionTimestamp)
       }
     }
 
     const failCount = failedHistory.length
     if (failCount >= 3) next.health = 'critical'
-    else if (failCount >= 2 || next.stuck || next.abnormal) next.health = 'warning'
+    else if (failCount >= 2 || next.stuck || next.abnormal || next.need_human) next.health = 'warning'
     else next.health = 'healthy'
 
     return next
@@ -657,7 +751,7 @@ function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEven
   }
   if (eventType === 'task_failed') return [...(item.history ?? [])].reverse().find((entry) => entry.error)?.error || '任务执行失败'
   if (eventType === 'task_warning') {
-    if (item.stuck) return '任务待处理超过 60s'
+    if (item.stuck) return '任务队列等待超过 60s'
     if (item.abnormal) return '检测到异常切换或风险状态'
     if (item.health === 'warning') return '任务处于 warning 状态'
     return '任务出现预警，请检查 Scheduler'
@@ -671,11 +765,13 @@ function inferTaskNotifyEvent(item: TaskBoardItem, prev?: TaskBoardItem): TaskNo
   const prevStatus = prev?.status ?? ''
   const warningNow = Boolean(item.stuck || item.abnormal || item.health === 'warning')
   const warningPrev = Boolean(prev?.stuck || prev?.abnormal || prev?.health === 'warning')
+  const needHumanNow = Boolean(item.need_human || status === 'paused' || status === 'cancelled')
+  const needHumanPrev = Boolean(prev?.need_human || prevStatus === 'paused' || prevStatus === 'cancelled')
 
   if (!prev && ['queued', 'queue', 'todo', 'pending'].includes(status)) return 'task_queued'
+  if (needHumanNow && !needHumanPrev) return 'task_need_human'
   if (status === 'failed' && prevStatus !== 'failed') return 'task_failed'
   if ((status === 'done' || status === 'success') && prevStatus !== status) return 'task_done'
-  if ((status === 'paused' || status === 'cancelled') && prevStatus !== status) return 'task_need_human'
   if (warningNow && !warningPrev) return 'task_warning'
   return null
 }
@@ -731,7 +827,9 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
           ? '【任务需人工介入】'
           : eventType === 'task_queued'
             ? '【任务已进入队列】'
-            : '【任务完成】',
+            : eventType === 'task_failed'
+              ? '【任务失败】'
+              : '【任务完成】',
       `任务：${item.task_name}`,
       `实例：${item.assigned_agent ?? item.agent ?? 'builder'}`,
       `状态：${eventType === 'task_warning' ? '告警' : item.status ?? '-'}`,

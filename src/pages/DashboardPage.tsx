@@ -172,6 +172,13 @@ type AutoTaskHistoryEntry = {
   after?: { status?: string; priority?: number }
 }
 
+type AutoDecisionLogEntry = {
+  timestamp: string
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result'
+  reason: string
+  detail: string
+}
+
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
@@ -198,6 +205,9 @@ type AutoTaskBoardItem = {
   stuck?: boolean
   abnormal?: boolean
   auto_decision_log?: string[]
+  decision_log?: AutoDecisionLogEntry[]
+  need_human?: boolean
+  auto_action?: 'retry' | 'warning' | 'need_human' | 'notify_result'
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
@@ -696,19 +706,18 @@ export function AutoTaskSystemPanel() {
 
   const recentDecisions = [...(data?.board ?? [])]
     .flatMap((item) =>
-      (item.history ?? [])
-        .filter((entry) => entry.decision_type && ['auto_retry', 'auto_priority_down', 'auto_pause'].includes(entry.decision_type))
-        .map((entry) => ({
-          taskName: item.task_name,
-          agent: item.agent,
-          decision: entry.decision_type as 'auto_retry' | 'auto_priority_down' | 'auto_pause',
-          reason: entry.decision_reason || '-',
-          timestamp: entry.timestamp,
-          retryCount: entry.retry_count ?? item.retry_count ?? 0,
-        })),
+      (item.decision_log ?? []).map((entry) => ({
+        taskName: item.task_name,
+        agent: item.agent,
+        decision: entry.action,
+        reason: entry.reason,
+        detail: entry.detail,
+        timestamp: entry.timestamp,
+        retryCount: item.retry_count ?? 0,
+      })),
     )
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 6)
+    .slice(0, 8)
 
   const renderTaskCard = (
     item: AutoTaskBoardItem,
@@ -723,6 +732,8 @@ export function AutoTaskSystemPanel() {
       item.attention ? 'attention' : '',
       item.stuck ? 'stuck' : '',
       item.abnormal ? 'abnormal' : '',
+      item.need_human ? 'need_human' : '',
+      item.auto_action ? `auto_${item.auto_action}` : '',
     ].filter(Boolean)
 
     return (
@@ -746,6 +757,8 @@ export function AutoTaskSystemPanel() {
           <span>status: {item.status}</span>
           <span>priority: P{item.priority}</span>
           <span>retry_count: {item.retry_count ?? 0}</span>
+          <span>need_human: {item.need_human ? 'true' : 'false'}</span>
+          <span>auto_action: {item.auto_action ?? '-'}</span>
         </div>
         {flags.length > 0 ? (
           <div className="auto-task-flags">
@@ -791,6 +804,15 @@ export function AutoTaskSystemPanel() {
                 <div><span>content</span><pre>{item.result.content}</pre></div>
               </div>
             ) : null}
+          </div>
+        ) : null}
+        {item.decision_log?.length ? (
+          <div className="scheduler-task-result-block">
+            <div className="scheduler-task-result-head"><strong>自动决策</strong></div>
+            <div className="scheduler-task-result-content">
+              <div><span>last_action</span><strong>{item.auto_action ?? '-'}</strong></div>
+              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}`).join('\n')}</pre></div>
+            </div>
           </div>
         ) : null}
         <div className="scheduler-task-foot">
@@ -947,9 +969,9 @@ export function AutoTaskSystemPanel() {
                     <span>{decision.timestamp}</span>
                   </div>
                   <p>{decision.taskName} · {decision.agent}</p>
-                  <small>{decision.reason}{decision.decision === 'auto_retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
+                  <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
                 </article>
-              )) : <div className="auto-task-empty">暂无 auto_retry / auto_priority_down / auto_pause 记录</div>}
+              )) : <div className="auto-task-empty">暂无自动决策记录</div>}
             </div>
           </section>
         </div>
