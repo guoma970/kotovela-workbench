@@ -6,15 +6,21 @@ import { fetchOfficeInstancesPayload } from './server/officeInstances'
 
 type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
 
+type NotifyMode = 'default' | 'need_human' | 'confirm' | 'assigned' | 'reminder'
+
 type TaskNotificationRecord = {
   id: string
   event_type: TaskNotifyEvent
   task_name: string
   domain: string
+  subdomain: string
+  project_line: string
+  notify_mode: NotifyMode
   assigned_agent: string
   status: string
   summary: string
   target_group: string
+  target_group_id: string
   target_channel: string
   scheduler_hint: string
   created_at: string
@@ -25,12 +31,20 @@ type TaskNotificationRecord = {
 const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
 const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
 
-const DOMAIN_NOTIFY_TARGET: Record<string, { group: string; channel: string }> = {
-  family: { group: '学习协同群', channel: 'family' },
-  media: { group: 'OpenClaw内容运营群', channel: 'media' },
-  business: { group: '业务运营群', channel: 'business' },
-  builder: { group: '系统运维群', channel: 'builder' },
-  system: { group: '系统运维群', channel: 'system' },
+const PROJECT_LINE_NOTIFY_TARGET: Record<string, { group: string; groupId: string; channel: string }> = {
+  openclaw_content: { group: 'OpenClaw内容运营群', groupId: 'openclaw_content', channel: 'media' },
+  latin_boy_guoguo: { group: '拉丁男孩果果运营群', groupId: 'latin_boy_guoguo', channel: 'media' },
+  chongming_storage: { group: '崇明小娘爱收纳运营群', groupId: 'chongming_storage', channel: 'media' },
+  mom970_content: { group: '果妈970运营群', groupId: 'mom970_content', channel: 'media' },
+  book_manuscript: { group: '日式装修指南书稿群', groupId: 'book_manuscript', channel: 'media' },
+  tech_ops: { group: '言町科技运营群', groupId: 'tech_ops', channel: 'business' },
+  housing_ops: { group: '言家住宅运营群', groupId: 'housing_ops', channel: 'business' },
+  biz_content_ops: { group: '言纳筑集运营群', groupId: 'biz_content_ops', channel: 'business' },
+  official_account: { group: '公众号运营群', groupId: 'official_account', channel: 'business' },
+  family_collab: { group: '果果学习协同群', groupId: 'family_collab', channel: 'family' },
+  family_assign: { group: '果果学习布置群', groupId: 'family_assign', channel: 'family' },
+  builder_default: { group: '系统运维群', groupId: 'builder_default', channel: 'builder' },
+  system_default: { group: '系统运维群', groupId: 'system_default', channel: 'system' },
 }
 
 type TaskHistoryEntry = {
@@ -65,6 +79,10 @@ type TaskBoardItem = {
   task_name: string
   agent: string
   domain?: string
+  subdomain?: string
+  project_line?: string
+  target_group_id?: string
+  notify_mode?: NotifyMode
   preferred_agent?: string
   assigned_agent?: string
   target_system?: string
@@ -132,6 +150,10 @@ type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 
 type RoutedTaskSpec = {
   domain: InstancePoolKey
+  subdomain: string
+  project_line: string
+  target_group_id: string
+  notify_mode: NotifyMode
   type: string
   preferred_agent: InstancePoolKey
   assigned_agent: InstancePoolKey
@@ -146,20 +168,39 @@ const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurre
   personal: { label: 'Personal', maxConcurrency: 1 },
 }
 
-const DOMAIN_RULES: Array<{ domain: InstancePoolKey; keywords: string[]; type: string }> = [
-  { domain: 'family', keywords: ['家庭', '作业', '学习'], type: 'family_task' },
-  { domain: 'media', keywords: ['内容', '文案', '选题', '发布'], type: 'content_task' },
-  { domain: 'business', keywords: ['客户', '方案', '报价', '跟进'], type: 'business_task' },
-  { domain: 'builder', keywords: ['页面', '接口', '开发', '修复'], type: 'builder_task' },
-  { domain: 'personal', keywords: ['提醒', '个人事务'], type: 'personal_task' },
+const PROJECT_LINE_RULES: Array<Omit<RoutedTaskSpec, 'preferred_agent' | 'assigned_agent' | 'target_system'> & { keywords: string[] }> = [
+  { domain: 'media', subdomain: 'content', project_line: 'openclaw_content', target_group_id: 'openclaw_content', notify_mode: 'default', type: 'content_task', keywords: ['openclaw', 'open claw', '内容中台'] },
+  { domain: 'media', subdomain: 'content', project_line: 'latin_boy_guoguo', target_group_id: 'latin_boy_guoguo', notify_mode: 'default', type: 'content_task', keywords: ['拉丁', '男孩果果', 'latin boy', 'guoguo'] },
+  { domain: 'media', subdomain: 'content', project_line: 'chongming_storage', target_group_id: 'chongming_storage', notify_mode: 'default', type: 'content_task', keywords: ['崇明', '收纳', 'storage'] },
+  { domain: 'media', subdomain: 'content', project_line: 'mom970_content', target_group_id: 'mom970_content', notify_mode: 'default', type: 'content_task', keywords: ['果妈970', '970内容', 'mom970'] },
+  { domain: 'media', subdomain: 'content', project_line: 'book_manuscript', target_group_id: 'book_manuscript', notify_mode: 'default', type: 'content_task', keywords: ['书稿', '装修指南', 'manuscript'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'tech_ops', target_group_id: 'tech_ops', notify_mode: 'default', type: 'business_task', keywords: ['言町科技', '科技运营', 'tech ops', 'tech_ops'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'housing_ops', target_group_id: 'housing_ops', notify_mode: 'default', type: 'business_task', keywords: ['言家住宅', '住宅运营', 'housing ops', 'housing_ops'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'biz_content_ops', target_group_id: 'biz_content_ops', notify_mode: 'default', type: 'business_task', keywords: ['言纳筑集', '筑集', 'biz content', 'biz_content_ops'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'official_account', target_group_id: 'official_account', notify_mode: 'default', type: 'business_task', keywords: ['公众号', '公号', 'official account', 'official_account'] },
+  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_collab', notify_mode: 'need_human', type: 'family_task', keywords: ['need_human', '人工介入', '家长确认'] },
+  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_collab', notify_mode: 'confirm', type: 'family_task', keywords: ['confirm', '确认', '待确认'] },
+  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'assigned', type: 'family_task', keywords: ['assigned', '布置', '分配作业'] },
+  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'reminder', type: 'family_task', keywords: ['reminder', '提醒', '作业提醒', '学习提醒'] },
+  { domain: 'family', subdomain: 'study', project_line: 'guoguo_study', target_group_id: 'family_assign', notify_mode: 'default', type: 'family_task', keywords: ['家庭', '作业', '学习'] },
+  { domain: 'media', subdomain: 'content', project_line: 'openclaw_content', target_group_id: 'openclaw_content', notify_mode: 'default', type: 'content_task', keywords: ['内容', '文案', '选题', '发布'] },
+  { domain: 'business', subdomain: 'ops', project_line: 'tech_ops', target_group_id: 'tech_ops', notify_mode: 'default', type: 'business_task', keywords: ['客户', '方案', '报价', '跟进'] },
+  { domain: 'builder', subdomain: 'engineering', project_line: 'builder_default', target_group_id: 'builder_default', notify_mode: 'default', type: 'builder_task', keywords: ['页面', '接口', '开发', '修复'] },
+  { domain: 'personal', subdomain: 'personal', project_line: 'builder_default', target_group_id: 'builder_default', notify_mode: 'default', type: 'personal_task', keywords: ['提醒', '个人事务'] },
 ]
 
 function inferTaskRoute(input: string): RoutedTaskSpec {
   const normalized = input.trim().toLowerCase()
-  const matched = DOMAIN_RULES.find((rule) => rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())))
+  const matched = PROJECT_LINE_RULES.find((rule) => rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())))
   const domain = matched?.domain ?? 'builder'
+  const projectLine = matched?.project_line ?? 'builder_default'
+  const targetGroupId = matched?.target_group_id ?? 'builder_default'
   return {
     domain,
+    subdomain: matched?.subdomain ?? (domain === 'business' ? 'ops' : domain === 'media' ? 'content' : domain === 'family' ? 'study' : 'engineering'),
+    project_line: projectLine,
+    target_group_id: targetGroupId,
+    notify_mode: matched?.notify_mode ?? 'default',
     type: matched?.type ?? `${domain}_task`,
     preferred_agent: domain,
     assigned_agent: domain,
@@ -315,37 +356,40 @@ function applyScheduler(payload: TaskBoardPayload) {
 
 async function readTaskBoard(filePath: string) {
   const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
-  payload.board = (payload.board ?? []).map((item) => ({
-    ...item,
-    domain: item.domain ?? normalizePoolKey(item.agent) ?? 'builder',
-    preferred_agent: item.preferred_agent ?? normalizePoolKey(item.agent) ?? 'builder',
-    assigned_agent: item.assigned_agent ?? normalizePoolKey(item.agent) ?? normalizePoolKey(item.preferred_agent) ?? 'builder',
-    target_system: item.target_system ?? `openclaw-${normalizePoolKey(item.agent) ?? 'builder'}`,
-    slot_id: item.slot_id ?? null,
-    retry_count: item.retry_count ?? 0,
-    control_status: item.control_status ?? 'active',
-    updated_at: item.updated_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
-    attention: item.attention ?? item.status === 'failed',
-    stuck: item.stuck ?? false,
-    abnormal: item.abnormal ?? false,
-    auto_decision_log: item.auto_decision_log ?? [],
-    queued_at: item.queued_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
-    slot_active: item.slot_active ?? false,
-    result: item.result,
-    history:
-      item.history && item.history.length > 0
-        ? item.history
-        : [
+  payload.board = (payload.board ?? []).map((rawItem) => {
+    const routed = enrichTaskRouting({
+      ...rawItem,
+      domain: rawItem.domain ?? normalizePoolKey(rawItem.agent) ?? 'builder',
+      preferred_agent: rawItem.preferred_agent ?? normalizePoolKey(rawItem.agent) ?? 'builder',
+      assigned_agent: rawItem.assigned_agent ?? normalizePoolKey(rawItem.agent) ?? normalizePoolKey(rawItem.preferred_agent) ?? 'builder',
+      target_system: rawItem.target_system ?? `openclaw-${normalizePoolKey(rawItem.agent) ?? 'builder'}`,
+      slot_id: rawItem.slot_id ?? null,
+      retry_count: rawItem.retry_count ?? 0,
+      control_status: rawItem.control_status ?? 'active',
+      updated_at: rawItem.updated_at ?? rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+      attention: rawItem.attention ?? rawItem.status === 'failed',
+      stuck: rawItem.stuck ?? false,
+      abnormal: rawItem.abnormal ?? false,
+      auto_decision_log: rawItem.auto_decision_log ?? [],
+      queued_at: rawItem.queued_at ?? rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+      slot_active: rawItem.slot_active ?? false,
+      result: rawItem.result,
+      history:
+        rawItem.history && rawItem.history.length > 0
+          ? rawItem.history
+          : [
             {
               action: 'create',
               operator: 'system',
               trigger_source: 'system',
-              timestamp: item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
-              status_after: item.status,
-              priority_after: item.priority,
+              timestamp: rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
+              status_after: rawItem.status,
+              priority_after: rawItem.priority,
             },
           ],
-  }))
+    })
+    return routed
+  })
   const now = Date.now()
   payload.board = payload.board.map((item) => {
     const next = { ...item }
@@ -475,8 +519,27 @@ function normalizeNotifyDomain(value?: string) {
   return normalized === 'personal' ? 'builder' : normalized
 }
 
-function resolveNotifyTarget(domain?: string) {
-  return DOMAIN_NOTIFY_TARGET[normalizeNotifyDomain(domain)] ?? DOMAIN_NOTIFY_TARGET.builder
+function enrichTaskRouting(item: TaskBoardItem) {
+  const inferred = inferTaskRoute(item.task_name)
+  item.domain = normalizeNotifyDomain(item.domain) as InstancePoolKey
+  item.subdomain = item.subdomain ?? inferred.subdomain
+  item.project_line = item.project_line ?? inferred.project_line
+  item.notify_mode = item.notify_mode ?? inferred.notify_mode
+  item.target_group_id = item.target_group_id ?? inferred.target_group_id
+  return item
+}
+
+function resolveNotifyTarget(item: Pick<TaskBoardItem, 'task_name' | 'domain' | 'project_line' | 'target_group_id' | 'notify_mode'>) {
+  const inferred = inferTaskRoute(item.task_name)
+  const domain = normalizeNotifyDomain(item.domain)
+  const notifyMode = item.notify_mode ?? inferred.notify_mode
+  const targetGroupId = item.target_group_id
+    ?? (domain === 'family' && ['need_human', 'confirm'].includes(notifyMode) ? 'family_collab' : undefined)
+    ?? (domain === 'family' && ['assigned', 'reminder', 'default'].includes(notifyMode) ? 'family_assign' : undefined)
+    ?? item.project_line
+    ?? inferred.target_group_id
+    ?? (domain === 'system' ? 'system_default' : 'builder_default')
+  return PROJECT_LINE_NOTIFY_TARGET[targetGroupId] ?? PROJECT_LINE_NOTIFY_TARGET.builder_default
 }
 
 function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEvent) {
@@ -554,7 +617,8 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
   for (const item of nextPayload.board ?? []) {
     const eventType = inferTaskNotifyEvent(item, previousByName.get(item.task_name))
     if (!eventType) continue
-    const target = resolveNotifyTarget(item.domain)
+    enrichTaskRouting(item)
+    const target = resolveNotifyTarget(item)
     const summary = buildNotificationSummary(item, eventType)
     const messageLines = [
       eventType === 'task_warning' ? '【任务告警】' : '【任务完成】',
@@ -575,10 +639,14 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
       event_type: eventType,
       task_name: item.task_name,
       domain: normalizeNotifyDomain(item.domain),
+      subdomain: item.subdomain ?? 'engineering',
+      project_line: item.project_line ?? target.groupId,
+      notify_mode: item.notify_mode ?? 'default',
       assigned_agent: item.assigned_agent ?? item.agent ?? 'builder',
       status: item.status ?? '-',
       summary,
       target_group: target.group,
+      target_group_id: target.groupId,
       target_channel: target.channel,
       scheduler_hint: '打开 KOTOVELA /scheduler 查看详情',
       created_at: new Date().toISOString(),
@@ -722,6 +790,10 @@ export default defineConfig(({ mode }) => {
                       task_name: taskName,
                       agent: route.assigned_agent,
                       domain: route.domain,
+                      subdomain: route.subdomain,
+                      project_line: route.project_line,
+                      target_group_id: route.target_group_id,
+                      notify_mode: route.notify_mode,
                       preferred_agent: route.preferred_agent,
                       assigned_agent: route.assigned_agent,
                       target_system: route.target_system,
@@ -771,6 +843,10 @@ export default defineConfig(({ mode }) => {
                         task_name: taskInput,
                         agent: 'builder',
                         domain: 'builder',
+                        subdomain: 'engineering',
+                        project_line: 'builder_default',
+                        target_group_id: 'builder_default',
+                        notify_mode: 'default',
                         preferred_agent: 'builder',
                         assigned_agent: 'builder',
                         target_system: 'openclaw-builder',
@@ -804,6 +880,10 @@ export default defineConfig(({ mode }) => {
                     task_name: taskInput,
                     agent: route.assigned_agent,
                     domain: route.domain,
+                    subdomain: route.subdomain,
+                    project_line: route.project_line,
+                    target_group_id: route.target_group_id,
+                    notify_mode: route.notify_mode,
                     preferred_agent: route.preferred_agent,
                     assigned_agent: route.assigned_agent,
                     target_system: route.target_system,

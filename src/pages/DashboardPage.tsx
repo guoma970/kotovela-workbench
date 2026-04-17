@@ -176,6 +176,10 @@ type AutoTaskBoardItem = {
   task_name: string
   agent: string
   domain?: string
+  subdomain?: string
+  project_line?: string
+  target_group_id?: string
+  notify_mode?: 'default' | 'need_human' | 'confirm' | 'assigned' | 'reminder'
   preferred_agent?: string
   assigned_agent?: string
   target_system?: string
@@ -241,6 +245,10 @@ type TaskNotificationItem = {
   event_type: 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
   task_name: string
   domain: string
+  subdomain?: string
+  project_line?: string
+  target_group_id?: string
+  notify_mode?: 'default' | 'need_human' | 'confirm' | 'assigned' | 'reminder'
   assigned_agent: string
   status: string
   summary: string
@@ -732,6 +740,10 @@ export function AutoTaskSystemPanel() {
           <span>agent: {item.agent}</span>
           <span>pool: {item.instance_pool ?? '-'}</span>
           <span>domain: {item.domain ?? '-'}</span>
+          <span>subdomain: {item.subdomain ?? '-'}</span>
+          <span>project_line: {item.project_line ?? '-'}</span>
+          <span>notify_mode: {item.notify_mode ?? '-'}</span>
+          <span>target_group_id: {item.target_group_id ?? '-'}</span>
           <span>preferred_agent: {item.preferred_agent ?? '-'}</span>
           <span>assigned_agent: {item.assigned_agent ?? '-'}</span>
           <span>target_system: {item.target_system ?? '-'}</span>
@@ -974,7 +986,7 @@ export function AutoTaskSystemPanel() {
               <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
                 <strong>{notice.target_group}</strong>
                 <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\n任务：${notice.task_name}\n实例：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
-                <small>{notice.delivery} · {notice.created_at}</small>
+                <small>{notice.project_line ?? '-'} · {notice.notify_mode ?? '-'} · {notice.target_group_id ?? '-'} · {notice.delivery} · {notice.created_at}</small>
               </div>
             )) : <div className="auto-task-empty">暂无通知回执</div>}
           </div>
