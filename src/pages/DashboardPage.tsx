@@ -179,6 +179,19 @@ type AutoDecisionLogEntry = {
   detail: string
   memory_hit?: string
   profile_rule?: string
+  template_id?: string
+}
+
+type TemplatePoolEntry = {
+  template_id: string
+  domain: string
+  asset_type: 'script' | 'reply' | 'plan' | 'generic'
+  content: string
+  source_task_id: string
+  source_task_name?: string
+  use_count: number
+  created_at: string
+  updated_at: string
 }
 
 type UserProfile = {
@@ -291,6 +304,7 @@ type AutoTaskBoardPayload = {
   }>
   current_user_id?: string
   current_profile?: UserProfile
+  template_pool?: TemplatePoolEntry[]
   board: AutoTaskBoardItem[]
 }
 
@@ -345,6 +359,17 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
       updatedAt: item.updated_at ?? item.timestamp,
       result: item.result!,
     }))
+}
+
+function getRecommendedTemplates(templates: TemplatePoolEntry[], domain: string, assetType: PublishCenterEntry['assetType']) {
+  const expectedAssetType = assetType === 'media' ? 'script' : assetType === 'business' ? 'reply' : assetType === 'family' ? 'plan' : 'generic'
+  return templates
+    .filter((template) => template.domain === domain && template.asset_type === expectedAssetType)
+    .sort((a, b) => {
+      if (b.use_count !== a.use_count) return b.use_count - a.use_count
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    })
+    .slice(0, 2)
 }
 
 type TaskNotificationItem = {
@@ -859,6 +884,28 @@ export function AutoTaskSystemPanel() {
     }
   }
 
+  const markTemplateSource = async (taskName: string) => {
+    if (running || autoRetryState || controlLoadingTask) return
+    setControlLoadingTask(`${taskName}:mark_template_source`)
+    try {
+      const res = await fetch('/api/tasks-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_name: taskName, action: 'mark_template_source' }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || err?.error || '标记失败')
+      }
+      setData((await res.json()) as AutoTaskBoardPayload)
+      loadBoard()
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : '标记失败')
+    } finally {
+      setControlLoadingTask('')
+    }
+  }
+
   const groupNotificationAction = async (
     notice: TaskNotificationItem,
     action: 'done' | 'continue' | 'transfer',
@@ -895,6 +942,7 @@ export function AutoTaskSystemPanel() {
   const poolTabs = data?.pools ?? []
   const normalizedActivePool = poolTabs.some((pool) => pool.key === activePool) ? activePool : (poolTabs[0]?.key ?? 'builder')
   const sortedBoard = [...(data?.board ?? [])].sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+  const templatePool = data?.template_pool ?? []
   const humanPendingTasks = sortedBoard.filter((item) => item.need_human)
   const poolBoard = sortedBoard.filter((item) => (item.instance_pool ?? 'builder') === normalizedActivePool)
   const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
@@ -1451,6 +1499,9 @@ export function AutoTaskSystemPanel() {
                   <div className="scheduler-section-title">发布中心</div>
                   <div className="scheduler-alert-group">
                     {publishCenterEntries.length ? publishCenterEntries.map((entry, index) => (
+                      (() => {
+                        const recommendedTemplates = getRecommendedTemplates(templatePool, entry.domain, entry.assetType)
+                        return (
                       <article className="scheduler-result-item scheduler-center-card" key={`${entry.taskName}-publish-${index}`}>
                         <div className="scheduler-center-card-top">
                           <strong>{entry.taskName}</strong>
@@ -1488,7 +1539,18 @@ export function AutoTaskSystemPanel() {
                           </button>
                           <small>{entry.updatedAt ?? '-'}</small>
                         </div>
+                        <div className="scheduler-template-recommendations">
+                          <span>推荐相似模板</span>
+                          {recommendedTemplates.length ? recommendedTemplates.map((template) => (
+                            <div className="scheduler-template-rec-item" key={template.template_id}>
+                              <strong>{template.source_task_name ?? template.template_id}</strong>
+                              <small>use_count {template.use_count}</small>
+                            </div>
+                          )) : <small>暂无</small>}
+                        </div>
                       </article>
+                        )
+                      })()
                     )) : <div className="auto-task-empty">暂无可发布结果</div>}
                   </div>
                 </section>
@@ -1504,6 +1566,9 @@ export function AutoTaskSystemPanel() {
                         </div>
                         <div className="scheduler-alert-group">
                           {entries.map((entry, index) => (
+                            (() => {
+                              const recommendedTemplates = getRecommendedTemplates(templatePool, domain, entry.assetType)
+                              return (
                             <article className="scheduler-result-item scheduler-center-card" key={`${entry.taskName}-archive-${index}`}>
                               <div className="scheduler-center-card-top">
                                 <strong>{entry.taskName}</strong>
@@ -1514,12 +1579,23 @@ export function AutoTaskSystemPanel() {
                                 <button className="auto-task-row-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(JSON.stringify(entry.result, null, 2)) }}>
                                   复制
                                 </button>
-                                <button className="auto-task-row-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(`[TEMPLATE_SOURCE]\n${entry.taskName}\n${JSON.stringify(entry.result, null, 2)}`) }}>
-                                  标记为模板来源
+                                <button className="auto-task-row-btn" type="button" onClick={() => markTemplateSource(entry.taskName)}>
+                                  {controlLoadingTask === `${entry.taskName}:mark_template_source` ? '标记中...' : '标记为模板来源'}
                                 </button>
                                 <small>{entry.updatedAt ?? '-'}</small>
                               </div>
+                              <div className="scheduler-template-recommendations">
+                                <span>推荐相似模板</span>
+                                {recommendedTemplates.length ? recommendedTemplates.map((template) => (
+                                  <div className="scheduler-template-rec-item" key={template.template_id}>
+                                    <strong>{template.source_task_name ?? template.template_id}</strong>
+                                    <small>use_count {template.use_count}</small>
+                                  </div>
+                                )) : <small>暂无</small>}
+                              </div>
                             </article>
+                              )
+                            })()
                           ))}
                         </div>
                       </section>

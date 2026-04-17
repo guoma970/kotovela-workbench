@@ -32,6 +32,23 @@ type TaskNotificationRecord = {
 const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
 const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
 const MEMORY_STORE_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-memory.json')
+const TEMPLATE_POOL_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-template-pool.json')
+
+type TemplateAssetType = 'script' | 'reply' | 'plan' | 'generic'
+
+type TemplateRecord = {
+  template_id: string
+  domain: string
+  asset_type: TemplateAssetType
+  content: string
+  source_task_id: string
+  source_task_name?: string
+  use_count: number
+  created_at: string
+  updated_at: string
+}
+
+let templatePoolCache: TemplateRecord[] = []
 
 type MemoryType = 'preference' | 'habit' | 'history' | 'constraint'
 
@@ -135,6 +152,7 @@ type DecisionLogEntry = {
   detail: string
   memory_hit?: string
   profile_rule?: string
+  template_id?: string
 }
 
 type TaskBoardItem = {
@@ -236,6 +254,7 @@ type TaskBoardPayload = {
   }>
   current_user_id?: string
   current_profile?: UserProfile
+  template_pool?: TemplateRecord[]
   board: TaskBoardItem[]
 }
 
@@ -256,7 +275,7 @@ function appendDecisionLog(
   reason: string,
   detail: string,
   timestamp: string,
-  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule'>,
+  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule' | 'template_id'>,
 ) {
   const exists = (item.decision_log ?? []).some((entry) => entry.action === action && entry.reason === reason && entry.detail === detail)
   if (exists) return
@@ -298,6 +317,94 @@ async function readMemoryStore() {
 async function writeMemoryStore(records: MemoryRecord[]) {
   await fs.mkdir(path.dirname(MEMORY_STORE_FILE), { recursive: true })
   await fs.writeFile(MEMORY_STORE_FILE, `${JSON.stringify({ records }, null, 2)}\n`, 'utf8')
+}
+
+async function readTemplateStore() {
+  try {
+    const raw = await fs.readFile(TEMPLATE_POOL_FILE, 'utf8')
+    const payload = JSON.parse(raw) as { templates?: TemplateRecord[] }
+    templatePoolCache = payload.templates ?? []
+    return templatePoolCache
+  } catch {
+    await writeTemplateStore([])
+    templatePoolCache = []
+    return templatePoolCache
+  }
+}
+
+async function writeTemplateStore(templates: TemplateRecord[]) {
+  templatePoolCache = templates
+  await fs.mkdir(path.dirname(TEMPLATE_POOL_FILE), { recursive: true })
+  await fs.writeFile(TEMPLATE_POOL_FILE, `${JSON.stringify({ templates }, null, 2)}\n`, 'utf8')
+}
+
+function toTemplateAssetType(item: TaskBoardItem): TemplateAssetType {
+  if (item.domain === 'media') return 'script'
+  if (item.domain === 'business') return 'reply'
+  if (item.domain === 'family') return 'plan'
+  return 'generic'
+}
+
+function extractTemplateContent(item: TaskBoardItem) {
+  if (!item.result) return ''
+  if (item.domain === 'media') return item.result.script || item.result.publish_text || item.result.content || ''
+  if (item.domain === 'business') return item.result.publish_text || item.result.script || item.result.content || ''
+  if (item.domain === 'family') return item.result.outline?.join('\n') || item.result.publish_text || item.result.content || ''
+  return item.result.content || item.result.script || item.result.publish_text || ''
+}
+
+function shouldAutoStoreTemplate(item: TaskBoardItem) {
+  if (!item.result || !isTaskDone(item.status)) return false
+  const manual = item.result.meta?.template_source === true
+  const copiedCount = Number(item.result.meta?.copied_count ?? 0)
+  return item.result.publish_ready === true || manual || copiedCount > 1
+}
+
+function chooseTemplateForTask(item: Pick<TaskBoardItem, 'domain' | 'task_name'>, templates: TemplateRecord[]) {
+  const assetType = item.domain === 'media' ? 'script' : item.domain === 'business' ? 'reply' : item.domain === 'family' ? 'plan' : 'generic'
+  return templates
+    .filter((template) => template.domain === (item.domain ?? 'builder') && template.asset_type === assetType)
+    .sort((a, b) => {
+      if (b.use_count !== a.use_count) return b.use_count - a.use_count
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    })[0]
+}
+
+async function syncTemplatePool(board: TaskBoardItem[]) {
+  const current = await readTemplateStore()
+  const existing = new Map(current.map((template) => [template.source_task_id, template]))
+  const hitCounter = new Map<string, number>()
+
+  for (const item of board) {
+    for (const entry of item.decision_log ?? []) {
+      if (entry.action === 'strategy_generate_task' && entry.reason === 'template_hit' && entry.template_id) {
+        hitCounter.set(entry.template_id, (hitCounter.get(entry.template_id) ?? 0) + 1)
+      }
+    }
+    if (!shouldAutoStoreTemplate(item)) continue
+    const sourceTaskId = toTaskId(item.task_name)
+    const content = extractTemplateContent(item)
+    if (!content) continue
+    const now = item.updated_at ?? item.timestamp ?? new Date().toISOString()
+    const nextRecord: TemplateRecord = {
+      template_id: existing.get(sourceTaskId)?.template_id ?? `tpl_${sourceTaskId}`,
+      domain: item.domain ?? 'builder',
+      asset_type: toTemplateAssetType(item),
+      content,
+      source_task_id: sourceTaskId,
+      source_task_name: item.task_name,
+      use_count: existing.get(sourceTaskId)?.use_count ?? 0,
+      created_at: existing.get(sourceTaskId)?.created_at ?? now,
+      updated_at: now,
+    }
+    existing.set(sourceTaskId, nextRecord)
+  }
+
+  const templates = [...existing.values()]
+    .map((template) => ({ ...template, use_count: hitCounter.get(template.template_id) ?? template.use_count ?? 0 }))
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  await writeTemplateStore(templates)
+  return templates
 }
 
 function inferUserId(task: Pick<TaskBoardItem, 'task_name' | 'domain' | 'project_line'>) {
@@ -607,12 +714,25 @@ function buildTextResult(content: string, meta?: Record<string, unknown>): NonNu
 
 function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardItem['result']> {
   const domain = item.domain ?? inferPool(item)
-  if (domain === 'media') return buildMediaResult(item.task_name, now)
+  const matchedTemplate = chooseTemplateForTask(item, templatePoolCache)
+  if (domain === 'media') {
+    const result = buildMediaResult(item.task_name, now)
+    if (matchedTemplate) {
+      result.script = matchedTemplate.content
+      result.content = [result.title, result.hook, ...result.outline.map((line, idx) => `${idx + 1}. ${line}`), result.script, result.publish_text].join('\n\n')
+      result.meta = { ...(result.meta ?? {}), template_id: matchedTemplate.template_id }
+    }
+    return result
+  }
   if (domain === 'business') {
-    return buildTextResult(
+    const result = buildTextResult(
       `跟进建议：先确认客户当前报价顾虑，再补一版对比清单与下一步时间点。\n\n建议回复：\n已收到您对报价的关注，我这边建议先对齐 3 个点，分别是范围、交付节点、可替代方案。我今天可先补一版精简报价说明，方便您内部确认，明天下午前再跟您同步最终建议。`,
       { domain, executor: 'followup_executor' },
     )
+    if (matchedTemplate) result.meta = { ...(result.meta ?? {}), template_id: matchedTemplate.template_id }
+    if (matchedTemplate) result.publish_text = matchedTemplate.content
+    if (matchedTemplate) result.content = `跟进建议：优先复用历史高命中回复模板。\n\n建议回复：\n${matchedTemplate.content}`
+    return result
   }
   if (domain === 'personal') {
     return buildTextResult(
@@ -621,10 +741,14 @@ function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardIte
     )
   }
   if (domain === 'family') {
-    return buildTextResult(
+    const result = buildTextResult(
       `家庭执行建议：先确认时间和参与人，再拆成 3 个最小动作，避免提醒过长导致落空。`,
       { domain, executor: 'plan_executor' },
     )
+    if (matchedTemplate) result.meta = { ...(result.meta ?? {}), template_id: matchedTemplate.template_id }
+    if (matchedTemplate) result.content = `家庭执行建议：\n${matchedTemplate.content}`
+    if (matchedTemplate) result.outline = matchedTemplate.content.split(/\n+/).filter(Boolean)
+    return result
   }
   return buildTextResult(
     `执行建议：已生成开发执行草案，下一步先确认范围、风险点与最小可验证改动，再进入实现。`,
@@ -825,6 +949,11 @@ function runQueuedTask(item: TaskBoardItem, now: string) {
   item.updated_at = now
   item.result = executeTask(item, now)
   normalizeTaskResult(item)
+  if (item.result?.meta?.template_id) {
+    appendDecisionLog(item, 'strategy_generate_task', 'template_hit', `命中模板 ${String(item.result.meta.template_id)}`, now, {
+      template_id: String(item.result.meta.template_id),
+    })
+  }
   appendHistory(item, {
     action: 'run',
     operator: 'system',
@@ -1079,6 +1208,8 @@ function applyScheduler(payload: TaskBoardPayload) {
 async function readTaskBoard(filePath: string) {
   const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
   const memoryRecords = await readMemoryStore()
+  const templateRecords = await readTemplateStore()
+  templatePoolCache = templateRecords
   payload.board = (payload.board ?? []).map((rawItem) => {
     const routed = enrichTaskRouting({
       ...rawItem,
@@ -1353,8 +1484,9 @@ async function readTaskBoard(filePath: string) {
     }
   }
   await writeMemoryStore(memoryRecords)
-
-  return applyScheduler(payload)
+  const scheduledPayload = applyScheduler(payload)
+  scheduledPayload.template_pool = await syncTemplatePool(scheduledPayload.board)
+  return scheduledPayload
 }
 
 function summarizeTaskBoard(payload: TaskBoardPayload) {
@@ -2060,6 +2192,10 @@ export default defineConfig(({ mode }) => {
                   })
                   appendDecisionLog(target, 'priority_down', 'manual_priority_change', `${priorityLabel(clampPriority(target.priority))} -> ${priorityLabel(nextPriority)}`, now)
                   target.priority = nextPriority
+                } else if (action === 'mark_template_source') {
+                  target.result = target.result ?? buildTextResult(target.task_name)
+                  target.result.meta = { ...(target.result.meta ?? {}), template_source: true }
+                  appendDecisionLog(target, 'manual_done', 'template_source_marked', '已标记为模板来源', now)
                 } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue'].includes(action)) {
                   applyManualTaskAction(target, action, humanOwner, now)
                 } else {

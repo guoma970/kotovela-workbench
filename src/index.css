@@ -1766,6 +1766,33 @@ button,
   flex-wrap: wrap;
 }
 
+.scheduler-template-recommendations {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(126, 163, 255, 0.12);
+}
+
+.scheduler-template-recommendations > span {
+  color: #8ea2c6;
+  font-size: 0.76rem;
+}
+
+.scheduler-template-rec-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(126, 163, 255, 0.08);
+}
+
+.scheduler-template-rec-item strong,
+.scheduler-template-rec-item small {
+  margin: 0;
+}
+
 .scheduler-task-result-block {
   display: grid;
   gap: 10px;
