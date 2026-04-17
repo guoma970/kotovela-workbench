@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
@@ -174,7 +174,7 @@ type AutoTaskHistoryEntry = {
 
 type AutoDecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'strategy_generate_task' | 'risk_detected' | 'precheck_block'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'strategy_generate_task' | 'risk_detected' | 'precheck_block' | 'lead_auto_transfer'
   reason: string
   detail: string
   publish_rhythm_hit?: string
@@ -183,6 +183,17 @@ type AutoDecisionLogEntry = {
   memory_hit?: string
   profile_rule?: string
   template_id?: string
+  route_target?: string
+  route_result?: 'direct' | 'blocked' | 'transfer'
+  account_type?: 'owned' | 'brand' | 'ip' | 'external_partner'
+  tier?: 'L1' | 'L2' | 'L3'
+  brand_display?: string
+  mcn_display?: string
+  can_close_deal?: boolean
+  rule_hit_reason?: string
+  whitelist_hit?: string
+  block_reason?: string
+  partner_mode?: 'content_only' | 'consult_only' | 'no_delivery'
 }
 
 type TemplatePoolEntry = {
@@ -212,6 +223,12 @@ type AutoTaskSource = {
   title?: string
 }
 
+type AccountType = 'owned' | 'brand' | 'ip' | 'external_partner'
+type ChannelTier = 'L1' | 'L2' | 'L3'
+type RouteResult = 'direct' | 'blocked' | 'transfer'
+
+type ExternalPartnerMode = 'content_only' | 'consult_only' | 'no_delivery'
+
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
@@ -234,10 +251,13 @@ type AutoTaskBoardItem = {
   source_line?: string
   brand_line?: 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
   brand_display?: string
+  mcn_line?: 'self_operated' | 'kotovela_mcn' | 'yanfami_mcn' | 'partner_network'
+  mcn_display?: string
   content_line?: 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup' | 'growth_record' | 'ai_tools'
   account_line?: 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
   account_display?: string
-  account_type?: 'official' | 'personal' | 'hybrid'
+  account_type?: AccountType | 'official' | 'personal' | 'hybrid'
+  tier?: ChannelTier
   distribution_channel?: 'short_content' | 'official_account'
   content_variant?: 'short' | 'article'
   target_group_id?: string
@@ -313,6 +333,9 @@ type AutoTaskBoardItem = {
   memory_hits?: string[]
   profile_tags?: string[]
   recommended_execute_at?: string
+  route_result?: RouteResult
+  route_target?: string
+  can_close_deal?: boolean
 }
 
 type AutoTaskBoardPayload = {
@@ -346,6 +369,159 @@ type AutoTaskBoardPayload = {
   board: AutoTaskBoardItem[]
 }
 
+const BRAND_LABELS: Record<NonNullable<AutoTaskBoardItem['brand_line']>, string> = {
+  kotovela: 'KOTOVELA',
+  yanfami: 'YANFAMI',
+  kotoharo: 'KOTOHARO',
+  guoshituan: '果石团',
+}
+
+const MCN_LABELS: Record<NonNullable<AutoTaskBoardItem['mcn_line']>, string> = {
+  self_operated: '自营矩阵',
+  kotovela_mcn: 'KOTOVELA MCN',
+  yanfami_mcn: 'YANFAMI MCN',
+  partner_network: '合作分发网络',
+}
+
+function normalizeAccountType(item: AutoTaskBoardItem): AccountType {
+  if (item.account_type === 'owned' || item.account_type === 'brand' || item.account_type === 'ip' || item.account_type === 'external_partner') {
+    return item.account_type
+  }
+  if (item.account_type === 'official') return 'owned'
+  if (item.account_type === 'hybrid') return 'brand'
+  if (item.account_type === 'personal') return 'ip'
+  if ((item.account_line ?? '').includes('official')) return 'owned'
+  return 'ip'
+}
+
+function normalizeTier(item: AutoTaskBoardItem): ChannelTier {
+  if (item.tier === 'L1' || item.tier === 'L2' || item.tier === 'L3') return item.tier
+  if (item.distribution_channel === 'official_account') return 'L1'
+  if ((item.account_line ?? '').includes('official')) return 'L1'
+  if (item.distribution_channel === 'short_content') return 'L2'
+  return 'L3'
+}
+
+function isLeadTask(item: AutoTaskBoardItem) {
+  const target = [item.task_name, item.domain, item.subdomain, item.project_line, item.source_line, item.type].filter(Boolean).join(' ').toLowerCase()
+  return ['lead', 'clue', 'business', 'followup', 'quote', 'crm', '成交', '转单', '商机', '报价', '跟进'].some((keyword) => target.includes(keyword.toLowerCase()))
+}
+
+function appendDecisionLog(item: AutoTaskBoardItem, entry: AutoDecisionLogEntry): AutoDecisionLogEntry[] {
+  const signature = `${entry.action}|${entry.reason}|${entry.detail}|${entry.route_target ?? ''}`
+  const existed = (item.decision_log ?? []).some((current) => `${current.action}|${current.reason}|${current.detail}|${current.route_target ?? ''}` === signature)
+  return existed ? (item.decision_log ?? []) : [...(item.decision_log ?? []), entry]
+}
+
+function enrichBoardItem(item: AutoTaskBoardItem): AutoTaskBoardItem {
+  const accountType = normalizeAccountType(item)
+  const tier = normalizeTier(item)
+  const brandDisplay = item.brand_display ?? (item.brand_line ? BRAND_LABELS[item.brand_line] : undefined)
+  const mcnLine = item.mcn_line ?? (accountType === 'external_partner' ? 'partner_network' : 'self_operated')
+  const mcnDisplay = item.mcn_display ?? MCN_LABELS[mcnLine]
+  const leadTask = isLeadTask(item)
+  const canCloseDeal = accountType !== 'external_partner'
+  const partnerMode: ExternalPartnerMode | undefined = accountType === 'external_partner'
+    ? (leadTask ? 'consult_only' : item.domain === 'media' ? 'content_only' : 'no_delivery')
+    : undefined
+  let routeResult: RouteResult = item.route_result ?? 'direct'
+  let routeTarget = item.route_target ?? (leadTask ? 'business.lead_router' : item.assigned_agent ?? item.target_system ?? item.instance_pool ?? 'direct')
+  let nextItem: AutoTaskBoardItem = {
+    ...item,
+    account_type: accountType,
+    tier,
+    brand_display: brandDisplay,
+    mcn_line: mcnLine,
+    mcn_display: mcnDisplay,
+    can_close_deal: canCloseDeal,
+  }
+
+  if (!canCloseDeal) {
+    routeResult = leadTask ? 'transfer' : 'blocked'
+    routeTarget = leadTask ? 'business.lead_router' : 'manual_review.required'
+    nextItem = {
+      ...nextItem,
+      route_result: routeResult,
+      route_target: routeTarget,
+      predicted_block: leadTask ? nextItem.predicted_block : true,
+      need_human: leadTask ? true : (nextItem.need_human ?? true),
+      auto_action: 'need_human',
+      assigned_agent: leadTask ? 'business' : nextItem.assigned_agent,
+      instance_pool: leadTask ? 'business' : nextItem.instance_pool,
+      target_system: routeTarget,
+      blocked_by: leadTask ? nextItem.blocked_by : Array.from(new Set([...(nextItem.blocked_by ?? []), 'external_partner_deal_restricted'])),
+    }
+
+    nextItem.decision_log = appendDecisionLog(nextItem, {
+      timestamp: nextItem.updated_at ?? nextItem.timestamp ?? new Date().toISOString(),
+      action: leadTask ? 'lead_auto_transfer' : 'precheck_block',
+      reason: leadTask ? 'external_partner lead 自动转单' : 'external_partner 禁止成交',
+      detail: leadTask ? `Lead 已自动转交至 ${routeTarget}` : '该账号类型不允许直接成交，已拦截',
+      route_target: routeTarget,
+      route_result: routeResult,
+      account_type: accountType,
+      tier,
+      brand_display: brandDisplay,
+      mcn_display: mcnDisplay,
+      can_close_deal: canCloseDeal,
+      rule_hit_reason: 'external_partner account_type 命中专属路由规则',
+      whitelist_hit: leadTask ? 'lead_transfer_whitelist' : undefined,
+      block_reason: leadTask ? undefined : 'external_partner_deal_restricted',
+      partner_mode: partnerMode,
+    })
+  } else {
+    nextItem.decision_log = appendDecisionLog(nextItem, {
+      timestamp: nextItem.updated_at ?? nextItem.timestamp ?? new Date().toISOString(),
+      action: 'notify_result',
+      reason: 'standard routing direct pass',
+      detail: `按标准路由直达 ${routeTarget}`,
+      route_target: routeTarget,
+      route_result: routeResult,
+      account_type: accountType,
+      tier,
+      brand_display: brandDisplay,
+      mcn_display: mcnDisplay,
+      can_close_deal: canCloseDeal,
+      rule_hit_reason: 'standard route matrix',
+      whitelist_hit: item.route_result === 'direct' ? 'default_delivery' : undefined,
+    })
+    nextItem.route_result = routeResult
+    nextItem.route_target = routeTarget
+  }
+
+  return nextItem
+}
+
+function enrichBoardPayload(payload: AutoTaskBoardPayload): AutoTaskBoardPayload {
+  const board = (payload.board ?? []).map(enrichBoardItem)
+  return {
+    ...payload,
+    board,
+    total: payload.total ?? board.length,
+  }
+}
+
+function formatDecisionLogEntry(entry: AutoDecisionLogEntry) {
+  return `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}${entry.route_result ? ` | route_result=${entry.route_result}` : ''}${entry.route_target ? ` | route_target=${entry.route_target}` : ''}${entry.account_type ? ` | account_type=${entry.account_type}` : ''}${entry.tier ? ` | tier=${entry.tier}` : ''}${entry.brand_display ? ` | brand_display=${entry.brand_display}` : ''}${entry.mcn_display ? ` | mcn_display=${entry.mcn_display}` : ''}${typeof entry.can_close_deal === 'boolean' ? ` | can_close_deal=${entry.can_close_deal}` : ''}${entry.rule_hit_reason ? ` | rule_hit_reason=${entry.rule_hit_reason}` : ''}${entry.whitelist_hit ? ` | whitelist_hit=${entry.whitelist_hit}` : ''}${entry.block_reason ? ` | block_reason=${entry.block_reason}` : ''}${entry.partner_mode ? ` | partner_mode=${entry.partner_mode}` : ''}${entry.publish_rhythm_hit ? ` | publish_rhythm_hit=${entry.publish_rhythm_hit}` : ''}${entry.persona_hit ? ` | persona_hit=${entry.persona_hit}` : ''}${entry.publish_risk_warning?.length ? ` | publish_risk_warning=${entry.publish_risk_warning.join('/')}` : ''}${entry.memory_hit ? ` | memory_hit=${entry.memory_hit}` : ''}${entry.profile_rule ? ` | profile_rule=${entry.profile_rule}` : ''}`
+}
+
+function getRouteChain(item: AutoTaskBoardItem) {
+  return [
+    item.content_line ?? '-',
+    item.brand_display ?? item.brand_line ?? '-',
+    item.account_display ?? item.account_line ?? '-',
+    item.route_result ?? '-',
+    item.route_target ?? '-',
+  ]
+}
+
+function getExternalPartnerMode(item: AutoTaskBoardItem): ExternalPartnerMode | null {
+  if (item.account_type !== 'external_partner') return null
+  if ((item.decision_log ?? []).some((entry) => entry.partner_mode === 'consult_only')) return 'consult_only'
+  if ((item.decision_log ?? []).some((entry) => entry.partner_mode === 'content_only')) return 'content_only'
+  return item.domain === 'media' ? 'content_only' : 'no_delivery'
+}
+
 type PublishCenterEntry = {
   taskName: string
   domain: string
@@ -355,10 +531,15 @@ type PublishCenterEntry = {
   roleVersion?: AutoTaskBoardItem['role_version']
   brandLine?: AutoTaskBoardItem['brand_line']
   brandDisplay?: AutoTaskBoardItem['brand_display']
+  mcnDisplay?: AutoTaskBoardItem['mcn_display']
   contentLine?: AutoTaskBoardItem['content_line']
   accountLine?: AutoTaskBoardItem['account_line']
   accountDisplay?: AutoTaskBoardItem['account_display']
   accountType?: AutoTaskBoardItem['account_type']
+  tier?: AutoTaskBoardItem['tier']
+  routeResult?: AutoTaskBoardItem['route_result']
+  routeTarget?: AutoTaskBoardItem['route_target']
+  canCloseDeal?: AutoTaskBoardItem['can_close_deal']
   distributionChannel?: AutoTaskBoardItem['distribution_channel']
   contentVariant?: AutoTaskBoardItem['content_variant']
   sourceLine?: AutoTaskBoardItem['source_line']
@@ -374,10 +555,15 @@ type ArchiveCenterEntry = {
   roleVersion?: AutoTaskBoardItem['role_version']
   brandLine?: AutoTaskBoardItem['brand_line']
   brandDisplay?: AutoTaskBoardItem['brand_display']
+  mcnDisplay?: AutoTaskBoardItem['mcn_display']
   contentLine?: AutoTaskBoardItem['content_line']
   accountLine?: AutoTaskBoardItem['account_line']
   accountDisplay?: AutoTaskBoardItem['account_display']
   accountType?: AutoTaskBoardItem['account_type']
+  tier?: AutoTaskBoardItem['tier']
+  routeResult?: AutoTaskBoardItem['route_result']
+  routeTarget?: AutoTaskBoardItem['route_target']
+  canCloseDeal?: AutoTaskBoardItem['can_close_deal']
   distributionChannel?: AutoTaskBoardItem['distribution_channel']
   contentVariant?: AutoTaskBoardItem['content_variant']
   sourceLine?: AutoTaskBoardItem['source_line']
@@ -406,10 +592,15 @@ function buildPublishCenterEntries(board: AutoTaskBoardItem[]): PublishCenterEnt
       roleVersion: item.role_version,
       brandLine: item.brand_line,
       brandDisplay: item.brand_display,
+      mcnDisplay: item.mcn_display,
       contentLine: item.content_line,
       accountLine: item.account_line,
       accountDisplay: item.account_display,
       accountType: item.account_type,
+      tier: item.tier,
+      routeResult: item.route_result,
+      routeTarget: item.route_target,
+      canCloseDeal: item.can_close_deal,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
       sourceLine: item.source_line,
@@ -432,10 +623,15 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
       roleVersion: item.role_version,
       brandLine: item.brand_line,
       brandDisplay: item.brand_display,
+      mcnDisplay: item.mcn_display,
       contentLine: item.content_line,
       accountLine: item.account_line,
       accountDisplay: item.account_display,
       accountType: item.account_type,
+      tier: item.tier,
+      routeResult: item.route_result,
+      routeTarget: item.route_target,
+      canCloseDeal: item.can_close_deal,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
       sourceLine: item.source_line,
@@ -508,7 +704,7 @@ function AutoTaskSystemSummaryCard() {
   useEffect(() => {
     fetch('/api/tasks-board', { cache: 'no-store' })
       .then((res) => res.json())
-      .then((json: AutoTaskBoardPayload) => setData(json))
+      .then((json: AutoTaskBoardPayload) => setData(enrichBoardPayload(json)))
       .catch(() => setData(null))
   }, [])
 
@@ -765,7 +961,7 @@ export function AutoTaskSystemPanel() {
   const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
   const [notifications, setNotifications] = useState<TaskNotificationItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeView, setActiveView] = useState<'operations' | 'execution' | 'debug'>('operations')
+  const [activeView, setActiveView] = useState<'operations' | 'execution' | 'routing' | 'debug'>('operations')
   const [activePool, setActivePool] = useState<'builder' | 'media' | 'family' | 'business' | 'personal'>('builder')
   const [taskInput, setTaskInput] = useState('')
   const [running, setRunning] = useState(false)
@@ -795,7 +991,7 @@ export function AutoTaskSystemPanel() {
         .catch(() => ({ notifications: [] })),
     ])
       .then(([json, notifyJson]) => {
-        setData(json)
+        setData(enrichBoardPayload(json))
         setNotifications(notifyJson.notifications ?? [])
       })
       .catch(() => {
@@ -930,7 +1126,7 @@ export function AutoTaskSystemPanel() {
         const err = await res.json().catch(() => ({}))
         throw new Error(err?.message || err?.error || '操作失败')
       }
-      setData((await res.json()) as AutoTaskBoardPayload)
+      setData(enrichBoardPayload((await res.json()) as AutoTaskBoardPayload))
     } catch (error) {
       setRunError(error instanceof Error ? error.message : '操作失败')
     } finally {
@@ -957,7 +1153,7 @@ export function AutoTaskSystemPanel() {
         const err = await res.json().catch(() => ({}))
         throw new Error(err?.message || err?.error || '操作失败')
       }
-      setData((await res.json()) as AutoTaskBoardPayload)
+      setData(enrichBoardPayload((await res.json()) as AutoTaskBoardPayload))
       loadBoard()
     } catch (error) {
       setRunError(error instanceof Error ? error.message : '操作失败')
@@ -979,7 +1175,7 @@ export function AutoTaskSystemPanel() {
         const err = await res.json().catch(() => ({}))
         throw new Error(err?.message || err?.error || '标记失败')
       }
-      setData((await res.json()) as AutoTaskBoardPayload)
+      setData(enrichBoardPayload((await res.json()) as AutoTaskBoardPayload))
       loadBoard()
     } catch (error) {
       setRunError(error instanceof Error ? error.message : '标记失败')
@@ -1062,6 +1258,37 @@ export function AutoTaskSystemPanel() {
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 8)
 
+  const routingDecisionTable = Array.from(
+    sortedBoard.reduce((map, item) => {
+      const key = [
+        item.content_line ?? '-',
+        item.brand_line ?? '-',
+        item.account_line ?? '-',
+        item.account_type ?? '-',
+        item.tier ?? '-',
+        String(item.can_close_deal ?? '-'),
+        item.route_target ?? '-',
+      ].join('|')
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          content_line: item.content_line ?? '-',
+          brand_line: item.brand_line ?? '-',
+          account_line: item.account_line ?? '-',
+          account_type: item.account_type ?? '-',
+          tier: item.tier ?? '-',
+          can_close_deal: typeof item.can_close_deal === 'boolean' ? String(item.can_close_deal) : '-',
+          route_target: item.route_target ?? '-',
+          count: 0,
+        })
+      }
+      map.get(key)!.count += 1
+      return map
+    }, new Map<string, { key: string; content_line: string; brand_line: string; account_line: string; account_type: string; tier: string; can_close_deal: string; route_target: string; count: number }>()),
+  ).map(([, value]) => value)
+
+  const routeFocusedTasks = sortedBoard.filter((item) => item.route_target || item.content_line || item.account_line)
+
   const renderTaskCard = (
     item: AutoTaskBoardItem,
     tone: 'running' | 'queue' | 'paused' | 'done',
@@ -1071,6 +1298,8 @@ export function AutoTaskSystemPanel() {
     const updatedAt = item.updated_at || item.timestamp || item.queued_at || '-'
     const resultText = item.result?.content ?? ''
     const expanded = expandedTaskName === item.task_name
+    const routeChain = getRouteChain(item)
+    const externalPartnerMode = getExternalPartnerMode(item)
     const flags = [
       item.auto_generated ? 'auto_generated' : '',
       item.trigger_source ? `trigger_${item.trigger_source}` : '',
@@ -1100,6 +1329,14 @@ export function AutoTaskSystemPanel() {
           <span>template_source: {item.template_source ?? item.template_key ?? '-'}</span>
           <span>subdomain: {item.subdomain ?? '-'}</span>
           <span>project_line: {item.project_line ?? '-'}</span>
+          <span>brand_display: {item.brand_display ?? item.brand_line ?? '-'}</span>
+          <span>mcn_display: {item.mcn_display ?? item.mcn_line ?? '-'}</span>
+          <span>account_display: {item.account_display ?? item.account_line ?? '-'}</span>
+          <span>account_type: {item.account_type ?? '-'}</span>
+          <span>tier: {item.tier ?? '-'}</span>
+          <span>route_result: {item.route_result ?? '-'}</span>
+          <span>route_target: {item.route_target ?? '-'}</span>
+          <span>can_close_deal: {typeof item.can_close_deal === 'boolean' ? String(item.can_close_deal) : '-'}</span>
           <span>notify_mode: {item.notify_mode ?? '-'}</span>
           <span>target_group_id: {item.target_group_id ?? '-'}</span>
           <span>preferred_agent: {item.preferred_agent ?? '-'}</span>
@@ -1132,6 +1369,22 @@ export function AutoTaskSystemPanel() {
             </div>
           </div>
         ) : null}
+        <div className="scheduler-task-result-block">
+          <div className="scheduler-task-result-head"><strong>路由链路</strong></div>
+          <div className="scheduler-route-chain">
+            {routeChain.map((segment, routeIndex) => (
+              <Fragment key={`${item.task_name}-route-${routeIndex}`}>
+                <span className="scheduler-route-node">{segment}</span>
+                {routeIndex < routeChain.length - 1 ? <span className="scheduler-route-arrow">→</span> : null}
+              </Fragment>
+            ))}
+          </div>
+          {externalPartnerMode ? (
+            <div className="scheduler-partner-mode-row">
+              <span className={`scheduler-partner-mode is-${externalPartnerMode}`}>external_partner · {externalPartnerMode}</span>
+            </div>
+          ) : null}
+        </div>
         {flags.length > 0 ? (
           <div className="auto-task-flags">
             {flags.map((flag) => (
@@ -1185,7 +1438,20 @@ export function AutoTaskSystemPanel() {
               <div><span>last_action</span><strong>{item.auto_action ?? '-'}</strong></div>
               <div><span>memory_hits</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
               <div><span>profile_tags</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
-              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => `[${entry.timestamp}] ${entry.action} | ${entry.reason} | ${entry.detail}${entry.publish_rhythm_hit ? ` | publish_rhythm_hit=${entry.publish_rhythm_hit}` : ''}${entry.persona_hit ? ` | persona_hit=${entry.persona_hit}` : ''}${entry.publish_risk_warning?.length ? ` | publish_risk_warning=${entry.publish_risk_warning.join('/')}` : ''}${entry.memory_hit ? ` | memory_hit=${entry.memory_hit}` : ''}${entry.profile_rule ? ` | profile_rule=${entry.profile_rule}` : ''}`).join('\n')}</pre></div>
+              <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
+              <div><span>decision_detail</span>
+                <div className="scheduler-decision-detail-list">
+                  {item.decision_log.map((entry, entryIndex) => (
+                    <article className="scheduler-decision-detail-card" key={`${item.task_name}-decision-${entryIndex}`}>
+                      <strong>{entry.action}</strong>
+                      <p>规则命中原因: {entry.rule_hit_reason ?? entry.reason}</p>
+                      <p>白名单命中: {entry.whitelist_hit ?? '-'}</p>
+                      <p>拦截原因: {entry.block_reason ?? '-'}</p>
+                      {entry.partner_mode ? <p>external_partner: {entry.partner_mode}</p> : null}
+                    </article>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
@@ -1285,6 +1551,8 @@ export function AutoTaskSystemPanel() {
     predictedHigh: sortedBoard.filter((item) => item.predicted_risk === 'high').length,
     needHuman: humanPendingTasks.length,
     blocked: sortedBoard.filter((item) => item.status === 'blocked' || (item.blocked_by?.length ?? 0) > 0 || item.predicted_block).length,
+    externalBlocked: sortedBoard.filter((item) => item.account_type === 'external_partner' && item.route_result === 'blocked').length,
+    leadTransferred: sortedBoard.filter((item) => item.account_type === 'external_partner' && item.route_result === 'transfer').length,
   }
   const domainLoadSummaryMap = new Map<string, { domain: string; total: number; running: number; queued: number; needHuman: number; blocked: number }>()
   sortedBoard.forEach((item) => {
@@ -1432,6 +1700,7 @@ export function AutoTaskSystemPanel() {
         {[
           { key: 'operations', label: '运营态', note: '进度 / 风险 / 待人工' },
           { key: 'execution', label: '执行态', note: '实例池 / 队列 / 结果' },
+          { key: 'routing', label: '路由态', note: '决策表 / 链路 / 拦截解释' },
           { key: 'debug', label: '调试态', note: '完整字段 / 排障' },
         ].map((view) => (
           <button
@@ -1493,6 +1762,8 @@ export function AutoTaskSystemPanel() {
                   <div className="scheduler-overview-metric is-warning"><span>predicted_risk</span><strong>{riskSummary.predictedHigh}</strong></div>
                   <div className="scheduler-overview-metric is-warning"><span>need_human</span><strong>{riskSummary.needHuman}</strong></div>
                   <div className="scheduler-overview-metric is-failed"><span>blocked</span><strong>{riskSummary.blocked}</strong></div>
+                  <div className="scheduler-overview-metric is-warning"><span>external_blocked</span><strong>{riskSummary.externalBlocked}</strong></div>
+                  <div className="scheduler-overview-metric"><span>lead_transferred</span><strong>{riskSummary.leadTransferred}</strong></div>
                   <div className="scheduler-overview-metric is-concurrency"><span>同步状态</span><strong>{loading ? '刷新中' : '已同步'}</strong></div>
                 </div>
                 <div className="scheduler-summary-grid">
@@ -1625,8 +1896,13 @@ export function AutoTaskSystemPanel() {
                         </div>
                         <div className="scheduler-publish-grid">
                           <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+                          <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
                           <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
                           <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
+                          <div><span>tier</span><p>{entry.tier || '-'}</p></div>
+                          <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
+                          <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
+                          <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
                           <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                           <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
                           <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
@@ -1730,8 +2006,13 @@ export function AutoTaskSystemPanel() {
                               </div>
                               <div className="scheduler-publish-grid">
                                 <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+                                <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
                                 <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
                                 <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
+                                <div><span>tier</span><p>{entry.tier || '-'}</p></div>
+                                <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
+                                <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
+                                <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
                                 <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                                 <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
                                 <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
@@ -1771,6 +2052,51 @@ export function AutoTaskSystemPanel() {
                   </div>
                 </section>
               </div>
+            </>
+          ) : null}
+
+          {activeView === 'routing' ? (
+            <>
+              <section className="scheduler-overview-card">
+                <div className="scheduler-section-title">内容归属决策表</div>
+                <div className="scheduler-routing-table-wrap">
+                  <table className="scheduler-routing-table">
+                    <thead>
+                      <tr>
+                        <th>content_line</th>
+                        <th>brand_line</th>
+                        <th>account_line</th>
+                        <th>account_type</th>
+                        <th>tier</th>
+                        <th>can_close_deal</th>
+                        <th>route_target</th>
+                        <th>tasks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {routingDecisionTable.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.content_line}</td>
+                          <td>{row.brand_line}</td>
+                          <td>{row.account_line}</td>
+                          <td>{row.account_type}</td>
+                          <td>{row.tier}</td>
+                          <td>{row.can_close_deal}</td>
+                          <td>{row.route_target}</td>
+                          <td>{row.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section className="scheduler-queue-card">
+                <div className="scheduler-section-title">任务路由可视化</div>
+                <div className="scheduler-route-card-list">
+                  {routeFocusedTasks.length ? routeFocusedTasks.map((item, index) => renderTaskCard(item, item.route_result === 'blocked' ? 'paused' : item.route_result === 'transfer' ? 'done' : 'queue', index)) : <div className="auto-task-empty">暂无路由数据</div>}
+                </div>
+              </section>
             </>
           ) : null}
 
