@@ -341,6 +341,16 @@ type AutoTaskBoardItem = {
   route_target?: string
   can_close_deal?: boolean
   learning_score?: number
+  lead_id?: string
+  consultant_id?: string
+  converted?: boolean
+  lost?: boolean
+  attribution?: {
+    source?: string
+    medium?: string
+    campaign?: string
+    content?: string
+  }
 }
 
 type ContentLearningRecord = {
@@ -420,6 +430,13 @@ type AutoTaskBoardPayload = {
     total_records: number
     avg_learning_score: number
     high_score_records: number
+  }
+  business_summary?: {
+    total_leads: number
+    assigned_consultants: number
+    converted: number
+    lost: number
+    attributed: number
   }
   board: AutoTaskBoardItem[]
 }
@@ -1814,6 +1831,12 @@ export function AutoTaskSystemPanel() {
               <span>{record.content_line} / {record.account_line} / score {record.learning_score.toFixed(2)}</span>
             </button>
           ))}
+          <button type="button" className="scheduler-template-chip">
+            <strong>Business Funnel</strong>
+            <span>
+              leads {data?.business_summary?.total_leads ?? 0} · consultants {data?.business_summary?.assigned_consultants ?? 0} · converted {data?.business_summary?.converted ?? 0} · lost {data?.business_summary?.lost ?? 0} · attribution {data?.business_summary?.attributed ?? 0}
+            </span>
+          </button>
         </div>
       </div>
 

@@ -67,6 +67,7 @@ type ContentLearningRecord = {
 
 let templatePoolCache: TemplateRecord[] = []
 let contentLearningCache: ContentLearningRecord[] = []
+let taskBoardWriteQueue: Promise<unknown> = Promise.resolve()
 
 type MemoryType = 'preference' | 'habit' | 'history' | 'constraint'
 
@@ -173,6 +174,9 @@ type DecisionLogEntry = {
     | 'strategy_generate_task'
     | 'risk_detected'
     | 'precheck_block'
+    | 'conflict_detected'
+    | 'domain_locked_by_priority'
+    | 'lead_auto_transfer'
   reason: string
   detail: string
   publish_rhythm_hit?: string
@@ -186,6 +190,10 @@ type DecisionLogEntry = {
   learning_rank?: number
   learning_top_n?: number
   learning_total_candidates?: number
+  attribution_source?: string
+  attribution_medium?: string
+  attribution_campaign?: string
+  attribution_content?: string
 }
 
 type PersonaProfile = {
@@ -314,6 +322,16 @@ type TaskBoardItem = {
   profile_tags?: string[]
   recommended_execute_at?: string
   learning_score?: number
+  lead_id?: string
+  consultant_id?: string
+  converted?: boolean
+  lost?: boolean
+  attribution?: {
+    source?: string
+    medium?: string
+    campaign?: string
+    content?: string
+  }
 }
 
 type TaskBoardPayload = {
@@ -350,6 +368,13 @@ type TaskBoardPayload = {
     total_records: number
     avg_learning_score: number
     high_score_records: number
+  }
+  business_summary?: {
+    total_leads: number
+    assigned_consultants: number
+    converted: number
+    lost: number
+    attributed: number
   }
   board: TaskBoardItem[]
 }
@@ -496,7 +521,7 @@ function appendDecisionLog(
   reason: string,
   detail: string,
   timestamp: string,
-  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule' | 'template_id' | 'learning_key' | 'learning_score' | 'learning_rank' | 'learning_top_n' | 'learning_total_candidates'>,
+  extras?: Pick<DecisionLogEntry, 'memory_hit' | 'profile_rule' | 'template_id' | 'learning_key' | 'learning_score' | 'learning_rank' | 'learning_top_n' | 'learning_total_candidates' | 'attribution_source' | 'attribution_medium' | 'attribution_campaign' | 'attribution_content'>,
 ) {
   const exists = (item.decision_log ?? []).some((entry) => entry.action === action && entry.reason === reason && entry.detail === detail)
   if (exists) return
@@ -504,6 +529,91 @@ function appendDecisionLog(
   item.auto_decision_log = [...(item.auto_decision_log ?? []), detail]
   if (['retry', 'warning', 'need_human', 'notify_result'].includes(action)) {
     item.auto_action = action as NonNullable<TaskBoardItem['auto_action']>
+  }
+}
+
+function buildLeadId(item: Pick<TaskBoardItem, 'task_name' | 'brand_line' | 'content_line' | 'timestamp'>) {
+  return [item.brand_line ?? 'lead', item.content_line ?? 'task', toTaskId(item.task_name), new Date(item.timestamp ?? Date.now()).getTime()].join('_')
+}
+
+function inferConsultantId(item: Pick<TaskBoardItem, 'brand_line' | 'project_line' | 'account_line' | 'account_type'>) {
+  if (item.account_type === 'external_partner') return undefined
+  if (item.brand_line === 'guoshituan') return 'consultant_guoshituan_main'
+  if (item.brand_line === 'kotovela') return 'consultant_kotovela_floor_heating'
+  if (item.brand_line === 'yanfami') return 'consultant_yanfami_residential'
+  if (item.brand_line === 'kotoharo') return 'consultant_kotoharo_material'
+  if ((item.project_line ?? '').includes('official_account')) return 'consultant_official_account'
+  return 'consultant_business_default'
+}
+
+function buildAttribution(item: Pick<TaskBoardItem, 'brand_line' | 'content_line' | 'project_line' | 'account_line' | 'task_name'>) {
+  return {
+    source: item.account_line ?? item.project_line ?? item.brand_line ?? 'unknown',
+    medium: item.content_line === 'customer_followup' ? 'crm_followup' : item.content_line ?? 'task_board',
+    campaign: item.brand_line ? `${item.brand_line}_${item.content_line ?? 'business'}` : item.project_line ?? 'general',
+    content: toTaskId(item.task_name),
+  }
+}
+
+function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
+  if (item.type !== 'business_task' && item.domain !== 'business' && item.content_line !== 'customer_followup') return
+  item.lead_id = item.lead_id ?? buildLeadId(item)
+  item.attribution = { ...buildAttribution(item), ...(item.attribution ?? {}) }
+
+  appendDecisionLog(item, 'strategy_generate_task', 'lead_bound', `lead_id=${item.lead_id}`, timestamp, {
+    attribution_source: item.attribution.source,
+    attribution_medium: item.attribution.medium,
+    attribution_campaign: item.attribution.campaign,
+    attribution_content: item.attribution.content,
+  })
+  appendDecisionLog(item, 'strategy_generate_task', 'attribution_bound', `attribution=${item.attribution.source}/${item.attribution.medium}/${item.attribution.campaign}`, timestamp, {
+    attribution_source: item.attribution.source,
+    attribution_medium: item.attribution.medium,
+    attribution_campaign: item.attribution.campaign,
+    attribution_content: item.attribution.content,
+  })
+
+  if (!item.consultant_id) {
+    const consultantId = inferConsultantId(item)
+    if (consultantId) {
+      item.consultant_id = consultantId
+      appendDecisionLog(item, 'lead_auto_transfer', 'consultant_assigned', `consultant_id=${consultantId}`, timestamp, {
+        attribution_source: item.attribution.source,
+        attribution_medium: item.attribution.medium,
+        attribution_campaign: item.attribution.campaign,
+        attribution_content: item.attribution.content,
+      })
+    }
+  }
+
+  item.converted = item.converted ?? (item.status === 'done' || item.status === 'success')
+  item.lost = item.lost ?? (item.status === 'cancelled' || item.status === 'failed')
+}
+
+function summarizeBusinessBoard(board: TaskBoardItem[]) {
+  const businessItems = board.filter((item) => item.domain === 'business' || item.type === 'business_task' || item.content_line === 'customer_followup')
+  const leads = businessItems.filter((item) => item.lead_id)
+  const attributed = leads.filter((item) => item.attribution?.source && item.attribution?.medium && item.attribution?.campaign)
+  return {
+    total_leads: leads.length,
+    assigned_consultants: leads.filter((item) => item.consultant_id).length,
+    converted: leads.filter((item) => item.converted).length,
+    lost: leads.filter((item) => item.lost).length,
+    attributed: attributed.length,
+  }
+}
+
+async function withTaskBoardLock<T>(work: () => Promise<T>) {
+  const previous = taskBoardWriteQueue.catch(() => undefined)
+  let release!: (value?: unknown) => void
+  taskBoardWriteQueue = new Promise((resolve) => {
+    release = resolve
+  })
+  await previous
+  try {
+    return await work()
+  } finally {
+    release()
   }
 }
 
@@ -757,6 +867,8 @@ function applyUserContextOnCreate(item: TaskBoardItem, records: MemoryRecord[]) 
       })
     }
   }
+
+  ensureBusinessFields(item, timestamp)
 }
 
 function computeBasePriority(item: TaskBoardItem) {
@@ -958,6 +1070,9 @@ function inferTaskRoute(input: string): RoutedTaskSpec {
 
 function detectContentLine(input: string, source?: Partial<TaskBoardSource>): Pick<ContentRouteDecision, 'contentLine' | 'lockedBy'> | null {
   const normalized = `${input} ${source?.title ?? ''} ${source?.chapter_title ?? ''} ${source?.core_points ?? ''}`.toLowerCase()
+  if (['地暖', '采暖', '热系统'].some((keyword) => normalized.includes(keyword.toLowerCase()))) {
+    return { contentLine: 'floor_heating', lockedBy: 'keyword' }
+  }
   for (const rule of CONTENT_LINE_KEYWORDS) {
     if (rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase()))) {
       return { contentLine: rule.line, lockedBy: 'keyword' }
@@ -1511,6 +1626,16 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
   const decision = resolveContentRouteDecision(input, source)
   if (!detected || !decision) return null
 
+  const routingText = `${input} ${source?.title ?? ''} ${source?.chapter_title ?? ''} ${source?.core_points ?? ''}`.toLowerCase()
+  const hasFloorHeatingKeyword = ['地暖', '采暖', '热系统'].some((keyword) => routingText.includes(keyword.toLowerCase()))
+  const hasMaterialKeyword = ['岩板', '建材', '品牌', '材料', '案例'].some((keyword) => routingText.includes(keyword.toLowerCase()))
+  const conflictDecisionEntries: DecisionLogEntry[] = hasFloorHeatingKeyword && hasMaterialKeyword
+    ? [
+      { timestamp: now, action: 'conflict_detected', reason: 'content_line_conflict', detail: 'floor_heating vs material_case' },
+      { timestamp: now, action: 'domain_locked_by_priority', reason: 'priority_rule_applied', detail: 'floor_heating > material_case' },
+    ]
+    : []
+
   const route = CONTENT_ROUTE_MAP[detected.contentLine as Exclude<ContentLine, 'growth_record' | 'ai_tools'>]
   const allowedAccountLines = new Set(CONTENT_LINE_ALLOWED_ACCOUNT_LINES[detected.contentLine] ?? [])
   const filteredAccountLines = (route?.variants ?? [])
@@ -1569,6 +1694,7 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       auto_decision_log: [],
       decision_log: [
         { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+        ...conflictDecisionEntries,
         { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
         { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: 'account_line=guoshituan_official / business_only=true' },
         { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: 'account_line=business / account_type=official' },
@@ -1607,6 +1733,7 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       auto_decision_log: [],
       decision_log: [
         { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+        ...conflictDecisionEntries,
         { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
         { timestamp: now, action: 'precheck_block', reason: 'route_blocked', detail: `content_line=${decision.contentLine} / allowed_account_lines=${[...allowedAccountLines].join(',') || 'none'}` },
         ...invalidAccountFilteredEntries,
@@ -1653,6 +1780,7 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
     auto_decision_log: [],
     decision_log: [
       { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+      ...conflictDecisionEntries,
       { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${variant.accountLine} / persona=${variant.personaId}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: `account_line=${variant.accountLine} / account_type=${variant.accountType}` },
@@ -2175,6 +2303,7 @@ async function readTaskBoard(filePath: string) {
     if (routed.content_line && routed.account_line && routed.result?.structure_id) {
       routed.learning_score = learningRecords.find((record) => record.key === toLearningKey(routed.content_line, routed.account_line, routed.result?.structure_id))?.learning_score
     }
+    ensureBusinessFields(routed, routed.updated_at ?? routed.timestamp ?? new Date().toISOString())
     return routed
   })
   const now = Date.now()
@@ -2460,6 +2589,7 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
     avg_learning_score: Number((learningItems.reduce((sum, item) => sum + (item.learning_score ?? 0), 0) / Math.max(1, learningItems.length)).toFixed(4)),
     high_score_records: learningItems.filter((item) => (item.learning_score ?? 0) >= 0.75).length,
   }
+  payload.business_summary = summarizeBusinessBoard(payload.board)
   payload.recent_results = payload.board
     .filter((item) => item.result)
     .sort((a, b) => new Date(b.updated_at ?? b.timestamp ?? 0).getTime() - new Date(a.updated_at ?? a.timestamp ?? 0).getTime())
@@ -2656,6 +2786,18 @@ async function writeTaskBoard(filePath: string, payload: TaskBoardPayload) {
   await fs.writeFile(filePath, `${JSON.stringify(summarized, null, 2)}\n`, 'utf8')
 }
 
+async function mutateTaskBoard<T>(filePath: string, work: (payload: TaskBoardPayload) => Promise<T>) {
+  return withTaskBoardLock(async () => {
+    const payload = await readTaskBoard(filePath)
+    const result = await work(payload)
+    payload.generated_at = new Date().toISOString()
+    await writeTaskBoard(filePath, payload)
+    const executed = await readTaskBoard(filePath)
+    await writeTaskBoard(filePath, executed)
+    return { result, payload: executed }
+  })
+}
+
 function appendHistory(target: TaskBoardItem, entry: TaskHistoryEntry) {
   const normalized: TaskHistoryEntry = {
     ...entry,
@@ -2692,6 +2834,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
       decision_reason: `人工接管：${owner}`,
     })
     target.human_owner = owner
+    if (target.domain === 'business' || target.type === 'business_task') target.consultant_id = owner
     target.taken_over_at = now
     target.need_human = true
     target.priority = 0
@@ -2713,6 +2856,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
       decision_reason: `人工指派：${owner}`,
     })
     target.human_owner = owner
+    if (target.domain === 'business' || target.type === 'business_task') target.consultant_id = owner
     target.taken_over_at = now
     target.manual_decision = 'assigned'
     target.need_human = true
@@ -2854,7 +2998,6 @@ export default defineConfig(({ mode }) => {
             if (req.method === 'GET') {
               try {
                 const payload = await readTaskBoard(filePath)
-                await writeTaskBoard(filePath, payload)
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
                 res.setHeader('Cache-Control', 'no-store')
@@ -2885,18 +3028,15 @@ export default defineConfig(({ mode }) => {
                   const sourcePayload = body?.source as Partial<TaskBoardSource> | undefined
 
                   if (templateKey && templateKey in SCENARIO_TEMPLATES) {
-                    const payload = await readTaskBoard(filePath)
                     const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
                     const scenarioTasks = createScenarioTemplateTasks(templateKey, now).map((item) => {
                       applyUserContextOnCreate(item, memoryRecords)
                       return item
                     })
-                    payload.board.unshift(...scenarioTasks.reverse())
-                    payload.generated_at = now
-                    await writeTaskBoard(filePath, payload)
-                    const executed = await readTaskBoard(filePath)
-                    await writeTaskBoard(filePath, executed)
+                    const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
+                      payload.board.unshift(...scenarioTasks.reverse())
+                    })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify(summarizeTaskBoard(executed)))
@@ -2907,7 +3047,6 @@ export default defineConfig(({ mode }) => {
                     && String(sourcePayload?.core_points || '').trim()
 
                   if (hasStructuredSource) {
-                    const payload = await readTaskBoard(filePath)
                     const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
                     const sourceType = String(sourcePayload?.source_type || '').trim() as TaskBoardSource['source_type']
@@ -2925,11 +3064,9 @@ export default defineConfig(({ mode }) => {
                       applyUserContextOnCreate(item, memoryRecords)
                       return item
                     })
-                    payload.board.unshift(...roleTasks.reverse())
-                    payload.generated_at = now
-                    await writeTaskBoard(filePath, payload)
-                    const executed = await readTaskBoard(filePath)
-                    await writeTaskBoard(filePath, executed)
+                    const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
+                      payload.board.unshift(...roleTasks.reverse())
+                    })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify(summarizeTaskBoard(executed)))
@@ -2945,18 +3082,15 @@ export default defineConfig(({ mode }) => {
 
                   const contentRoutingTasks = createContentRoutingTasks(taskInput, new Date().toISOString())
                   if (contentRoutingTasks?.length) {
-                    const payload = await readTaskBoard(filePath)
                     const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
                     const tasks = createContentRoutingTasks(taskInput, now)?.map((item) => {
                       applyUserContextOnCreate(item, memoryRecords)
                       return item
                     }) ?? []
-                    payload.board.unshift(...tasks.reverse())
-                    payload.generated_at = now
-                    await writeTaskBoard(filePath, payload)
-                    const executed = await readTaskBoard(filePath)
-                    await writeTaskBoard(filePath, executed)
+                    const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
+                      payload.board.unshift(...tasks.reverse())
+                    })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify(summarizeTaskBoard(executed)))
@@ -2964,7 +3098,6 @@ export default defineConfig(({ mode }) => {
                   }
 
                   if (taskInput.startsWith('queue:')) {
-                    const payload = await readTaskBoard(filePath)
                     const memoryRecords = await readMemoryStore()
                     const now = new Date().toISOString()
                     const taskName = taskInput.slice(6).trim() || `queued-${Date.now()}`
@@ -2999,11 +3132,9 @@ export default defineConfig(({ mode }) => {
                       history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 3 }],
                     }
                     applyUserContextOnCreate(nextItem, memoryRecords)
-                    payload.board.unshift(nextItem)
-                    payload.generated_at = now
-                    await writeTaskBoard(filePath, payload)
-                    const executed = await readTaskBoard(filePath)
-                    await writeTaskBoard(filePath, executed)
+                    const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
+                      payload.board.unshift(nextItem)
+                    })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify(summarizeTaskBoard(executed)))
@@ -3011,26 +3142,26 @@ export default defineConfig(({ mode }) => {
                   }
 
                   if (taskInput.startsWith('fail:')) {
-                    const payload = await readTaskBoard(filePath)
                     const now = new Date().toISOString()
-                    const existing = payload.board.find((item) => item.task_name === taskInput)
-                    if (existing) {
-                      appendHistory(existing, {
-                        action: 'fail',
-                        operator: 'system',
-                        trigger_source: 'system',
-                        timestamp: now,
-                        status_before: existing.status,
-                        status_after: 'failed',
-                        priority_before: existing.priority,
-                        priority_after: existing.priority,
-                        error: taskInput.slice(5).trim() || '模拟失败',
-                      })
-                      existing.status = 'failed'
-                      existing.attention = true
-                      existing.updated_at = now
-                    } else {
-                      payload.board.unshift({
+                    await mutateTaskBoard(filePath, async (payload) => {
+                      const existing = payload.board.find((item) => item.task_name === taskInput)
+                      if (existing) {
+                        appendHistory(existing, {
+                          action: 'fail',
+                          operator: 'system',
+                          trigger_source: 'system',
+                          timestamp: now,
+                          status_before: existing.status,
+                          status_after: 'failed',
+                          priority_before: existing.priority,
+                          priority_after: existing.priority,
+                          error: taskInput.slice(5).trim() || '模拟失败',
+                        })
+                        existing.status = 'failed'
+                        existing.attention = true
+                        existing.updated_at = now
+                      } else {
+                        payload.board.unshift({
                         task_name: taskInput,
                         agent: 'builder',
                         domain: 'builder',
@@ -3061,14 +3192,12 @@ export default defineConfig(({ mode }) => {
                           { action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3 },
                           { action: 'fail', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3, error: taskInput.slice(5).trim() || '模拟失败' },
                         ],
-                      })
-                    }
-                    payload.generated_at = now
-                    await writeTaskBoard(filePath, payload)
+                        })
+                      }
+                    })
                     throw new Error(taskInput.slice(5).trim() || '模拟失败')
                   }
 
-                  const payload = await readTaskBoard(filePath)
                   const memoryRecords = await readMemoryStore()
                   const now = new Date().toISOString()
                   const route = inferTaskRoute(taskInput)
@@ -3111,11 +3240,9 @@ export default defineConfig(({ mode }) => {
                     ],
                   }
                   applyUserContextOnCreate(nextItem, memoryRecords)
-                  payload.board.unshift(nextItem)
-                  payload.generated_at = now
-                  await writeTaskBoard(filePath, payload)
-                  const executed = await readTaskBoard(filePath)
-                  await writeTaskBoard(filePath, executed)
+                  const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
+                    payload.board.unshift(nextItem)
+                  })
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
                   res.end(JSON.stringify(summarizeTaskBoard(executed)))
@@ -3132,7 +3259,7 @@ export default defineConfig(({ mode }) => {
                   return
                 }
 
-                const payload = await readTaskBoard(filePath)
+                const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                 const target = payload.board.find((item) => item.task_name === taskName)
                 if (!target) {
                   res.statusCode = 404
@@ -3212,11 +3339,12 @@ export default defineConfig(({ mode }) => {
                   return
                 }
                 target.updated_at = now
-                payload.generated_at = now
-                await writeTaskBoard(filePath, payload)
+                ensureBusinessFields(target, now)
+                })
+                if (res.writableEnded) return
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify(await readTaskBoard(filePath)))
+                res.end(JSON.stringify(executed))
               } catch (error) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
@@ -3231,6 +3359,54 @@ export default defineConfig(({ mode }) => {
             }
 
             next()
+          })
+
+          server.middlewares.use('/api/leads', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+            try {
+              const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
+              const leads = payload.board
+                .filter((item) => item.lead_id)
+                .map((item) => ({
+                  lead_id: item.lead_id,
+                  task_name: item.task_name,
+                  consultant_id: item.consultant_id,
+                  converted: item.converted ?? false,
+                  lost: item.lost ?? false,
+                  attribution: item.attribution ?? null,
+                  status: item.status,
+                  domain: item.domain,
+                }))
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(JSON.stringify({ leads }))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'leads fetch failed', message: error instanceof Error ? error.message : String(error) }))
+            }
+          })
+
+          server.middlewares.use('/api/lead-stats', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+            try {
+              const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(JSON.stringify(payload.business_summary ?? summarizeBusinessBoard(payload.board)))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'lead-stats fetch failed', message: error instanceof Error ? error.message : String(error) }))
+            }
           })
 
           server.middlewares.use('/api/memory', async (req, res, next) => {

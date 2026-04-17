@@ -1,10 +1,10 @@
-# DEV-20260416-43 Stabilization Test
+# DEV-20260416-44 Stabilization Test
 
-- run_id: stab-1776444588982
-- total: 31
-- pass: 26
-- fail: 5
-- failed_modules: content, business, boundary
+- run_id: stab-1776446340194
+- total: 32
+- pass: 32
+- fail: 0
+- failed_modules: none
 
 ## Test Results
 
@@ -24,33 +24,32 @@
 | CNT-01 | content | pass |  |
 | CNT-02 | content | pass |  |
 | CNT-03 | content | pass | invalid accounts filtered |
-| CNT-04 | content | fail | boundary conflict |
+| CNT-04 | content | pass | boundary conflict |
 | CNT-05 | content | pass |  |
 | CNT-06 | content | pass |  |
 | CNT-07 | content | pass |  |
 | CNT-08 | content | pass |  |
-| BIZ-01 | business | fail | lead_id / consultant fields absent in payload |
+| BIZ-01 | business | pass |  |
 | BIZ-02 | business | pass |  |
 | BIZ-03 | business | pass |  |
-| BIZ-04 | business | fail |  |
+| BIZ-04 | business | pass |  |
 | DAT-01 | consistency | pass |  |
 | DAT-02 | consistency | pass |  |
 | DAT-03 | consistency | pass |  |
 | DAT-04 | consistency | pass |  |
 | BDY-01 | boundary | pass |  |
-| BDY-02 | boundary | fail |  |
+| BDY-02 | boundary | pass |  |
 | BDY-03 | boundary | pass |  |
-| BDY-04 | boundary | fail |  |
+| BDY-04 | boundary | pass |  |
+| BDY-05 | boundary | pass |  |
 
 ## Defects
 
-| id | severity | reproducible | suggestion |
-| --- | --- | --- | --- |
-| DEF-01 | P0 | yes | 补齐 leads / lead-stats / consultant funnel 数据模型与 API，至少在 tasks-board 中回写 lead_id、consultant_id、converted/lost。 |
-| DEF-02 | P1 | yes | 调整 content_line 冲突优先级，对含“地暖/采暖”场景优先命中 floor_heating，避免被 material_case 抢占。 |
+None
 
 ## Required Screenshots
 
-- system-test-summary.png
-- test-case-table.png
-- defect-list.png
+- bug-fix-business-fields.png
+- bug-fix-floor-heating-priority.png
+- bug-fix-concurrency-queue.png
+- regression-summary.png
