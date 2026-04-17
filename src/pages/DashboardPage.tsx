@@ -234,7 +234,7 @@ type AutoTaskBoardItem = {
   source_line?: string
   brand_line?: 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
   brand_display?: string
-  content_line?: 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
+  content_line?: 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup' | 'growth_record' | 'ai_tools'
   account_line?: 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
   account_display?: string
   account_type?: 'official' | 'personal' | 'hybrid'

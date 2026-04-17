@@ -174,7 +174,7 @@ type PersonaProfile = {
 }
 
 type BrandLine = 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
-type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
+type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup' | 'growth_record' | 'ai_tools'
 type AccountType = 'official' | 'personal' | 'hybrid'
 type AccountLine = 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
 type DistributionChannel = 'short_content' | 'official_account'
@@ -383,12 +383,21 @@ const CONTENT_LINE_SOURCE_MAP: Record<TaskBoardSource['source_type'], ContentLin
 
 const CONTENT_LINE_KEYWORDS: Array<{ line: ContentLine; keywords: string[] }> = [
   { line: 'kitchen_storage', keywords: ['收纳', '橱柜', '厨房'] },
-  { line: 'material_case', keywords: ['材料', '建材', '品牌'] },
+  { line: 'material_case', keywords: ['材料', '建材', '品牌', '岩板', '热系统', '地暖'] },
   { line: 'customer_followup', keywords: ['客户', '报价', '跟进'] },
   { line: 'layout_renovation', keywords: ['户型', '动线', '改造'] },
 ]
 
-const CONTENT_ROUTE_MAP: Record<ContentLine, Omit<ContentRouteDecision, 'contentLine' | 'lockedBy'>> = {
+const CONTENT_LINE_ALLOWED_ACCOUNT_LINES: Record<ContentLine, AccountLine[]> = {
+  layout_renovation: ['yanfami_official', 'guoma970'],
+  kitchen_storage: ['kotoharo_official', 'chongming_storage'],
+  material_case: ['yanfami_official', 'guoshituan_official', 'guoma970'],
+  customer_followup: ['guoshituan_official'],
+  growth_record: ['latin_boy_guoguo'],
+  ai_tools: ['luyi_children'],
+}
+
+const CONTENT_ROUTE_MAP: Record<Exclude<ContentLine, 'growth_record' | 'ai_tools'>, Omit<ContentRouteDecision, 'contentLine' | 'lockedBy'>> = {
   layout_renovation: {
     brandLine: 'yanfami',
     accountLine: 'yanfami_official',
@@ -408,12 +417,15 @@ const CONTENT_ROUTE_MAP: Record<ContentLine, Omit<ContentRouteDecision, 'content
     ],
   },
   material_case: {
-    brandLine: 'kotovela',
-    accountLine: 'kotovela_official',
-    sourceLine: 'kotovela_official',
+    brandLine: 'yanfami',
+    accountLine: 'yanfami_official',
+    sourceLine: 'yanfami_official',
     variants: [
+      { accountLine: 'guoma970', accountType: 'hybrid', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'guoma970', personaId: 'guoma970_content', taskSuffix: '果妈970解释版' },
+      { accountLine: 'yanfami_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '言家官方案例长文版' },
+      { accountLine: 'guoshituan_official', accountType: 'official', distributionChannel: 'official_account', roleVersion: 'official_account', contentVariant: 'article', personaId: 'official_account', taskSuffix: '果实团品牌案例版' },
       { accountLine: 'latin_boy_guoguo', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'latin_boy', taskSuffix: '拉丁男孩版' },
-      { accountLine: 'kotovela_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '官方案例长文版' },
+      { accountLine: 'luyi_children', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'official_account', taskSuffix: '六一儿童版' },
     ],
   },
   customer_followup: {
@@ -838,17 +850,39 @@ function detectContentLine(input: string, source?: Partial<TaskBoardSource>): Pi
   return null
 }
 
+function resolveMaterialCaseBrandLine(input: string, source?: Partial<TaskBoardSource>) {
+  const text = `${input} ${source?.title ?? ''} ${source?.chapter_title ?? ''} ${source?.core_points ?? ''}`.toLowerCase()
+  if (['地暖', '热系统'].some((keyword) => text.includes(keyword))) {
+    return { brandLine: 'kotovela' as const, sourceLine: 'kotovela_official' }
+  }
+  if (['岩板', '建材', '品牌'].some((keyword) => text.includes(keyword))) {
+    if (text.includes('果实团') || text.includes('guoshituan')) {
+      return { brandLine: 'guoshituan' as const, sourceLine: 'guoshituan_official' }
+    }
+    return { brandLine: 'yanfami' as const, sourceLine: 'yanfami_official' }
+  }
+  return { brandLine: 'yanfami' as const, sourceLine: 'yanfami_official' }
+}
+
 function resolveContentRouteDecision(input: string, source?: Partial<TaskBoardSource>): ContentRouteDecision | null {
   const detected = detectContentLine(input, source)
   if (!detected) return null
-  const route = CONTENT_ROUTE_MAP[detected.contentLine]
+  const route = CONTENT_ROUTE_MAP[detected.contentLine as Exclude<ContentLine, 'growth_record' | 'ai_tools'>]
+  if (!route) return null
+
+  const materialDecision = detected.contentLine === 'material_case'
+    ? resolveMaterialCaseBrandLine(input, source)
+    : null
+  const allowedAccountLines = new Set(CONTENT_LINE_ALLOWED_ACCOUNT_LINES[detected.contentLine] ?? [])
+  const variants = route.variants.filter((variant) => allowedAccountLines.has(variant.accountLine))
+
   return {
     contentLine: detected.contentLine,
     lockedBy: detected.lockedBy,
-    brandLine: route.brandLine,
-    accountLine: route.accountLine,
-    sourceLine: source?.source_line ?? route.sourceLine,
-    variants: route.variants,
+    brandLine: materialDecision?.brandLine ?? route.brandLine,
+    accountLine: variants[0]?.accountLine ?? route.accountLine,
+    sourceLine: source?.source_line ?? materialDecision?.sourceLine ?? route.sourceLine,
+    variants,
   }
 }
 
@@ -1273,8 +1307,18 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
 }
 
 function createContentRoutingTasks(input: string, now: string, source?: Partial<TaskBoardSource>) {
+  const detected = detectContentLine(input, source)
   const decision = resolveContentRouteDecision(input, source)
-  if (!decision) return null
+  if (!detected || !decision) return null
+
+  const route = CONTENT_ROUTE_MAP[detected.contentLine as Exclude<ContentLine, 'growth_record' | 'ai_tools'>]
+  const allowedAccountLines = new Set(CONTENT_LINE_ALLOWED_ACCOUNT_LINES[detected.contentLine] ?? [])
+  const filteredAccountLines = (route?.variants ?? [])
+    .map((variant) => variant.accountLine)
+    .filter((accountLine) => !allowedAccountLines.has(accountLine))
+  const invalidAccountFilteredEntries: DecisionLogEntry[] = filteredAccountLines.length > 0
+    ? [{ timestamp: now, action: 'strategy_generate_task', reason: 'invalid_account_filtered', detail: `filtered_account_lines=${filteredAccountLines.join(',')}` }]
+    : []
 
   const scenarioId = `content-line-${Date.now()}`
   const parentTaskId = `${scenarioId}:parent`
@@ -1336,6 +1380,42 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
     } satisfies TaskBoardItem]
   }
 
+  if (decision.variants.length === 0) {
+    return [{
+      task_name: `${baseTitle} · 路由拦截`,
+      agent: 'builder',
+      parent_task_id: parentTaskId,
+      scenario_id: scenarioId,
+      task_group_id: `${scenarioId}:${decision.contentLine}:blocked`,
+      task_group_label: `${baseTitle} · ${decision.contentLine} · blocked`,
+      domain: 'builder',
+      subdomain: 'content_route_blocked',
+      project_line: decision.sourceLine,
+      source_line: decision.sourceLine,
+      brand_line: decision.brandLine,
+      brand_display: BRAND_DISPLAY_MAP[decision.brandLine],
+      content_line: decision.contentLine,
+      priority: 0,
+      retry_count: 0,
+      type: 'content_task',
+      status: 'blocked',
+      timestamp: now,
+      queued_at: now,
+      updated_at: now,
+      auto_generated: true,
+      trigger_source: 'manual',
+      auto_decision_log: [],
+      decision_log: [
+        { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
+        { timestamp: now, action: 'precheck_block', reason: 'route_blocked', detail: `content_line=${decision.contentLine} / allowed_account_lines=${[...allowedAccountLines].join(',') || 'none'}` },
+        ...invalidAccountFilteredEntries,
+      ],
+      source: normalizedSource,
+      history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'blocked', priority_after: 0 }],
+    } satisfies TaskBoardItem]
+  }
+
   return decision.variants.map((variant) => ({
     task_name: buildContentTaskName(baseTitle, variant),
     agent: variant.distributionChannel === 'official_account' ? 'business' : 'media',
@@ -1376,6 +1456,7 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: `account_line=${variant.accountLine} / persona=${variant.personaId}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: `account_line=${variant.accountLine} / account_type=${variant.accountType}` },
+      ...invalidAccountFilteredEntries,
       { timestamp: now, action: 'strategy_generate_task', reason: 'persona_applied', detail: `persona=${variant.personaId}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'structure_applied', detail: `structure_type=${variant.accountType}` },
       { timestamp: now, action: 'strategy_generate_task', reason: 'variant_generated', detail: `variant=${variant.contentVariant}` },
