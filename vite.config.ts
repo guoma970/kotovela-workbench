@@ -57,6 +57,15 @@ type TaskBoardItem = {
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
+  result?: {
+    title: string
+    hook: string
+    outline: string[]
+    script: string
+    publish_text: string
+    generated_at?: string
+    generator?: 'mock' | 'gpt'
+  }
 }
 
 type TaskBoardPayload = {
@@ -80,6 +89,12 @@ type TaskBoardPayload = {
     health: 'healthy' | 'warning' | 'critical'
   }>
   system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
+  recent_results?: Array<{
+    task_name: string
+    domain?: string
+    updated_at?: string
+    result: NonNullable<TaskBoardItem['result']>
+  }>
   board: TaskBoardItem[]
 }
 
@@ -121,6 +136,44 @@ function inferTaskRoute(input: string): RoutedTaskSpec {
     assigned_agent: domain,
     target_system: `openclaw-${domain}`,
   }
+}
+
+function buildMediaResult(taskName: string, timestamp: string): NonNullable<TaskBoardItem['result']> {
+  const topic = taskName.replace(/^queue:/i, '').trim() || '本周内容选题'
+  return {
+    title: `3 分钟讲清：${topic}`,
+    hook: `你以为 ${topic} 只是常规动作，但真正拉开差距的是前 10 秒怎么说。`,
+    outline: [
+      `为什么现在要做「${topic}」`,
+      '用户最容易忽略的 1 个误区',
+      '可直接照着执行的 3 步方法',
+      '结尾行动指令与互动提问',
+    ],
+    script: `开头：\n你以为 ${topic} 只是例行安排，但真正决定效果的，是能不能在最短时间里让人愿意继续看。\n\n中段：\n第一步，先把用户最关心的问题直接点出来。\n第二步，用一个常见错误案例说明为什么很多人做了也没效果。\n第三步，给出今天就能执行的清晰动作，让内容从“知道”变成“会做”。\n\n结尾：\n如果你也在推进 ${topic}，先把你卡住的一步留言出来，我再继续帮你拆。`,
+    publish_text: `今日内容｜${topic}\n\n别再把内容只当成“发一条”。真正有效的内容，要先抓住注意力，再给到能马上执行的动作。\n\n这次我整理了开头 hook、结构提纲和完整脚本，拿去就能发。\n\n如果你也在做 ${topic}，欢迎留言交流。`,
+    generated_at: timestamp,
+    generator: 'mock',
+  }
+}
+
+function finalizeMediaTask(item: TaskBoardItem, now: string) {
+  if (item.domain !== 'media' && inferPool(item) !== 'media') return
+  if (item.result?.title && item.result?.script && item.result?.publish_text) return
+  item.result = buildMediaResult(item.task_name, now)
+  appendHistory(item, {
+    action: 'run',
+    operator: 'system',
+    trigger_source: 'system',
+    timestamp: now,
+    status_before: item.status,
+    status_after: 'done',
+    priority_before: item.priority,
+    priority_after: item.priority,
+  })
+  item.status = 'done'
+  item.updated_at = now
+  item.slot_active = false
+  item.slot_id = null
 }
 
 function normalizePoolKey(value?: string): InstancePoolKey | undefined {
@@ -249,6 +302,7 @@ async function readTaskBoard(filePath: string) {
     auto_decision_log: item.auto_decision_log ?? [],
     queued_at: item.queued_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
     slot_active: item.slot_active ?? false,
+    result: item.result,
     history:
       item.history && item.history.length > 0
         ? item.history
@@ -266,6 +320,9 @@ async function readTaskBoard(filePath: string) {
   const now = Date.now()
   payload.board = payload.board.map((item) => {
     const next = { ...item }
+    if (next.domain === 'media' && !next.result) {
+      finalizeMediaTask(next, new Date().toISOString())
+    }
     if (next.status === 'failed') next.attention = true
     const ageMs = now - new Date(next.updated_at ?? next.timestamp ?? now).getTime()
     const stuckNow = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
@@ -371,6 +428,16 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
   payload.queue_count = payload.board.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
   payload.failed_count = payload.failed
   payload.abnormal_count = payload.board.filter((item) => item.abnormal || item.attention).length
+  payload.recent_results = payload.board
+    .filter((item) => item.result)
+    .sort((a, b) => new Date(b.updated_at ?? b.timestamp ?? 0).getTime() - new Date(a.updated_at ?? a.timestamp ?? 0).getTime())
+    .slice(0, 6)
+    .map((item) => ({
+      task_name: item.task_name,
+      domain: item.domain,
+      updated_at: item.updated_at ?? item.timestamp,
+      result: item.result!,
+    }))
   return payload
 }
 
@@ -573,7 +640,7 @@ export default defineConfig(({ mode }) => {
                   const payload = await readTaskBoard(filePath)
                   const now = new Date().toISOString()
                   const route = inferTaskRoute(taskInput)
-                  payload.board.unshift({
+                  const nextItem: TaskBoardItem = {
                     task_name: taskInput,
                     agent: route.assigned_agent,
                     domain: route.domain,
@@ -602,7 +669,11 @@ export default defineConfig(({ mode }) => {
                         priority_after: 3,
                       },
                     ],
-                  })
+                  }
+                  if (route.domain === 'media') {
+                    finalizeMediaTask(nextItem, now)
+                  }
+                  payload.board.unshift(nextItem)
                   payload.generated_at = now
                   await writeTaskBoard(filePath, payload)
                   res.statusCode = 200

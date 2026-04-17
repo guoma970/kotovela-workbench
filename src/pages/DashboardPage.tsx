@@ -197,6 +197,15 @@ type AutoTaskBoardItem = {
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
+  result?: {
+    title: string
+    hook: string
+    outline: string[]
+    script: string
+    publish_text: string
+    generated_at?: string
+    generator?: 'mock' | 'gpt'
+  }
 }
 
 type AutoTaskBoardPayload = {
@@ -218,6 +227,12 @@ type AutoTaskBoardPayload = {
     health: 'healthy' | 'warning' | 'critical'
   }>
   system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
+  recent_results?: Array<{
+    task_name: string
+    domain?: string
+    updated_at?: string
+    result: NonNullable<AutoTaskBoardItem['result']>
+  }>
   board: AutoTaskBoardItem[]
 }
 
@@ -500,6 +515,8 @@ export function AutoTaskSystemPanel() {
   const [runningTaskName, setRunningTaskName] = useState('')
   const [autoRetryState, setAutoRetryState] = useState<{ taskName: string; retryCount: number } | null>(null)
   const [controlLoadingTask, setControlLoadingTask] = useState('')
+  const [expandedTaskName, setExpandedTaskName] = useState('')
+  const [copyState, setCopyState] = useState('')
 
   const loadBoard = () => {
     setLoading(true)
@@ -666,6 +683,16 @@ export function AutoTaskSystemPanel() {
   ) => {
     const isBusy = Boolean(controlLoadingTask)
     const updatedAt = item.updated_at || item.timestamp || item.queued_at || '-'
+    const resultText = item.result
+      ? [
+          `title\n${item.result.title}`,
+          `hook\n${item.result.hook}`,
+          `outline\n${item.result.outline.map((line, idx) => `${idx + 1}. ${line}`).join('\n')}`,
+          `script\n${item.result.script}`,
+          `publish_text\n${item.result.publish_text}`,
+        ].join('\n\n')
+      : ''
+    const expanded = expandedTaskName === item.task_name
     const flags = [
       item.attention ? 'attention' : '',
       item.stuck ? 'stuck' : '',
@@ -697,6 +724,51 @@ export function AutoTaskSystemPanel() {
                 {flag}
               </span>
             ))}
+          </div>
+        ) : null}
+        {item.domain === 'media' && item.result ? (
+          <div className="scheduler-task-result-block">
+            <div className="scheduler-task-result-head">
+              <strong>内容结果</strong>
+              <div className="scheduler-task-result-actions">
+                <button
+                  className="auto-task-row-btn"
+                  type="button"
+                  onClick={() => setExpandedTaskName(expanded ? '' : item.task_name)}
+                >
+                  {expanded ? '收起' : '展开'}
+                </button>
+                <button
+                  className="auto-task-row-btn"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(resultText)
+                      setCopyState(item.task_name)
+                      window.setTimeout(() => setCopyState((current) => (current === item.task_name ? '' : current)), 1500)
+                    } catch {
+                      setCopyState('copy-failed')
+                    }
+                  }}
+                >
+                  {copyState === item.task_name ? '已复制' : '复制'}
+                </button>
+              </div>
+            </div>
+            {expanded ? (
+              <div className="scheduler-task-result-content">
+                <div><span>title</span><strong>{item.result.title}</strong></div>
+                <div><span>hook</span><p>{item.result.hook}</p></div>
+                <div>
+                  <span>outline</span>
+                  <ol>
+                    {item.result.outline.map((line) => <li key={line}>{line}</li>)}
+                  </ol>
+                </div>
+                <div><span>script</span><pre>{item.result.script}</pre></div>
+                <div><span>publish_text</span><pre>{item.result.publish_text}</pre></div>
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div className="scheduler-task-foot">
@@ -737,6 +809,8 @@ export function AutoTaskSystemPanel() {
       </article>
     )
   }
+
+  const recentResults = data?.recent_results ?? []
 
   return (
     <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
@@ -850,6 +924,16 @@ export function AutoTaskSystemPanel() {
         </div>
 
         <aside className="scheduler-alert-card">
+          <div className="scheduler-section-title">最近结果</div>
+          <div className="scheduler-alert-group">
+            {recentResults.length ? recentResults.map((entry, index) => (
+              <div className="scheduler-result-item" key={`${entry.task_name}-${index}`}>
+                <strong>{entry.result.title}</strong>
+                <p>{entry.task_name}</p>
+                <small>{entry.updated_at ?? '-'}</small>
+              </div>
+            )) : <div className="auto-task-empty">暂无结果</div>}
+          </div>
           <div className="scheduler-section-title">系统告警</div>
           <div className="scheduler-alert-group">
             <h4>连续失败任务</h4>

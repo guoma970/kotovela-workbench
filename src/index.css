@@ -1570,6 +1570,7 @@ button,
 }
 
 .scheduler-alert-item,
+.scheduler-result-item,
 .scheduler-decision-item {
   padding: 12px;
   border-radius: 12px;
@@ -1577,6 +1578,71 @@ button,
   background: rgba(10, 16, 32, 0.78);
   color: #dbe7ff;
   font-size: 0.84rem;
+}
+
+.scheduler-result-item p,
+.scheduler-result-item small {
+  margin: 0;
+}
+
+.scheduler-result-item strong {
+  color: #f4f8ff;
+}
+
+.scheduler-result-item p {
+  color: #dbe7ff;
+  font-size: 0.82rem;
+}
+
+.scheduler-result-item small {
+  color: #8ea2c6;
+}
+
+.scheduler-task-result-block {
+  display: grid;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(126, 163, 255, 0.18);
+  background: rgba(126, 163, 255, 0.06);
+  padding: 10px;
+}
+
+.scheduler-task-result-head,
+.scheduler-task-result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scheduler-task-result-content {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduler-task-result-content span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8ea2c6;
+  font-size: 0.76rem;
+  text-transform: lowercase;
+}
+
+.scheduler-task-result-content p,
+.scheduler-task-result-content ol,
+.scheduler-task-result-content pre {
+  margin: 0;
+  color: #e8f0ff;
+}
+
+.scheduler-task-result-content ol {
+  padding-left: 18px;
+}
+
+.scheduler-task-result-content pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  line-height: 1.55;
 }
 
 .scheduler-alert-item.is-critical {
