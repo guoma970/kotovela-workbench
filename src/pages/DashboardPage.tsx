@@ -404,8 +404,11 @@ function buildPublishCenterEntries(board: AutoTaskBoardItem[]): PublishCenterEnt
       updatedAt: item.updated_at ?? item.timestamp,
       source: item.source,
       roleVersion: item.role_version,
+      brandLine: item.brand_line,
+      brandDisplay: item.brand_display,
       contentLine: item.content_line,
       accountLine: item.account_line,
+      accountDisplay: item.account_display,
       accountType: item.account_type,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
@@ -427,8 +430,11 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
       updatedAt: item.updated_at ?? item.timestamp,
       source: item.source,
       roleVersion: item.role_version,
+      brandLine: item.brand_line,
+      brandDisplay: item.brand_display,
       contentLine: item.content_line,
       accountLine: item.account_line,
+      accountDisplay: item.account_display,
       accountType: item.account_type,
       distributionChannel: item.distribution_channel,
       contentVariant: item.content_variant,
@@ -1618,8 +1624,8 @@ export function AutoTaskSystemPanel() {
                           <span>{entry.domain} · {entry.assetType} · {entry.contentVariant || '-'}</span>
                         </div>
                         <div className="scheduler-publish-grid">
-                          <div><span>content_line</span><p>{entry.contentLine || '-'}</p></div>
-                          <div><span>account_line</span><p>{entry.accountLine || '-'}</p></div>
+                          <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+                          <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
                           <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
                           <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                           <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
@@ -1703,7 +1709,7 @@ export function AutoTaskSystemPanel() {
                   <div className="scheduler-section-title">结果沉淀中心</div>
                   <div className="scheduler-task-groups">
                     {archiveContentLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`content-${line}`}><strong>content_line</strong><span>{line} · {entries.length} 条</span></div>)}
-                    {archiveAccountLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`account-${line}`}><strong>account_line</strong><span>{line} · {entries.length} 条</span></div>)}
+                    {archiveAccountLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`account-${line}`}><strong>account_display</strong><span>{entries[0]?.accountDisplay || line} · {entries.length} 条</span></div>)}
                   </div>
                   <div className="scheduler-archive-groups">
                     {archiveDomainGroups.length ? archiveDomainGroups.map(([domain, entries]) => (
@@ -1723,8 +1729,8 @@ export function AutoTaskSystemPanel() {
                                 <span>{entry.assetType} · {entry.contentVariant || '-'}</span>
                               </div>
                               <div className="scheduler-publish-grid">
-                                <div><span>content_line</span><p>{entry.contentLine || '-'}</p></div>
-                                <div><span>account_line</span><p>{entry.accountLine || '-'}</p></div>
+                                <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+                                <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
                                 <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
                                 <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
                                 <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>

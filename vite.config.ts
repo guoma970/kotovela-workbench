@@ -166,7 +166,7 @@ type DecisionLogEntry = {
 }
 
 type PersonaProfile = {
-  persona_id: 'openclaw_content' | 'mom970_content' | 'latin_boy' | 'chongming_storage' | 'official_account'
+  persona_id: 'openclaw_content' | 'guoma970_content' | 'latin_boy' | 'chongming_storage' | 'official_account'
   persona: string
   tone_style: string
   interaction_style: string
@@ -176,7 +176,7 @@ type PersonaProfile = {
 type BrandLine = 'kotovela' | 'yanfami' | 'kotoharo' | 'guoshituan'
 type ContentLine = 'layout_renovation' | 'kitchen_storage' | 'material_case' | 'customer_followup'
 type AccountType = 'official' | 'personal' | 'hybrid'
-type AccountLine = 'yanjia_housing' | 'yannazhuji' | 'yanting_floor' | 'guoshituan' | 'mom970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'business'
+type AccountLine = 'yanfami_official' | 'kotoharo_official' | 'kotovela_official' | 'guoshituan_official' | 'guoma970' | 'latin_boy_guoguo' | 'luyi_children' | 'chongming_storage' | 'openclaw' | 'mom970'
 type DistributionChannel = 'short_content' | 'official_account'
 type ContentVariant = 'short' | 'article'
 
@@ -189,7 +189,7 @@ type TaskBoardSource = {
   source_line?: string
 }
 
-type RoleVersion = 'yanjia_housing' | 'official_account' | 'mom970'
+type RoleVersion = 'yanfami_official' | 'official_account' | 'guoma970' | 'mom970'
 
 type TaskBoardItem = {
   task_name: string
@@ -343,7 +343,8 @@ type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
 const QUEUE_WARNING_MS = 60_000
 const PERSONA_REGISTRY: Record<string, PersonaProfile> = {
   openclaw_content: { persona_id: 'openclaw_content', persona: '言家住宅官方人格', tone_style: '冷静拆解，偏产品方法论', interaction_style: '结尾抛执行问题，鼓励继续追问', structure_type: 'official' },
-  mom970: { persona_id: 'mom970_content', persona: '970经验型人格', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙', structure_type: 'hybrid' },
+  guoma970: { persona_id: 'guoma970_content', persona: '970经验型人格', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙', structure_type: 'hybrid' },
+  mom970: { persona_id: 'guoma970_content', persona: '970经验型人格', tone_style: '温暖经验流，像陪伴式分享', interaction_style: '多用生活感提问，鼓励评论区接龙', structure_type: 'hybrid' },
   latin_boy: { persona_id: 'latin_boy', persona: '少年感互动人格', tone_style: '轻快少年感，节奏明亮', interaction_style: '适合互动小游戏和选择题', structure_type: 'personal' },
   chongming: { persona_id: 'chongming_storage', persona: '生活改造人格', tone_style: '收纳改造型，强调前后对比', interaction_style: '鼓励晒改造前后和提具体困扰', structure_type: 'personal' },
   official_account: { persona_id: 'official_account', persona: '品牌官方人格', tone_style: '正式可信，偏信息整合', interaction_style: '适合引导收藏、转发和留言咨询', structure_type: 'official' },
@@ -355,15 +356,16 @@ const BRAND_DISPLAY_MAP: Record<BrandLine, string> = {
   guoshituan: '果实团',
 }
 const ACCOUNT_DISPLAY_MAP: Record<AccountLine, string> = {
-  yanjia_housing: '言家住宅',
-  yannazhuji: '言纳筑集',
-  yanting_floor: '言庭地板',
-  guoshituan: '果实团',
-  mom970: '果妈970',
+  yanfami_official: '言家 Yanfami 官方',
+  kotoharo_official: '言纳筑集 KOTOHARO 官方',
+  kotovela_official: '言町 Kotovela 官方',
+  guoshituan_official: '果实团 官方',
+  guoma970: '果妈970 Guoma970',
+  mom970: '果妈970 Guoma970',
   latin_boy_guoguo: '拉丁男孩果果',
   luyi_children: '六一儿童',
-  chongming_storage: '聪明收纳',
-  business: '业务线',
+  chongming_storage: '崇明小娘爱收纳',
+  openclaw: 'OpenClaw',
 }
 const DOMAIN_PRIORITY_MAP: Record<InstancePoolKey, number> = {
   family: 0,
@@ -389,36 +391,35 @@ const CONTENT_LINE_KEYWORDS: Array<{ line: ContentLine; keywords: string[] }> = 
 const CONTENT_ROUTE_MAP: Record<ContentLine, Omit<ContentRouteDecision, 'contentLine' | 'lockedBy'>> = {
   layout_renovation: {
     brandLine: 'yanfami',
-    accountLine: 'yanjia_housing',
-    sourceLine: 'housing',
+    accountLine: 'yanfami_official',
+    sourceLine: 'yanfami_official',
     variants: [
-      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '言家住宅官方版' },
-      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '公众号长文版' },
+      { accountLine: 'guoma970', accountType: 'hybrid', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'guoma970', personaId: 'guoma970_content', taskSuffix: '果妈970版' },
+      { accountLine: 'yanfami_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '官方长文版' },
     ],
   },
   kitchen_storage: {
     brandLine: 'kotoharo',
-    accountLine: 'yannazhuji',
-    sourceLine: 'biz_content',
+    accountLine: 'kotoharo_official',
+    sourceLine: 'kotoharo_official',
     variants: [
-      { accountLine: 'yannazhuji', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'official_account', taskSuffix: '言纳筑集官方版' },
-      { accountLine: 'chongming_storage', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'chongming_storage', taskSuffix: '聪明收纳生活号版' },
-      { accountLine: 'mom970', accountType: 'hybrid', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'mom970', personaId: 'mom970_content', taskSuffix: '970经验号版' },
+      { accountLine: 'chongming_storage', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'chongming_storage', taskSuffix: '收纳人格版' },
+      { accountLine: 'kotoharo_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '官方长文版' },
     ],
   },
   material_case: {
     brandLine: 'kotovela',
-    accountLine: 'yanjia_housing',
-    sourceLine: 'housing',
+    accountLine: 'kotovela_official',
+    sourceLine: 'kotovela_official',
     variants: [
-      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'short_content', contentVariant: 'short', roleVersion: 'yanjia_housing', personaId: 'openclaw_content', taskSuffix: '案例短内容版' },
-      { accountLine: 'yanjia_housing', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '案例深度长文版' },
+      { accountLine: 'latin_boy_guoguo', accountType: 'personal', distributionChannel: 'short_content', contentVariant: 'short', personaId: 'latin_boy', taskSuffix: '拉丁男孩版' },
+      { accountLine: 'kotovela_official', accountType: 'official', distributionChannel: 'official_account', contentVariant: 'article', roleVersion: 'official_account', personaId: 'official_account', taskSuffix: '官方案例长文版' },
     ],
   },
   customer_followup: {
     brandLine: 'guoshituan',
-    accountLine: 'business',
-    sourceLine: 'tech',
+    accountLine: 'guoshituan_official',
+    sourceLine: 'guoshituan_official',
     variants: [],
   },
 }
@@ -866,11 +867,11 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
   const core = item.source.core_points.trim()
   const lead = core.split(/\n+/).find(Boolean) ?? core
   const profileMap: Record<RoleVersion, { titlePrefix: string; hookPrefix: string; outlinePrefix: string[]; publishPrefix: string; personaId: PersonaProfile['persona_id']; tone: string; interaction: string }> = {
-    yanjia_housing: {
+    yanfami_official: {
       titlePrefix: '言家 Yanfami｜日式装修落地指南',
       hookPrefix: '把书稿观点改成住宅客户听得懂、愿意咨询的表达。',
       outlinePrefix: ['本土化改造重点', '住宅落地误区', '适配户型建议'],
-      publishPrefix: '【言家住宅内容运营版】',
+      publishPrefix: '【言家 Yanfami 内容运营版】',
       personaId: 'openclaw_content',
       tone: '专业顾问式，强调住宅落地与客户决策',
       interaction: '引导私信咨询户型与预算。',
@@ -884,12 +885,21 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
       tone: '信息整合型，适合公众号深度阅读',
       interaction: '引导收藏、转发、留言咨询。',
     },
+    guoma970: {
+      titlePrefix: '果妈970 Guoma970｜家的松弛感装修笔记',
+      hookPrefix: '把书稿观点改成带生活感、能引发评论的内容。',
+      outlinePrefix: ['生活场景共鸣', '踩坑提醒', '马上能做的小动作'],
+      publishPrefix: '【果妈970运营版】',
+      personaId: 'guoma970_content',
+      tone: '陪伴分享型，强调真实生活体验',
+      interaction: '引导评论区说出自己家里的困扰。',
+    },
     mom970: {
       titlePrefix: '果妈970 Guoma970｜家的松弛感装修笔记',
       hookPrefix: '把书稿观点改成带生活感、能引发评论的内容。',
       outlinePrefix: ['生活场景共鸣', '踩坑提醒', '马上能做的小动作'],
       publishPrefix: '【果妈970运营版】',
-      personaId: 'mom970_content',
+      personaId: 'guoma970_content',
       tone: '陪伴分享型，强调真实生活体验',
       interaction: '引导评论区说出自己家里的困扰。',
     },
@@ -922,11 +932,11 @@ function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullabl
     publish_text: publishText,
     generated_at: timestamp,
     generator: 'mock',
-    persona: PERSONA_REGISTRY[profile.personaId === 'official_account' ? 'official_account' : profile.personaId === 'mom970_content' ? 'mom970' : 'openclaw_content'].persona,
+    persona: PERSONA_REGISTRY[profile.personaId === 'official_account' ? 'official_account' : profile.personaId === 'guoma970_content' ? 'guoma970' : 'openclaw_content'].persona,
     persona_id: profile.personaId,
     tone_style: profile.tone,
     interaction_style: profile.interaction,
-    structure_type: profile.personaId === 'mom970_content' ? 'hybrid' : 'official',
+    structure_type: profile.personaId === 'guoma970_content' ? 'hybrid' : 'official',
   }
 }
 
@@ -962,7 +972,7 @@ function resolvePersonaProfile(item: TaskBoardItem): PersonaProfile {
   if (line.includes('mom970')) return PERSONA_REGISTRY.mom970
   if (line.includes('latin_boy')) return PERSONA_REGISTRY.latin_boy
   if (line.includes('chongming')) return PERSONA_REGISTRY.chongming
-  if (item.account_type === 'official' || line.includes('official_account') || line.includes('yannazhuji') || line.includes('yanjia_housing') || line.includes('guoshituan')) return PERSONA_REGISTRY.official_account
+  if (item.account_type === 'official' || line.includes('official_account') || line.includes('kotoharo_official') || line.includes('yanfami_official') || line.includes('kotovela_official') || line.includes('guoshituan_official')) return PERSONA_REGISTRY.official_account
   return PERSONA_REGISTRY.openclaw_content
 }
 
@@ -995,7 +1005,7 @@ function buildStructuredSections(accountType: AccountType, sourceTitle: string, 
 function getPublishRhythm(item: TaskBoardItem) {
   const persona = resolvePersonaProfile(item)
   switch (persona.persona_id) {
-    case 'mom970_content':
+    case 'guoma970_content':
       return { recommend_publish_time: '08:30', recommend_frequency: '1/day', publish_today: true }
     case 'latin_boy':
       return { recommend_publish_time: '17:30', recommend_frequency: '1-2/day', publish_today: true }
@@ -1115,7 +1125,7 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
       tone_style: persona.tone_style,
       interaction_style: persona.interaction_style,
       structure_type: persona.structure_type,
-      publish_ready: item.account_line !== 'business',
+      publish_ready: item.account_line !== 'guoshituan_official',
       archive_ready: true,
     }
   }
@@ -1142,7 +1152,7 @@ function buildContentVariantResult(item: TaskBoardItem, now: string): NonNullabl
     tone_style: PERSONA_REGISTRY.official_account.tone_style,
     interaction_style: PERSONA_REGISTRY.official_account.interaction_style,
     structure_type: 'official',
-    publish_ready: item.account_line !== 'business',
+    publish_ready: item.account_line !== 'guoshituan_official',
     archive_ready: true,
   }
 }
@@ -1199,9 +1209,9 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
   const scenarioId = `book-manuscript-${Date.now()}`
   const parentTaskId = `${scenarioId}:parent`
   const roleSpecs: Array<{ role_version: RoleVersion; routeHint: string; title: string }> = [
-    { role_version: 'yanjia_housing', routeHint: '言家住宅 住宅 户型', title: `言家住宅官方版 · ${source.chapter_title}` },
+    { role_version: 'yanfami_official', routeHint: '言家 Yanfami 官方 住宅 户型', title: `言家 Yanfami 官方版 · ${source.chapter_title}` },
     { role_version: 'official_account', routeHint: '公众号 推文 official_account', title: `公众号运营版 · ${source.chapter_title}` },
-    { role_version: 'mom970', routeHint: '果妈970 mom970 内容 发布', title: `果妈970运营版 · ${source.chapter_title}` },
+    { role_version: 'guoma970', routeHint: '果妈970 guoma970 mom970 内容 发布', title: `果妈970运营版 · ${source.chapter_title}` },
   ]
 
   return roleSpecs.map((spec, index) => {
@@ -1241,8 +1251,8 @@ function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
       source,
       brand_line: 'yanfami',
       brand_display: BRAND_DISPLAY_MAP.yanfami,
-      account_line: spec.role_version === 'mom970' ? 'mom970' : 'yanjia_housing',
-      account_display: spec.role_version === 'mom970' ? ACCOUNT_DISPLAY_MAP.mom970 : ACCOUNT_DISPLAY_MAP.yanjia_housing,
+      account_line: spec.role_version === 'guoma970' ? 'guoma970' : 'yanfami_official',
+      account_display: spec.role_version === 'guoma970' ? ACCOUNT_DISPLAY_MAP.guoma970 : ACCOUNT_DISPLAY_MAP.yanfami_official,
       account_type: spec.role_version === 'mom970' ? 'hybrid' : 'official',
       role_version: spec.role_version,
       depends_on: [],
@@ -1295,8 +1305,8 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       brand_line: decision.brandLine,
       brand_display: BRAND_DISPLAY_MAP[decision.brandLine],
       content_line: decision.contentLine,
-      account_line: 'business',
-      account_display: ACCOUNT_DISPLAY_MAP.business,
+      account_line: 'guoshituan_official',
+      account_display: ACCOUNT_DISPLAY_MAP.guoshituan_official,
       account_type: 'official',
       target_group_id: decision.sourceLine,
       notify_mode: 'default',
@@ -1316,7 +1326,7 @@ function createContentRoutingTasks(input: string, now: string, source?: Partial<
       decision_log: [
         { timestamp: now, action: 'strategy_generate_task', reason: 'content_line_detected', detail: `content_line=${decision.contentLine} / locked_by=${decision.lockedBy}` },
         { timestamp: now, action: 'strategy_generate_task', reason: 'brand_selected', detail: `brand_line=${decision.brandLine} / brand_display=${BRAND_DISPLAY_MAP[decision.brandLine]}` },
-        { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: 'account_line=business / business_only=true' },
+        { timestamp: now, action: 'strategy_generate_task', reason: 'route_decision', detail: 'account_line=guoshituan_official / business_only=true' },
         { timestamp: now, action: 'strategy_generate_task', reason: 'account_selected', detail: 'account_line=business / account_type=official' },
         { timestamp: now, action: 'strategy_generate_task', reason: 'persona_applied', detail: `persona=${PERSONA_REGISTRY.official_account.persona_id}` },
         { timestamp: now, action: 'strategy_generate_task', reason: 'structure_applied', detail: 'structure_type=official' },
