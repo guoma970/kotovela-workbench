@@ -164,6 +164,15 @@ type PersonaProfile = {
   interaction_style: string
 }
 
+type TaskBoardSource = {
+  source_type: 'book_manuscript'
+  source_project: 'japanese_renovation_guide'
+  chapter_title: string
+  core_points: string
+}
+
+type RoleVersion = 'yanjia_housing' | 'official_account' | 'mom970'
+
 type TaskBoardItem = {
   task_name: string
   agent: string
@@ -210,6 +219,8 @@ type TaskBoardItem = {
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
+  source?: TaskBoardSource
+  role_version?: RoleVersion
   result?: {
     type: 'text'
     content: string
@@ -698,6 +709,75 @@ function inferTaskRoute(input: string): RoutedTaskSpec {
   }
 }
 
+function buildBookRoleResult(item: TaskBoardItem, timestamp: string): NonNullable<TaskBoardItem['result']> | null {
+  if (item.source?.source_type !== 'book_manuscript' || item.source?.source_project !== 'japanese_renovation_guide' || !item.role_version) return null
+
+  const chapter = item.source.chapter_title.trim()
+  const core = item.source.core_points.trim()
+  const lead = core.split(/\n+/).find(Boolean) ?? core
+  const profileMap: Record<RoleVersion, { titlePrefix: string; hookPrefix: string; outlinePrefix: string[]; publishPrefix: string; personaId: PersonaProfile['persona_id']; tone: string; interaction: string }> = {
+    yanjia_housing: {
+      titlePrefix: '言家住宅｜日式装修落地指南',
+      hookPrefix: '把书稿观点改成住宅客户听得懂、愿意咨询的表达。',
+      outlinePrefix: ['本土化改造重点', '住宅落地误区', '适配户型建议'],
+      publishPrefix: '【言家住宅内容运营版】',
+      personaId: 'openclaw_content',
+      tone: '专业顾问式，强调住宅落地与客户决策',
+      interaction: '引导私信咨询户型与预算。',
+    },
+    official_account: {
+      titlePrefix: '公众号选题｜日式装修本土化装修指南',
+      hookPrefix: '把章节观点整理成适合收藏转发的图文结构。',
+      outlinePrefix: ['章节核心观点', '常见误区拆解', '实用清单总结'],
+      publishPrefix: '【公众号运营版】',
+      personaId: 'official_account',
+      tone: '信息整合型，适合公众号深度阅读',
+      interaction: '引导收藏、转发、留言咨询。',
+    },
+    mom970: {
+      titlePrefix: '果妈970｜家的松弛感装修笔记',
+      hookPrefix: '把书稿观点改成带生活感、能引发评论的内容。',
+      outlinePrefix: ['生活场景共鸣', '踩坑提醒', '马上能做的小动作'],
+      publishPrefix: '【果妈970运营版】',
+      personaId: 'mom970_content',
+      tone: '陪伴分享型，强调真实生活体验',
+      interaction: '引导评论区说出自己家里的困扰。',
+    },
+  }
+  const profile = profileMap[item.role_version]
+  const title = `${profile.titlePrefix}｜${chapter}`
+  const hook = `${profile.hookPrefix}${lead}`
+  const outline = [
+    `${profile.outlinePrefix[0]}：${chapter}`,
+    `${profile.outlinePrefix[1]}：${lead}`,
+    `${profile.outlinePrefix[2]}：从书稿观点转成今日可执行内容`,
+  ]
+  const script = `${profile.publishPrefix}\n章节：${chapter}\n\n核心观点：\n${core}\n\n内容展开：\n1. 先讲为什么这个章节对当下装修决策重要。\n2. 再拆出一个最容易踩坑的本土化误区。\n3. 最后给到读者今天就能执行的判断动作。\n\n结尾互动：${profile.interaction}`
+  const publishText = `${profile.publishPrefix}\n${title}\n\n${hook}\n\n要点：\n${outline.map((line, index) => `${index + 1}. ${line}`).join('\n')}\n\n${profile.interaction}`
+  return {
+    type: 'text',
+    content: [title, hook, ...outline.map((line, index) => `${index + 1}. ${line}`), script, publishText].join('\n\n'),
+    meta: {
+      domain: item.domain ?? 'media',
+      executor: 'book_manuscript_rewriter',
+      source_type: item.source.source_type,
+      source_project: item.source.source_project,
+      chapter_title: item.source.chapter_title,
+      role_version: item.role_version,
+    },
+    title,
+    hook,
+    outline,
+    script,
+    publish_text: publishText,
+    generated_at: timestamp,
+    generator: 'mock',
+    persona_id: profile.personaId,
+    tone_style: profile.tone,
+    interaction_style: profile.interaction,
+  }
+}
+
 function buildMediaResult(taskName: string, timestamp: string): NonNullable<TaskBoardItem['result']> {
   const topic = taskName.replace(/^queue:/i, '').trim() || '本周内容选题'
   const title = `3 分钟讲清：${topic}`
@@ -831,6 +911,8 @@ function buildTextResult(content: string, meta?: Record<string, unknown>): NonNu
 function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardItem['result']> {
   const domain = item.domain ?? inferPool(item)
   const matchedTemplate = chooseTemplateForTask(item, templatePoolCache)
+  const bookRoleResult = buildBookRoleResult(item, now)
+  if (bookRoleResult) return bookRoleResult
   if (domain === 'media') {
     const result = buildMediaResult(item.task_name, now)
     if (matchedTemplate) {
@@ -870,6 +952,68 @@ function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardIte
     `执行建议：已生成开发执行草案，下一步先确认范围、风险点与最小可验证改动，再进入实现。`,
     { domain: domain ?? 'builder', executor: 'code_executor' },
   )
+}
+
+function createBookManuscriptTasks(source: TaskBoardSource, now: string) {
+  const scenarioId = `book-manuscript-${Date.now()}`
+  const parentTaskId = `${scenarioId}:parent`
+  const roleSpecs: Array<{ role_version: RoleVersion; routeHint: string; title: string }> = [
+    { role_version: 'yanjia_housing', routeHint: '言家住宅 住宅 户型 housing', title: `言家住宅内容运营版 · ${source.chapter_title}` },
+    { role_version: 'official_account', routeHint: '公众号 推文 official_account', title: `公众号运营版 · ${source.chapter_title}` },
+    { role_version: 'mom970', routeHint: '果妈970 mom970 内容 发布', title: `果妈970运营版 · ${source.chapter_title}` },
+  ]
+
+  return roleSpecs.map((spec, index) => {
+    const route = inferTaskRoute(spec.routeHint)
+    return {
+      task_name: spec.title,
+      agent: route.assigned_agent,
+      parent_task_id: parentTaskId,
+      scenario_id: scenarioId,
+      task_group_id: `${scenarioId}:book-role-distribution`,
+      task_group_label: `book_manuscript · ${source.chapter_title}`,
+      template_source: 'book_manuscript_role_distribution',
+      template_task_index: index + 1,
+      domain: route.domain,
+      subdomain: route.subdomain,
+      project_line: route.project_line,
+      target_group_id: route.target_group_id,
+      notify_mode: route.notify_mode,
+      preferred_agent: route.preferred_agent,
+      assigned_agent: route.assigned_agent,
+      target_system: route.target_system,
+      slot_id: null,
+      priority: 1,
+      retry_count: 0,
+      type: 'content_task',
+      status: 'queued',
+      timestamp: now,
+      queued_at: now,
+      updated_at: now,
+      attention: false,
+      stuck: false,
+      abnormal: false,
+      auto_generated: true,
+      trigger_source: 'manual',
+      auto_decision_log: [],
+      decision_log: [],
+      source,
+      role_version: spec.role_version,
+      depends_on: [],
+      blocked_by: [],
+      dependency_status: 'ready',
+      history: [
+        {
+          action: 'create',
+          operator: 'system',
+          trigger_source: 'system',
+          timestamp: now,
+          status_after: 'queued',
+          priority_after: 1,
+        },
+      ],
+    } satisfies TaskBoardItem
+  })
 }
 
 function createScenarioTemplateTasks(templateKey: ScenarioTemplateKey, now: string) {
@@ -2068,6 +2212,7 @@ export default defineConfig(({ mode }) => {
                 if (req.method === 'POST') {
                   const taskInput = String(body?.input || '').trim()
                   const templateKey = String(body?.template_key || '').trim() as ScenarioTemplateKey
+                  const sourcePayload = body?.source as Partial<TaskBoardSource> | undefined
 
                   if (templateKey && templateKey in SCENARIO_TEMPLATES) {
                     const payload = await readTaskBoard(filePath)
@@ -2078,6 +2223,36 @@ export default defineConfig(({ mode }) => {
                       return item
                     })
                     payload.board.unshift(...scenarioTasks.reverse())
+                    payload.generated_at = now
+                    await writeTaskBoard(filePath, payload)
+                    const executed = await readTaskBoard(filePath)
+                    await writeTaskBoard(filePath, executed)
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify(summarizeTaskBoard(executed)))
+                    return
+                  }
+
+                  const hasBookSource = sourcePayload?.source_type === 'book_manuscript'
+                    && sourcePayload?.source_project === 'japanese_renovation_guide'
+                    && String(sourcePayload?.chapter_title || '').trim()
+                    && String(sourcePayload?.core_points || '').trim()
+
+                  if (hasBookSource) {
+                    const payload = await readTaskBoard(filePath)
+                    const memoryRecords = await readMemoryStore()
+                    const now = new Date().toISOString()
+                    const source: TaskBoardSource = {
+                      source_type: 'book_manuscript',
+                      source_project: 'japanese_renovation_guide',
+                      chapter_title: String(sourcePayload?.chapter_title || '').trim(),
+                      core_points: String(sourcePayload?.core_points || '').trim(),
+                    }
+                    const roleTasks = createBookManuscriptTasks(source, now).map((item) => {
+                      applyUserContextOnCreate(item, memoryRecords)
+                      return item
+                    })
+                    payload.board.unshift(...roleTasks.reverse())
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
                     const executed = await readTaskBoard(filePath)

@@ -204,6 +204,13 @@ type UserProfile = {
   behavior_patterns: Record<string, unknown>
 }
 
+type AutoTaskSource = {
+  source_type: 'book_manuscript'
+  source_project: 'japanese_renovation_guide'
+  chapter_title: string
+  core_points: string
+}
+
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
@@ -256,6 +263,8 @@ type AutoTaskBoardItem = {
   queued_at?: string
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
+  source?: AutoTaskSource
+  role_version?: 'yanjia_housing' | 'official_account' | 'mom970'
   result?: {
     type: 'text'
     content: string
@@ -328,6 +337,8 @@ type PublishCenterEntry = {
   domain: string
   assetType: 'media' | 'business' | 'family' | 'generic'
   updatedAt?: string
+  source?: AutoTaskSource
+  roleVersion?: AutoTaskBoardItem['role_version']
   result: NonNullable<AutoTaskBoardItem['result']>
 }
 
@@ -336,6 +347,8 @@ type ArchiveCenterEntry = {
   domain: string
   assetType: 'media' | 'business' | 'family' | 'generic'
   updatedAt?: string
+  source?: AutoTaskSource
+  roleVersion?: AutoTaskBoardItem['role_version']
   result: NonNullable<AutoTaskBoardItem['result']>
 }
 
@@ -357,6 +370,8 @@ function buildPublishCenterEntries(board: AutoTaskBoardItem[]): PublishCenterEnt
       domain: item.domain ?? 'unknown',
       assetType: normalizeAssetType(item),
       updatedAt: item.updated_at ?? item.timestamp,
+      source: item.source,
+      roleVersion: item.role_version,
       result: {
         ...item.result!,
         asset_type: normalizeAssetType(item),
@@ -372,6 +387,8 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
       domain: item.domain ?? 'unknown',
       assetType: normalizeAssetType(item),
       updatedAt: item.updated_at ?? item.timestamp,
+      source: item.source,
+      roleVersion: item.role_version,
       result: item.result!,
     }))
 }
@@ -1524,6 +1541,10 @@ export function AutoTaskSystemPanel() {
                         </div>
                         <div className="scheduler-publish-grid">
                           <div><span>persona</span><p>{entry.result.persona_id || '-'}</p></div>
+                          <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
+                          <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
+                          <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
+                          <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
                           <div><span>推荐发布时间</span><p>{entry.result.recommend_publish_time || '-'}</p></div>
                           <div><span>发布频率</span><p>{entry.result.recommend_frequency || '-'}</p></div>
                           <div><span>今日建议发</span><p>{typeof entry.result.publish_today === 'boolean' ? (entry.result.publish_today ? 'true' : 'false') : '-'}</p></div>
@@ -1602,6 +1623,12 @@ export function AutoTaskSystemPanel() {
                               <div className="scheduler-center-card-top">
                                 <strong>{entry.taskName}</strong>
                                 <span>{entry.assetType}</span>
+                              </div>
+                              <div className="scheduler-publish-grid">
+                                <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
+                                <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
+                                <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
+                                <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
                               </div>
                               <p>{entry.result.content || entry.result.publish_text || '-'}</p>
                               <div className="scheduler-center-actions">
