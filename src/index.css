@@ -1703,6 +1703,20 @@ button,
   color: #8ea2c6;
 }
 
+.scheduler-pending-human-card {
+  border: 1px solid rgba(255, 195, 94, 0.2);
+}
+
+.scheduler-human-item {
+  border-color: rgba(255, 195, 94, 0.24);
+  background: rgba(38, 28, 12, 0.68);
+}
+
+.scheduler-human-actions {
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 1100px) {
   .scheduler-hub-layout {
     grid-template-columns: 1fr;

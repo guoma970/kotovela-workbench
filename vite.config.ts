@@ -89,7 +89,7 @@ type TaskHistoryEntry = {
 
 type DecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue'
   reason: string
   detail: string
 }
@@ -122,6 +122,9 @@ type TaskBoardItem = {
   auto_decision_log?: string[]
   decision_log?: DecisionLogEntry[]
   need_human?: boolean
+  human_owner?: string
+  taken_over_at?: string
+  manual_decision?: 'taken_over' | 'assigned' | 'ignored' | 'done' | 'continue'
   auto_action?: 'retry' | 'warning' | 'need_human' | 'notify_result'
   queued_at?: string
   slot_active?: boolean
@@ -508,6 +511,9 @@ async function readTaskBoard(filePath: string) {
       auto_decision_log: rawItem.auto_decision_log ?? [],
       decision_log: rawItem.decision_log ?? [],
       need_human: rawItem.need_human ?? false,
+      human_owner: rawItem.human_owner,
+      taken_over_at: rawItem.taken_over_at,
+      manual_decision: rawItem.manual_decision,
       auto_action: rawItem.auto_action,
       queued_at: rawItem.queued_at ?? rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
       slot_active: rawItem.slot_active ?? false,
@@ -756,7 +762,7 @@ function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEven
     if (item.health === 'warning') return '任务处于 warning 状态'
     return '任务出现预警，请检查 Scheduler'
   }
-  if (eventType === 'task_need_human') return '任务需要人工介入处理'
+  if (eventType === 'task_need_human') return '任务需要人工介入处理，请选择已处理 / 继续执行 / 转人工'
   return '任务已进入调度队列'
 }
 
@@ -834,8 +840,9 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
       `实例：${item.assigned_agent ?? item.agent ?? 'builder'}`,
       `状态：${eventType === 'task_warning' ? '告警' : item.status ?? '-'}`,
       `摘要：${summary}`,
+      eventType === 'task_need_human' ? '动作：已处理 / 继续执行 / 转人工' : '',
       '👉 查看：/scheduler',
-    ]
+    ].filter(Boolean)
     if (eventType === 'task_done' && item.result?.content) {
       messageLines.splice(5, 0, `结果：${item.result.content}`)
     }
@@ -888,6 +895,16 @@ function appendHistory(target: TaskBoardItem, entry: TaskHistoryEntry) {
     trigger_source: entry.trigger_source ?? (entry.operator === 'builder' ? 'manual' : 'system'),
   }
   target.history = [...(target.history ?? []), normalized]
+}
+
+function appendManualDecision(
+  target: TaskBoardItem,
+  action: 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue',
+  reason: string,
+  detail: string,
+  timestamp: string,
+) {
+  target.decision_log = [...(target.decision_log ?? []), { timestamp, action, reason, detail }]
 }
 
 export default defineConfig(({ mode }) => {
@@ -1015,6 +1032,10 @@ export default defineConfig(({ mode }) => {
                       stuck: false,
                       abnormal: false,
                       auto_decision_log: [],
+                      decision_log: [],
+                      human_owner: undefined,
+                      taken_over_at: undefined,
+                      manual_decision: undefined,
                       history: [{ action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'queued', priority_after: 3 }],
                     })
                     payload.generated_at = now
@@ -1070,6 +1091,10 @@ export default defineConfig(({ mode }) => {
                         stuck: false,
                         abnormal: false,
                         auto_decision_log: [],
+                        decision_log: [],
+                        human_owner: undefined,
+                        taken_over_at: undefined,
+                        manual_decision: undefined,
                         history: [
                           { action: 'create', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3 },
                           { action: 'fail', operator: 'system', trigger_source: 'system', timestamp: now, status_after: 'failed', priority_after: 3, error: taskInput.slice(5).trim() || '模拟失败' },
@@ -1107,6 +1132,10 @@ export default defineConfig(({ mode }) => {
                     stuck: false,
                     abnormal: false,
                     auto_decision_log: [],
+                    decision_log: [],
+                    human_owner: undefined,
+                    taken_over_at: undefined,
+                    manual_decision: undefined,
                     history: [
                       {
                         action: 'create',
@@ -1131,6 +1160,7 @@ export default defineConfig(({ mode }) => {
 
                 const taskName = String(body?.task_name || '').trim()
                 const action = String(body?.action || '').trim()
+                const humanOwner = String(body?.human_owner || body?.assignee || '').trim()
                 if (!taskName || !action) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
@@ -1201,6 +1231,94 @@ export default defineConfig(({ mode }) => {
                     after: { status: target.status, priority: Math.min(9, (target.priority ?? 3) + 1) },
                   })
                   target.priority = Math.min(9, (target.priority ?? 3) + 1)
+                } else if (action === 'takeover') {
+                  const owner = humanOwner || target.human_owner || 'builder'
+                  appendHistory(target, {
+                    action: 'need_human',
+                    operator: 'builder',
+                    trigger_source: 'manual',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: target.status, priority: target.priority },
+                    decision_type: 'need_human',
+                    decision_reason: `人工接管：${owner}`,
+                  })
+                  target.human_owner = owner
+                  target.taken_over_at = now
+                  target.manual_decision = 'taken_over'
+                  appendManualDecision(target, 'manual_takeover', 'human_takeover', `已由 ${owner} 接管`, now)
+                } else if (action === 'assign') {
+                  const owner = humanOwner || target.human_owner || 'builder'
+                  appendHistory(target, {
+                    action: 'need_human',
+                    operator: 'builder',
+                    trigger_source: 'manual',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: target.status, priority: target.priority },
+                    decision_type: 'need_human',
+                    decision_reason: `人工指派：${owner}`,
+                  })
+                  target.human_owner = owner
+                  target.taken_over_at = now
+                  target.manual_decision = 'assigned'
+                  target.need_human = true
+                  appendManualDecision(target, 'manual_assign', 'human_assign', `已指派给 ${owner}`, now)
+                } else if (action === 'ignore') {
+                  const owner = humanOwner || target.human_owner || 'builder'
+                  appendHistory(target, {
+                    action: 'need_human',
+                    operator: 'builder',
+                    trigger_source: 'manual',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: target.status, priority: target.priority },
+                    decision_type: 'need_human',
+                    decision_reason: `人工忽略：${owner}`,
+                  })
+                  target.human_owner = owner
+                  target.taken_over_at = target.taken_over_at ?? now
+                  target.manual_decision = 'ignored'
+                  target.need_human = false
+                  target.attention = false
+                  appendManualDecision(target, 'manual_ignore', 'human_ignore', `${owner} 已忽略人工介入`, now)
+                } else if (action === 'manual_done') {
+                  const owner = humanOwner || target.human_owner || 'builder'
+                  appendHistory(target, {
+                    action: 'resume',
+                    operator: 'builder',
+                    trigger_source: 'manual',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: 'done', priority: target.priority },
+                  })
+                  target.human_owner = owner
+                  target.taken_over_at = target.taken_over_at ?? now
+                  target.manual_decision = 'done'
+                  target.need_human = false
+                  target.status = 'done'
+                  target.control_status = 'done'
+                  target.attention = false
+                  appendManualDecision(target, 'manual_done', 'human_done', `${owner} 已确认处理完成`, now)
+                } else if (action === 'manual_continue') {
+                  const owner = humanOwner || target.human_owner || 'builder'
+                  appendHistory(target, {
+                    action: 'resume',
+                    operator: 'builder',
+                    trigger_source: 'manual',
+                    timestamp: now,
+                    before: { status: target.status, priority: target.priority },
+                    after: { status: 'queued', priority: target.priority },
+                  })
+                  target.human_owner = owner
+                  target.taken_over_at = target.taken_over_at ?? now
+                  target.manual_decision = 'continue'
+                  target.need_human = false
+                  target.status = 'queued'
+                  target.control_status = 'active'
+                  target.queued_at = now
+                  target.attention = false
+                  appendManualDecision(target, 'manual_continue', 'human_continue', `${owner} 已确认继续执行`, now)
                 } else {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')

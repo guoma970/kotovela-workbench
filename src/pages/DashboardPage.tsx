@@ -174,7 +174,7 @@ type AutoTaskHistoryEntry = {
 
 type AutoDecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue'
   reason: string
   detail: string
 }
@@ -207,6 +207,9 @@ type AutoTaskBoardItem = {
   auto_decision_log?: string[]
   decision_log?: AutoDecisionLogEntry[]
   need_human?: boolean
+  human_owner?: string
+  taken_over_at?: string
+  manual_decision?: 'taken_over' | 'assigned' | 'ignored' | 'done' | 'continue'
   auto_action?: 'retry' | 'warning' | 'need_human' | 'notify_result'
   queued_at?: string
   slot_active?: boolean
@@ -681,9 +684,38 @@ export function AutoTaskSystemPanel() {
     }
   }
 
+  const manualControlTask = async (taskName: string, action: 'takeover' | 'assign' | 'ignore' | 'manual_done' | 'manual_continue') => {
+    if (running || autoRetryState || controlLoadingTask) return
+    const humanOwner = action === 'assign'
+      ? window.prompt('请输入指派人', 'builder')?.trim()
+      : action === 'takeover' || action === 'ignore' || action === 'manual_done' || action === 'manual_continue'
+        ? 'builder'
+        : ''
+    if (action === 'assign' && !humanOwner) return
+    setControlLoadingTask(`${taskName}:${action}`)
+    try {
+      const res = await fetch('/api/tasks-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_name: taskName, action, human_owner: humanOwner }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || err?.error || '操作失败')
+      }
+      setData((await res.json()) as AutoTaskBoardPayload)
+      loadBoard()
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : '操作失败')
+    } finally {
+      setControlLoadingTask('')
+    }
+  }
+
   const poolTabs = data?.pools ?? []
   const normalizedActivePool = poolTabs.some((pool) => pool.key === activePool) ? activePool : (poolTabs[0]?.key ?? 'builder')
   const sortedBoard = [...(data?.board ?? [])].sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+  const humanPendingTasks = sortedBoard.filter((item) => item.need_human)
   const poolBoard = sortedBoard.filter((item) => (item.instance_pool ?? 'builder') === normalizedActivePool)
   const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
   const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status))
@@ -758,6 +790,9 @@ export function AutoTaskSystemPanel() {
           <span>priority: P{item.priority}</span>
           <span>retry_count: {item.retry_count ?? 0}</span>
           <span>need_human: {item.need_human ? 'true' : 'false'}</span>
+          <span>human_owner: {item.human_owner ?? '-'}</span>
+          <span>taken_over_at: {item.taken_over_at ?? '-'}</span>
+          <span>manual_decision: {item.manual_decision ?? '-'}</span>
           <span>auto_action: {item.auto_action ?? '-'}</span>
         </div>
         {flags.length > 0 ? (
@@ -847,6 +882,19 @@ export function AutoTaskSystemPanel() {
               <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running || !!autoRetryState || isBusy}>
                 {autoRetryState?.taskName === item.task_name ? '自动重试中...' : '重试'}
               </button>
+            ) : null}
+            {item.need_human ? (
+              <>
+                <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'takeover')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:takeover` ? '执行中...' : '接管'}
+                </button>
+                <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'assign')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:assign` ? '执行中...' : '指派'}
+                </button>
+                <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'ignore')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:ignore` ? '执行中...' : '忽略'}
+                </button>
+              </>
             ) : null}
           </div>
         </div>
@@ -972,6 +1020,30 @@ export function AutoTaskSystemPanel() {
                   <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
                 </article>
               )) : <div className="auto-task-empty">暂无自动决策记录</div>}
+            </div>
+          </section>
+
+          <section className="scheduler-decisions-card scheduler-pending-human-card">
+            <div className="scheduler-section-title">待人工处理</div>
+            <div className="scheduler-decision-list">
+              {humanPendingTasks.length ? humanPendingTasks.map((item, index) => {
+                const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
+                return (
+                  <article className="scheduler-decision-item scheduler-human-item" key={`${item.task_name}-human-${index}`}>
+                    <div className="scheduler-decision-top">
+                      <strong>{item.task_name}</strong>
+                      <span>{item.domain ?? '-'}</span>
+                    </div>
+                    <p>reason: {latestDecision?.reason ?? 'need_human'}</p>
+                    <small>human_owner: {item.human_owner ?? '-'} · latest decision: {latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
+                    <div className="auto-task-actions scheduler-human-actions">
+                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'manual_done')} disabled={running || !!autoRetryState || !!controlLoadingTask}>已处理</button>
+                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'manual_continue')} disabled={running || !!autoRetryState || !!controlLoadingTask}>继续执行</button>
+                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'assign')} disabled={running || !!autoRetryState || !!controlLoadingTask}>转人工</button>
+                    </div>
+                  </article>
+                )
+              }) : <div className="auto-task-empty">暂无待人工处理任务</div>}
             </div>
           </section>
         </div>
