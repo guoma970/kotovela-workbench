@@ -192,6 +192,9 @@ type TaskBoardItem = {
     outline: string[]
     script: string
     publish_text: string
+    publish_ready?: boolean
+    archive_ready?: boolean
+    asset_type?: 'media' | 'business' | 'family' | 'generic'
     generated_at?: string
     generator?: 'mock' | 'gpt'
   }
@@ -1355,6 +1358,19 @@ async function readTaskBoard(filePath: string) {
 }
 
 function summarizeTaskBoard(payload: TaskBoardPayload) {
+  payload.board = payload.board.map((item) => {
+    if (!item.result) return item
+    const assetType = item.result.asset_type
+      ?? (item.domain === 'media' ? 'media' : item.domain === 'business' ? 'business' : item.domain === 'family' ? 'family' : 'generic')
+    const hasPublishContent = Boolean(item.result.title || item.result.hook || item.result.script || item.result.publish_text)
+    item.result = {
+      ...item.result,
+      asset_type: assetType,
+      publish_ready: item.result.publish_ready ?? hasPublishContent,
+      archive_ready: item.result.archive_ready ?? ['done', 'success', 'cancelled'].includes(item.status ?? ''),
+    }
+    return item
+  })
   payload.total = payload.board.length
   payload.success = payload.board.filter((item) => item.status === 'success' || item.status === 'done').length
   payload.failed = payload.board.filter((item) => item.status === 'failed').length

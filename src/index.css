@@ -1712,6 +1712,60 @@ button,
   color: #8ea2c6;
 }
 
+.scheduler-centers-grid {
+  align-items: start;
+}
+
+.scheduler-center-card,
+.scheduler-archive-group {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduler-center-card-top,
+.scheduler-archive-group-head,
+.scheduler-center-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scheduler-center-card-top span,
+.scheduler-archive-group-head span {
+  color: #8ea2c6;
+  font-size: 0.76rem;
+}
+
+.scheduler-publish-grid,
+.scheduler-archive-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduler-publish-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
+.scheduler-publish-grid span {
+  color: #8ea2c6;
+  font-size: 0.76rem;
+  text-transform: lowercase;
+}
+
+.scheduler-publish-grid p,
+.scheduler-archive-group p {
+  margin: 0;
+  color: #e8f0ff;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.scheduler-center-actions {
+  flex-wrap: wrap;
+}
+
 .scheduler-task-result-block {
   display: grid;
   gap: 10px;
