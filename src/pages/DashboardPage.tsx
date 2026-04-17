@@ -202,6 +202,9 @@ type AutoTaskBoardItem = {
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
   result?: {
+    type: 'text'
+    content: string
+    meta?: Record<string, unknown>
     title: string
     hook: string
     outline: string[]
@@ -714,15 +717,7 @@ export function AutoTaskSystemPanel() {
   ) => {
     const isBusy = Boolean(controlLoadingTask)
     const updatedAt = item.updated_at || item.timestamp || item.queued_at || '-'
-    const resultText = item.result
-      ? [
-          `title\n${item.result.title}`,
-          `hook\n${item.result.hook}`,
-          `outline\n${item.result.outline.map((line, idx) => `${idx + 1}. ${line}`).join('\n')}`,
-          `script\n${item.result.script}`,
-          `publish_text\n${item.result.publish_text}`,
-        ].join('\n\n')
-      : ''
+    const resultText = item.result?.content ?? ''
     const expanded = expandedTaskName === item.task_name
     const flags = [
       item.attention ? 'attention' : '',
@@ -761,10 +756,10 @@ export function AutoTaskSystemPanel() {
             ))}
           </div>
         ) : null}
-        {item.domain === 'media' && item.result ? (
+        {item.result ? (
           <div className="scheduler-task-result-block">
             <div className="scheduler-task-result-head">
-              <strong>内容结果</strong>
+              <strong>执行结果</strong>
               <div className="scheduler-task-result-actions">
                 <button
                   className="auto-task-row-btn"
@@ -792,16 +787,8 @@ export function AutoTaskSystemPanel() {
             </div>
             {expanded ? (
               <div className="scheduler-task-result-content">
-                <div><span>title</span><strong>{item.result.title}</strong></div>
-                <div><span>hook</span><p>{item.result.hook}</p></div>
-                <div>
-                  <span>outline</span>
-                  <ol>
-                    {item.result.outline.map((line) => <li key={line}>{line}</li>)}
-                  </ol>
-                </div>
-                <div><span>script</span><pre>{item.result.script}</pre></div>
-                <div><span>publish_text</span><pre>{item.result.publish_text}</pre></div>
+                <div><span>type</span><strong>{item.result.type}</strong></div>
+                <div><span>content</span><pre>{item.result.content}</pre></div>
               </div>
             ) : null}
           </div>
@@ -994,8 +981,8 @@ export function AutoTaskSystemPanel() {
           <div className="scheduler-alert-group">
             {recentResults.length ? recentResults.map((entry, index) => (
               <div className="scheduler-result-item" key={`${entry.task_name}-${index}`}>
-                <strong>{entry.result.title}</strong>
-                <p>{entry.task_name}</p>
+                <strong>{entry.task_name}</strong>
+                <p>{entry.result.content}</p>
                 <small>{entry.updated_at ?? '-'}</small>
               </div>
             )) : <div className="auto-task-empty">暂无结果</div>}

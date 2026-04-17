@@ -115,6 +115,9 @@ type TaskBoardItem = {
   slot_active?: boolean
   health?: 'healthy' | 'warning' | 'critical'
   result?: {
+    type: 'text'
+    content: string
+    meta?: Record<string, unknown>
     title: string
     hook: string
     outline: string[]
@@ -178,11 +181,21 @@ const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurre
   personal: { label: 'Personal', maxConcurrency: 1 },
 }
 
+const STRONG_DOMAIN_KEYWORDS: Record<InstancePoolKey, string[]> = {
+  builder: ['页面', '接口', '报错'],
+  media: ['内容', '选题', '发布'],
+  family: ['果果', '学习', '作业', '家庭'],
+  business: ['客户', '报价', '合同'],
+  personal: ['提醒', '个人'],
+}
+
+const ACTION_KEYWORDS = ['做', '安排', '修复', '跟进'] as const
+
 const PROJECT_LINE_RULES: Array<Omit<RoutedTaskSpec, 'preferred_agent' | 'assigned_agent' | 'target_system'> & { keywords: string[] }> = [
   { domain: 'personal', subdomain: 'reminder', project_line: 'personal_reminder', target_group_id: 'personal_reminder', notify_mode: 'default', type: 'personal_task', keywords: ['我', '自己', '个人', '个人提醒', '提醒我', '记得', '待办', '办一下'] },
   { domain: 'personal', subdomain: 'personal_affair', project_line: 'personal_affairs', target_group_id: 'personal_affairs', notify_mode: 'default', type: 'personal_task', keywords: ['个人事务', '证件', '报销', '快递', '缴费', '预约'] },
-  { domain: 'family', subdomain: 'study', project_line: 'family_study', target_group_id: 'family_study', notify_mode: 'default', type: 'family_task', keywords: ['学习', '复习', '预习', '读书', '背单词', '练字'] },
-  { domain: 'family', subdomain: 'homework', project_line: 'family_homework', target_group_id: 'family_homework', notify_mode: 'assigned', type: 'family_task', keywords: ['作业', '题目', '练习册', '口算', '试卷'] },
+  { domain: 'family', subdomain: 'study', project_line: 'family_study', target_group_id: 'family_study', notify_mode: 'default', type: 'family_task', keywords: ['果果', '学习', '复习', '预习', '读书', '背单词', '练字'] },
+  { domain: 'family', subdomain: 'homework', project_line: 'family_homework', target_group_id: 'family_homework', notify_mode: 'assigned', type: 'family_task', keywords: ['作业', '题目', '练习册', '口算', '试卷', '练习'] },
   { domain: 'family', subdomain: 'reminder', project_line: 'family_reminder', target_group_id: 'family_reminder', notify_mode: 'reminder', type: 'family_task', keywords: ['接送', '提醒孩子', '提醒果果', '家庭提醒', '睡觉', '刷牙', '整理书包'] },
   { domain: 'family', subdomain: 'household', project_line: 'family_affairs', target_group_id: 'family_affairs', notify_mode: 'default', type: 'family_task', keywords: ['家庭', '家里', '家务', '采购', '买菜', '收纳', '家长会'] },
   { domain: 'family', subdomain: 'study', project_line: 'confirm', target_group_id: 'confirm', notify_mode: 'need_human', type: 'family_task', keywords: ['need_human', '人工介入', '家长确认'] },
@@ -194,7 +207,7 @@ const PROJECT_LINE_RULES: Array<Omit<RoutedTaskSpec, 'preferred_agent' | 'assign
   { domain: 'media', subdomain: 'content', project_line: 'chongming', target_group_id: 'chongming', notify_mode: 'default', type: 'content_task', keywords: ['崇明', '收纳号', 'storage'] },
   { domain: 'media', subdomain: 'content', project_line: 'mom970', target_group_id: 'mom970', notify_mode: 'default', type: 'content_task', keywords: ['果妈970', '970内容', 'mom970'] },
   { domain: 'media', subdomain: 'content', project_line: 'openclaw_content', target_group_id: 'openclaw_content', notify_mode: 'default', type: 'content_task', keywords: ['内容', '文案', '选题', '发布'] },
-  { domain: 'business', subdomain: 'tech', project_line: 'tech', target_group_id: 'tech', notify_mode: 'default', type: 'business_task', keywords: ['技术方案', '系统方案', '技术支持', 'tech', '言町科技', '科技运营'] },
+  { domain: 'business', subdomain: 'tech', project_line: 'tech', target_group_id: 'tech', notify_mode: 'default', type: 'business_task', keywords: ['客户', '报价', '合同', '技术方案', '系统方案', '技术支持', 'tech', '言町科技', '科技运营'] },
   { domain: 'business', subdomain: 'housing', project_line: 'housing', target_group_id: 'housing', notify_mode: 'default', type: 'business_task', keywords: ['住宅', '楼盘', '户型', '装修客户', 'housing', '言家住宅'] },
   { domain: 'business', subdomain: 'biz_content', project_line: 'biz_content', target_group_id: 'biz_content', notify_mode: 'default', type: 'business_task', keywords: ['商单内容', '品牌内容', '案例稿', 'biz_content', '言纳筑集', '筑集'] },
   { domain: 'business', subdomain: 'official_account', project_line: 'official_account', target_group_id: 'official_account', notify_mode: 'default', type: 'business_task', keywords: ['公众号', '公号', '推文', '头条封面', 'official account', 'official_account'] },
@@ -206,8 +219,15 @@ const PROJECT_LINE_RULES: Array<Omit<RoutedTaskSpec, 'preferred_agent' | 'assign
 
 function inferTaskRoute(input: string): RoutedTaskSpec {
   const normalized = input.trim().toLowerCase()
-  const matched = PROJECT_LINE_RULES.find((rule) => rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())))
-  const domain = matched?.domain ?? 'builder'
+  const lockedDomain = (Object.entries(STRONG_DOMAIN_KEYWORDS) as Array<[InstancePoolKey, string[]]>).find(([, keywords]) =>
+    keywords.some((keyword) => normalized.includes(keyword.toLowerCase())),
+  )?.[0]
+  const hasActionKeyword = ACTION_KEYWORDS.some((keyword) => normalized.includes(keyword))
+  const matched = PROJECT_LINE_RULES.find((rule) => {
+    if (lockedDomain && rule.domain !== lockedDomain) return false
+    return rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase()))
+  })
+  const domain = lockedDomain ?? matched?.domain ?? (hasActionKeyword ? 'builder' : 'builder')
   const projectLine = matched?.project_line ?? 'builder_default'
   const targetGroupId = matched?.target_group_id ?? projectLine
   const fallbackSubdomain =
@@ -235,35 +255,104 @@ function inferTaskRoute(input: string): RoutedTaskSpec {
 
 function buildMediaResult(taskName: string, timestamp: string): NonNullable<TaskBoardItem['result']> {
   const topic = taskName.replace(/^queue:/i, '').trim() || '本周内容选题'
+  const title = `3 分钟讲清：${topic}`
+  const hook = `你以为 ${topic} 只是常规动作，但真正拉开差距的是前 10 秒怎么说。`
+  const outline = [
+    `为什么现在要做「${topic}」`,
+    '用户最容易忽略的 1 个误区',
+    '可直接照着执行的 3 步方法',
+    '结尾行动指令与互动提问',
+  ]
+  const script = `开头：\n你以为 ${topic} 只是例行安排，但真正决定效果的，是能不能在最短时间里让人愿意继续看。\n\n中段：\n第一步，先把用户最关心的问题直接点出来。\n第二步，用一个常见错误案例说明为什么很多人做了也没效果。\n第三步，给出今天就能执行的清晰动作，让内容从“知道”变成“会做”。\n\n结尾：\n如果你也在推进 ${topic}，先把你卡住的一步留言出来，我再继续帮你拆。`
+  const publishText = `今日内容｜${topic}\n\n别再把内容只当成“发一条”。真正有效的内容，要先抓住注意力，再给到能马上执行的动作。\n\n这次我整理了开头 hook、结构提纲和完整脚本，拿去就能发。\n\n如果你也在做 ${topic}，欢迎留言交流。`
+  const content = [title, hook, ...outline.map((line, idx) => `${idx + 1}. ${line}`), script, publishText].join('\n\n')
   return {
-    title: `3 分钟讲清：${topic}`,
-    hook: `你以为 ${topic} 只是常规动作，但真正拉开差距的是前 10 秒怎么说。`,
-    outline: [
-      `为什么现在要做「${topic}」`,
-      '用户最容易忽略的 1 个误区',
-      '可直接照着执行的 3 步方法',
-      '结尾行动指令与互动提问',
-    ],
-    script: `开头：\n你以为 ${topic} 只是例行安排，但真正决定效果的，是能不能在最短时间里让人愿意继续看。\n\n中段：\n第一步，先把用户最关心的问题直接点出来。\n第二步，用一个常见错误案例说明为什么很多人做了也没效果。\n第三步，给出今天就能执行的清晰动作，让内容从“知道”变成“会做”。\n\n结尾：\n如果你也在推进 ${topic}，先把你卡住的一步留言出来，我再继续帮你拆。`,
-    publish_text: `今日内容｜${topic}\n\n别再把内容只当成“发一条”。真正有效的内容，要先抓住注意力，再给到能马上执行的动作。\n\n这次我整理了开头 hook、结构提纲和完整脚本，拿去就能发。\n\n如果你也在做 ${topic}，欢迎留言交流。`,
+    type: 'text',
+    content,
+    meta: { domain: 'media', executor: 'content_executor' },
+    title,
+    hook,
+    outline,
+    script,
+    publish_text: publishText,
     generated_at: timestamp,
     generator: 'mock',
   }
 }
 
-function finalizeMediaTask(item: TaskBoardItem, now: string) {
-  if (item.domain !== 'media' && inferPool(item) !== 'media') return
-  if (item.result?.title && item.result?.script && item.result?.publish_text) return
-  item.result = buildMediaResult(item.task_name, now)
+function buildTextResult(content: string, meta?: Record<string, unknown>): NonNullable<TaskBoardItem['result']> {
+  return {
+    type: 'text',
+    content,
+    meta: meta ?? {},
+    title: '执行结果',
+    hook: content.split(/\n+/).find(Boolean) ?? content,
+    outline: [],
+    script: content,
+    publish_text: content,
+    generated_at: new Date().toISOString(),
+    generator: 'mock',
+  }
+}
+
+function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardItem['result']> {
+  const domain = item.domain ?? inferPool(item)
+  if (domain === 'media') return buildMediaResult(item.task_name, now)
+  if (domain === 'business') {
+    return buildTextResult(
+      `跟进建议：先确认客户当前报价顾虑，再补一版对比清单与下一步时间点。\n\n建议回复：\n已收到您对报价的关注，我这边建议先对齐 3 个点，分别是范围、交付节点、可替代方案。我今天可先补一版精简报价说明，方便您内部确认，明天下午前再跟您同步最终建议。`,
+      { domain, executor: 'followup_executor' },
+    )
+  }
+  if (domain === 'personal') {
+    return buildTextResult(
+      `提醒文案：明天记得整理待办，先把必须完成、可延后、可委托三类分开，10 分钟内先清一遍高优先级事项。`,
+      { domain, executor: 'reminder_executor' },
+    )
+  }
+  if (domain === 'family') {
+    return buildTextResult(
+      `家庭执行建议：先确认时间和参与人，再拆成 3 个最小动作，避免提醒过长导致落空。`,
+      { domain, executor: 'plan_executor' },
+    )
+  }
+  return buildTextResult(
+    `执行建议：已生成开发执行草案，下一步先确认范围、风险点与最小可验证改动，再进入实现。`,
+    { domain: domain ?? 'builder', executor: 'code_executor' },
+  )
+}
+
+function normalizeTaskResult(item: TaskBoardItem) {
+  if (!item.result) return
+  if (!item.result.type) item.result.type = 'text'
+  if (!item.result.content) {
+    item.result.content = item.domain === 'media'
+      ? [item.result.title, item.result.hook, ...(item.result.outline ?? []), item.result.script, item.result.publish_text].filter(Boolean).join('\n\n')
+      : item.result.script ?? item.result.publish_text ?? item.result.hook ?? item.result.title ?? ''
+  }
+  item.result.meta = item.result.meta ?? {}
+}
+
+function runQueuedTask(item: TaskBoardItem, now: string) {
   appendHistory(item, {
     action: 'run',
     operator: 'system',
     trigger_source: 'system',
     timestamp: now,
-    status_before: item.status,
-    status_after: 'done',
-    priority_before: item.priority,
-    priority_after: item.priority,
+    before: { status: item.status, priority: item.priority },
+    after: { status: 'running', priority: item.priority },
+  })
+  item.status = 'running'
+  item.updated_at = now
+  item.result = executeTask(item, now)
+  normalizeTaskResult(item)
+  appendHistory(item, {
+    action: 'run',
+    operator: 'system',
+    trigger_source: 'system',
+    timestamp: now,
+    before: { status: 'running', priority: item.priority },
+    after: { status: 'done', priority: item.priority },
   })
   item.status = 'done'
   item.updated_at = now
@@ -323,22 +412,11 @@ function applyScheduler(payload: TaskBoardPayload) {
     let runningCount = items.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
-      if ((item.status === 'todo' || item.status === 'pending') && runningCount < maxConcurrency) {
-        appendHistory(item, {
-          action: 'run',
-          operator: 'system',
-          timestamp: now,
-          before: { status: item.status, priority: item.priority },
-          after: { status: 'running', priority: item.priority },
-        })
-        item.status = 'running'
+      if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
         item.slot_active = true
-        item.updated_at = now
-        item.slot_id = `${poolKey}-slot-${runningCount + 1}`
-        runningCount += 1
-      } else if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
-        item.slot_active = false
-        item.slot_id = null
+        item.slot_id = `${poolKey}-slot-${Math.min(runningCount + 1, maxConcurrency)}`
+        runningCount = Math.min(runningCount + 1, maxConcurrency)
+        runQueuedTask(item, now)
       } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
         item.slot_active = false
         item.slot_id = null
@@ -418,9 +496,7 @@ async function readTaskBoard(filePath: string) {
   const now = Date.now()
   payload.board = payload.board.map((item) => {
     const next = { ...item }
-    if (next.domain === 'media' && !next.result) {
-      finalizeMediaTask(next, new Date().toISOString())
-    }
+    normalizeTaskResult(next)
     if (next.status === 'failed') next.attention = true
     const ageMs = now - new Date(next.updated_at ?? next.timestamp ?? now).getTime()
     const stuckNow = (next.status === 'todo' || next.status === 'failed') && ageMs > 60_000
@@ -574,10 +650,8 @@ function resolveNotifyTarget(item: Pick<TaskBoardItem, 'task_name' | 'domain' | 
 
 function buildNotificationSummary(item: TaskBoardItem, eventType: TaskNotifyEvent) {
   if (eventType === 'task_done') {
-    if (item.domain === 'media' && item.result) {
-      const hookLines = item.result.hook.split(/[。！？!?\n]/).filter(Boolean).slice(0, 2).join(' / ')
-      const publishShort = item.result.publish_text.split('\n').filter(Boolean).slice(0, 2).join(' ')
-      return `${item.result.title}｜${hookLines}｜${publishShort}`
+    if (item.result?.content) {
+      return item.result.content.split('\n').filter(Boolean).slice(0, 3).join(' / ')
     }
     return item.task_name
   }
@@ -664,11 +738,8 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
       `摘要：${summary}`,
       '👉 查看：/scheduler',
     ]
-    if (normalizeNotifyDomain(item.domain) === 'media' && item.result) {
-      const hookLines = item.result.hook.split(/[。！？!?\n]/).filter(Boolean).slice(0, 2)
-      messageLines.splice(1, 0, `标题：${item.result.title}`)
-      messageLines.splice(5, 0, `Hook：${hookLines.join('。')}${hookLines.length ? '。' : ''}`)
-      messageLines.splice(6, 0, `发布文案：${item.result.publish_text.split('\n').filter(Boolean).slice(0, 2).join(' ')}`)
+    if (eventType === 'task_done' && item.result?.content) {
+      messageLines.splice(5, 0, `结果：${item.result.content}`)
     }
     const draft: TaskNotificationRecord = {
       id: `${new Date().toISOString()}-${item.task_name}-${eventType}`,
@@ -784,6 +855,7 @@ export default defineConfig(({ mode }) => {
             if (req.method === 'GET') {
               try {
                 const payload = await readTaskBoard(filePath)
+                await writeTaskBoard(filePath, payload)
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
                 res.setHeader('Cache-Control', 'no-store')
@@ -849,9 +921,11 @@ export default defineConfig(({ mode }) => {
                     })
                     payload.generated_at = now
                     await writeTaskBoard(filePath, payload)
+                    const executed = await readTaskBoard(filePath)
+                    await writeTaskBoard(filePath, executed)
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify(summarizeTaskBoard(await readTaskBoard(filePath))))
+                    res.end(JSON.stringify(summarizeTaskBoard(executed)))
                     return
                   }
 
@@ -946,15 +1020,14 @@ export default defineConfig(({ mode }) => {
                       },
                     ],
                   }
-                  if (route.domain === 'media') {
-                    finalizeMediaTask(nextItem, now)
-                  }
                   payload.board.unshift(nextItem)
                   payload.generated_at = now
                   await writeTaskBoard(filePath, payload)
+                  const executed = await readTaskBoard(filePath)
+                  await writeTaskBoard(filePath, executed)
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify(summarizeTaskBoard(await readTaskBoard(filePath))))
+                  res.end(JSON.stringify(summarizeTaskBoard(executed)))
                   return
                 }
 
