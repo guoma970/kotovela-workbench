@@ -175,6 +175,12 @@ type AutoTaskHistoryEntry = {
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
+  domain?: string
+  preferred_agent?: string
+  assigned_agent?: string
+  target_system?: string
+  slot_id?: string | null
+  instance_pool?: 'builder' | 'media' | 'family' | 'business' | 'personal'
   priority: number
   status: string
   type: string
@@ -199,6 +205,18 @@ type AutoTaskBoardPayload = {
   failed: number
   max_concurrency?: number
   current_concurrency?: number
+  running_count?: number
+  queue_count?: number
+  failed_count?: number
+  abnormal_count?: number
+  pools?: Array<{
+    key: 'builder' | 'media' | 'family' | 'business' | 'personal'
+    label: string
+    max_concurrency: number
+    running_count: number
+    queue_count: number
+    health: 'healthy' | 'warning' | 'critical'
+  }>
   system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
   board: AutoTaskBoardItem[]
 }
@@ -474,15 +492,14 @@ function RecentUpdates({
 export function AutoTaskSystemPanel() {
   const [data, setData] = useState<AutoTaskBoardPayload | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activePool, setActivePool] = useState<'builder' | 'media' | 'family' | 'business' | 'personal'>('builder')
   const [taskInput, setTaskInput] = useState('')
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState('')
   const [failedTask, setFailedTask] = useState<FailedTaskState | null>(null)
   const [runningTaskName, setRunningTaskName] = useState('')
-  const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [autoRetryState, setAutoRetryState] = useState<{ taskName: string; retryCount: number } | null>(null)
   const [controlLoadingTask, setControlLoadingTask] = useState('')
-  const [historyOpenTask, setHistoryOpenTask] = useState('')
 
   const loadBoard = () => {
     setLoading(true)
@@ -544,13 +561,7 @@ export function AutoTaskSystemPanel() {
   const autoRetryTask = async (taskName: string, baseMessage: string) => {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       setAutoRetryState({ taskName, retryCount: attempt })
-      setFailedTask({
-        taskName,
-        status: 'failed',
-        message: baseMessage,
-        retryCount: attempt,
-        autoRetrying: true,
-      })
+      setFailedTask({ taskName, status: 'failed', message: baseMessage, retryCount: attempt, autoRetrying: true })
       await wait(2000)
       try {
         await executeTask(taskName, { silentFailure: true })
@@ -563,13 +574,7 @@ export function AutoTaskSystemPanel() {
       }
     }
 
-    setFailedTask({
-      taskName,
-      status: 'failed',
-      message: baseMessage,
-      retryCount: 2,
-      autoRetrying: false,
-    })
+    setFailedTask({ taskName, status: 'failed', message: baseMessage, retryCount: 2, autoRetrying: false })
     setAutoRetryState(null)
   }
 
@@ -594,9 +599,6 @@ export function AutoTaskSystemPanel() {
     }
   }
 
-  const failedBoardTask = data?.board?.find((item) => item.status === 'failed')
-  const activeRetryCount = autoRetryState?.retryCount ?? failedTask?.retryCount ?? 0
-
   const controlTask = async (taskName: string, action: 'pause' | 'resume' | 'cancel' | 'priority_up' | 'priority_down') => {
     if (running || autoRetryState || controlLoadingTask) return
     setControlLoadingTask(`${taskName}:${action}`)
@@ -618,50 +620,131 @@ export function AutoTaskSystemPanel() {
     }
   }
 
-  const latestSummary = failedTask
-    ? `${failedTask.taskName} (builder | P- )\n   status: failed\n   error: ${failedTask.message}`
-    : failedBoardTask
-      ? `${failedBoardTask.task_name} (${failedBoardTask.agent} | P${failedBoardTask.priority})\n   status: failed\n   code: ${failedBoardTask.code_snippet || ''}`
-      : data?.board?.length
-        ? data.board
-            .map(
-              (item, index) =>
-                `${index + 1}. ${item.task_name} (${item.agent} | P${item.priority})\n   status: ${item.status}\n   code: ${item.code_snippet || ''}`,
-            )
-            .join('\n\n')
-        : '暂无 RESULT SUMMARY'
-
-  const sortedBoard = [...(data?.board ?? [])].sort((a, b) => {
-    if (a.status === 'failed' && b.status !== 'failed') return -1
-    if (a.status !== 'failed' && b.status === 'failed') return 1
-    return (a.priority ?? 99) - (b.priority ?? 99)
+  const poolTabs = data?.pools ?? []
+  const normalizedActivePool = poolTabs.some((pool) => pool.key === activePool) ? activePool : (poolTabs[0]?.key ?? 'builder')
+  const sortedBoard = [...(data?.board ?? [])].sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+  const poolBoard = sortedBoard.filter((item) => (item.instance_pool ?? 'builder') === normalizedActivePool)
+  const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
+  const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status))
+  const pausedTasks = poolBoard.filter((item) => ['paused', 'pause'].includes(item.status))
+  const doneTasks = poolBoard.filter((item) => ['success', 'done', 'cancelled', 'failed'].includes(item.status))
+  const failedTasks = sortedBoard.filter((item) => item.status === 'failed')
+  const abnormalTasks = sortedBoard.filter((item) => item.abnormal || item.attention)
+  const stuckTasks = sortedBoard.filter((item) => item.stuck)
+  const continuousFailedTasks = failedTasks.filter((item) => {
+    const lastEntries = [...(item.history ?? [])].slice(-2)
+    return lastEntries.length >= 2 && lastEntries.every((entry) => entry.action === 'fail' || entry.status_after === 'failed')
   })
-  const runningTasks = sortedBoard.filter((item) => item.status === 'doing' || item.status === 'running')
-  const queuedTasks = sortedBoard.filter((item) => item.status === 'todo')
-  const completedTasks = sortedBoard.filter((item) => ['success', 'done', 'cancelled', 'failed'].includes(item.status))
-  const runningCount = runningTasks.length
-  const queueCount = queuedTasks.length
 
-  const latestAction = [...(data?.board ?? [])]
-    .flatMap((task) =>
-      (task.history ?? []).map((entry) => ({
-        task_name: task.task_name,
-        action: entry.action,
-        timestamp: entry.timestamp,
-      })),
+  const runningCount = data?.running_count ?? runningTasks.length
+  const queueCount = data?.queue_count ?? queuedTasks.length
+  const failedCount = data?.failed_count ?? failedTasks.length
+  const abnormalCount = data?.abnormal_count ?? abnormalTasks.length
+  const currentConcurrency = data?.current_concurrency ?? runningCount
+  const maxConcurrency = data?.max_concurrency ?? 2
+
+  const recentDecisions = [...(data?.board ?? [])]
+    .flatMap((item) =>
+      (item.history ?? [])
+        .filter((entry) => entry.decision_type && ['auto_retry', 'auto_priority_down', 'auto_pause'].includes(entry.decision_type))
+        .map((entry) => ({
+          taskName: item.task_name,
+          agent: item.agent,
+          decision: entry.decision_type as 'auto_retry' | 'auto_priority_down' | 'auto_pause',
+          reason: entry.decision_reason || '-',
+          timestamp: entry.timestamp,
+          retryCount: entry.retry_count ?? item.retry_count ?? 0,
+        })),
     )
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 6)
 
-  const displayedSummary = summaryExpanded
-    ? latestSummary
-    : latestSummary.length > 280
-      ? `${latestSummary.slice(0, 280)}...`
-      : latestSummary
+  const renderTaskCard = (
+    item: AutoTaskBoardItem,
+    tone: 'running' | 'queue' | 'paused' | 'done',
+    index: number,
+  ) => {
+    const isBusy = Boolean(controlLoadingTask)
+    const updatedAt = item.updated_at || item.timestamp || item.queued_at || '-'
+    const flags = [
+      item.attention ? 'attention' : '',
+      item.stuck ? 'stuck' : '',
+      item.abnormal ? 'abnormal' : '',
+    ].filter(Boolean)
+
+    return (
+      <article className={`scheduler-task-card scheduler-task-card-${tone}`} key={`${tone}-${item.task_name}-${index}`}>
+        <div className="scheduler-task-top">
+          <strong>{item.task_name}</strong>
+          <span className={`scheduler-status scheduler-status-${item.status}`}>{item.status}</span>
+        </div>
+        <div className="scheduler-task-meta-grid">
+          <span>agent: {item.agent}</span>
+          <span>pool: {item.instance_pool ?? '-'}</span>
+          <span>domain: {item.domain ?? '-'}</span>
+          <span>preferred_agent: {item.preferred_agent ?? '-'}</span>
+          <span>assigned_agent: {item.assigned_agent ?? '-'}</span>
+          <span>target_system: {item.target_system ?? '-'}</span>
+          <span>slot_id: {item.slot_id ?? '-'}</span>
+          <span>status: {item.status}</span>
+          <span>priority: P{item.priority}</span>
+          <span>retry_count: {item.retry_count ?? 0}</span>
+        </div>
+        {flags.length > 0 ? (
+          <div className="auto-task-flags">
+            {flags.map((flag) => (
+              <span className={`auto-task-flag is-${flag}`} key={`${item.task_name}-${flag}`}>
+                {flag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div className="scheduler-task-foot">
+          <span>{updatedAt}</span>
+          <div className="auto-task-actions">
+            {tone === 'running' ? (
+              <>
+                <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'pause')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:pause` ? '执行中...' : '暂停'}
+                </button>
+                <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}
+                </button>
+              </>
+            ) : null}
+            {tone === 'queue' ? (
+              <>
+                <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_up')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:priority_up` ? '执行中...' : '提优先级'}
+                </button>
+                <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_down')} disabled={running || !!autoRetryState || isBusy}>
+                  {controlLoadingTask === `${item.task_name}:priority_down` ? '执行中...' : '降优先级'}
+                </button>
+              </>
+            ) : null}
+            {tone === 'paused' ? (
+              <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'resume')} disabled={running || !!autoRetryState || isBusy}>
+                {controlLoadingTask === `${item.task_name}:resume` ? '执行中...' : '恢复'}
+              </button>
+            ) : null}
+            {tone === 'done' && item.status === 'failed' ? (
+              <button className="auto-task-row-btn" type="button" onClick={() => retryTask(item.task_name)} disabled={running || !!autoRetryState || isBusy}>
+                {autoRetryState?.taskName === item.task_name ? '自动重试中...' : '重试'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    )
+  }
 
   return (
-    <section className="home-section panel strong-card auto-task-panel">
-      <div className="home-section-head">
-        <h3>任务调度系统</h3>
+    <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
+      <div className="home-section-head scheduler-hub-head">
+        <div>
+          <h3>Scheduler 调度系统中枢</h3>
+          <p className="scheduler-hub-subtitle">基于 /api/tasks-board 的实时调度视图</p>
+        </div>
         <span className="home-count">{data?.board?.length ?? 0}</span>
       </div>
 
@@ -685,132 +768,116 @@ export function AutoTaskSystemPanel() {
           <div>status: {failedTask.status}</div>
           <div>error: {failedTask.message}</div>
           <div>{failedTask.autoRetrying ? '正在自动重试' : '自动重试结束'}</div>
-          <div>已重试次数: {activeRetryCount}</div>
+          <div>已重试次数: {autoRetryState?.retryCount ?? failedTask.retryCount}</div>
           <button className="auto-task-retry-btn" type="button" onClick={() => retryTask(failedTask.taskName)} disabled={running || !!autoRetryState}>
-            {autoRetryState?.taskName === failedTask.taskName ? '自动重试中...' : running && runningTaskName === failedTask.taskName ? '执行中...' : '重试'}
+            {autoRetryState?.taskName === failedTask.taskName ? '自动重试中...' : '重试'}
           </button>
         </div>
       ) : null}
 
       {runError ? <div className="auto-task-error">{runError}</div> : null}
 
-      {(data?.system_alerts?.length ?? 0) > 0 ? (
-        <div className="auto-task-alerts">
-          <div className="auto-task-alert-title">系统告警</div>
-          {data?.system_alerts?.map((a, i) => (
-            <div className={`auto-task-alert-item is-${a.level}`} key={`alert-${i}`}>
-              {a.level.toUpperCase()} · 任务:{a.task_name || '-'} · 实例:{a.agent || '-'} · 原因:{a.reason}
+      <div className="scheduler-hub-layout">
+        <div className="scheduler-hub-main">
+          <section className="scheduler-overview-card">
+            <div className="scheduler-section-title">调度概览</div>
+            <div className="scheduler-pool-overview">
+              {poolTabs.map((pool) => (
+                <button
+                  key={pool.key}
+                  type="button"
+                  className={`scheduler-pool-card ${normalizedActivePool === pool.key ? 'is-active' : ''} is-${pool.health}`}
+                  onClick={() => setActivePool(pool.key)}
+                >
+                  <div className="scheduler-pool-card-top">
+                    <strong>{pool.label}</strong>
+                    <span>{pool.health}</span>
+                  </div>
+                  <div className="scheduler-pool-card-metrics">
+                    <span>并发 {pool.running_count}/{pool.max_concurrency}</span>
+                    <span>queue {pool.queue_count}</span>
+                  </div>
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
+            <div className="scheduler-overview-grid">
+              <div className="scheduler-overview-metric is-concurrency"><span>并发数</span><strong>{currentConcurrency}/{maxConcurrency}</strong></div>
+              <div className="scheduler-overview-metric"><span>running_count</span><strong>{runningCount}</strong></div>
+              <div className="scheduler-overview-metric"><span>queue_count</span><strong>{queueCount}</strong></div>
+              <div className="scheduler-overview-metric is-failed"><span>failed_count</span><strong>{failedCount}</strong></div>
+              <div className="scheduler-overview-metric is-warning"><span>abnormal_count</span><strong>{abnormalCount}</strong></div>
+            </div>
+            <div className="scheduler-sync-line">{loading ? '调度状态: 刷新中' : '调度状态: 已同步'}</div>
+          </section>
 
-      <div className="auto-task-scheduler-strip">
-        <div>当前并发: {data?.current_concurrency ?? runningCount} / {data?.max_concurrency ?? 2}</div>
-        <div>运行中数量: {runningCount}</div>
-        <div>排队中数量: {queueCount}</div>
-        <div>{loading ? '调度状态: 刷新中' : '调度状态: 已同步'}</div>
-      </div>
-
-      <div className="auto-task-columns">
-        <div className="auto-task-column">
-          <div className="auto-task-column-title">进行中（占用资源）</div>
-          <div className="auto-task-list">
-            {runningTasks.map((item, index) => {
-              const startAt = [...(item.history ?? [])].reverse().find((entry) => entry.action === 'start')?.timestamp || item.updated_at || item.timestamp || '-'
-              return (
-                <div className="auto-task-card is-running" key={`running-${item.task_name}-${index}`}>
-                  <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
-                  <div>health: {item.health || 'healthy'}</div>
-                  <div>health: {item.health || 'healthy'}</div>
-                  <div>health: {item.health || 'healthy'}</div>
-                <div>health: {item.health || 'healthy'}</div>
-                <div>priority: P{item.priority}</div>
-                  <div>agent: {item.agent}</div>
-                  <div>slot: slot #{index + 1}</div>
-                  <div>开始时间: {startAt}</div>
-                  <div className="auto-task-actions">
-                    <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'pause')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:pause` ? '执行中...' : '暂停'}</button>
-                    <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
-                  </div>
-                </div>
-              )
-            })}
-            {!runningTasks.length ? <div className="auto-task-empty">暂无进行中任务</div> : null}
-          </div>
-        </div>
-
-        <div className="auto-task-column">
-          <div className="auto-task-column-title">待处理（排队）</div>
-          <div className="auto-task-list">
-            {queuedTasks.map((item, index) => (
-              <div className="auto-task-card is-pending" key={`queued-${item.task_name}-${index}`}>
-                <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
-                <div>health: {item.health || 'healthy'}</div>
-                <div>priority: P{item.priority}</div>
-                <div>排队位置: #{index + 1}</div>
-                <div>{index === 0 ? '下一执行任务' : ''}</div>
-                <div className="auto-task-actions">
-                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_up')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_up` ? '执行中...' : '提升优先级'}</button>
-                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'priority_down')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:priority_down` ? '执行中...' : '降低优先级'}</button>
-                  <button className="auto-task-row-btn" type="button" onClick={() => controlTask(item.task_name, 'cancel')} disabled={running || !!autoRetryState || !!controlLoadingTask}>{controlLoadingTask === `${item.task_name}:cancel` ? '执行中...' : '取消'}</button>
-                </div>
+          <section className="scheduler-queue-card">
+            <div className="scheduler-section-title">调度队列 · {normalizedActivePool}</div>
+            <div className="scheduler-queue-grid">
+              <div className="scheduler-lane">
+                <div className="scheduler-lane-head"><h4>Running</h4><span>{runningTasks.length}</span></div>
+                <div className="scheduler-lane-list">{runningTasks.length ? runningTasks.map((item, index) => renderTaskCard(item, 'running', index)) : <div className="auto-task-empty">暂无 Running 任务</div>}</div>
               </div>
-            ))}
-            {!queuedTasks.length ? <div className="auto-task-empty">暂无排队任务</div> : null}
-          </div>
-        </div>
-
-        <div className="auto-task-column">
-          <div className="auto-task-column-title">最近完成</div>
-          <div className="auto-task-list">
-            {completedTasks.map((item, index) => (
-              <div className="auto-task-card is-success" key={`done-${item.task_name}-${index}`}>
-                <div className="auto-task-card-top"><strong>{item.task_name}</strong><span>{item.status}</span></div>
-                <div>health: {item.health || 'healthy'}</div>
-                <div>priority: P{item.priority}</div>
-                <div>agent: {item.agent}</div>
-                <div>更新时间: {item.updated_at || item.timestamp || '-'}</div>
-                <button className="auto-task-row-btn" type="button" onClick={() => setHistoryOpenTask(historyOpenTask === item.task_name ? '' : item.task_name)}>查看历史</button>
-                {historyOpenTask === item.task_name ? (
-                  <div className="auto-task-history">
-                    {[...(item.history ?? [])].slice().reverse().map((entry, historyIndex) => {
-                      const isFail = entry.action === 'fail'
-                      const isRetry = entry.action === 'retry'
-                      const isDecision = Boolean(entry.decision_type) || entry.trigger_source === 'rule_engine'
-                      const cls = isFail ? 'is-fail' : isRetry ? 'is-retry' : isDecision ? 'is-decision' : ''
-                      return (
-                        <div className={`auto-task-history-item ${cls}`} key={`${item.task_name}-history-${historyIndex}`}>
-                          <strong>{entry.action}</strong>
-                          <span>time: {entry.timestamp}</span>
-                          <span>status: {(entry.status_before || entry.before?.status || '-') + ' -> ' + (entry.status_after || entry.after?.status || '-')}</span>
-                          <span>{`priority: P${entry.priority_before ?? entry.before?.priority ?? '-'} -> P${entry.priority_after ?? entry.after?.priority ?? '-'}`}</span>
-                          <span>retry_count: {entry.retry_count ?? item.retry_count ?? 0}</span>
-                          {entry.error ? <span>error: {entry.error}</span> : null}
-                          <span>trigger_source: {entry.trigger_source || entry.operator || 'system'}</span>
-                          {entry.decision_type ? <span>decision: {entry.decision_type} · {entry.decision_reason || '-'}</span> : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : null}
+              <div className="scheduler-lane">
+                <div className="scheduler-lane-head"><h4>Queue</h4><span>{queuedTasks.length}</span></div>
+                <div className="scheduler-lane-list">{queuedTasks.length ? queuedTasks.map((item, index) => renderTaskCard(item, 'queue', index)) : <div className="auto-task-empty">暂无 Queue 任务</div>}</div>
               </div>
-            ))}
-            {!completedTasks.length ? <div className="auto-task-empty">暂无最近完成任务</div> : null}
-          </div>
-        </div>
-      </div>
+              <div className="scheduler-lane">
+                <div className="scheduler-lane-head"><h4>Paused</h4><span>{pausedTasks.length}</span></div>
+                <div className="scheduler-lane-list">{pausedTasks.length ? pausedTasks.map((item, index) => renderTaskCard(item, 'paused', index)) : <div className="auto-task-empty">暂无 Paused 任务</div>}</div>
+              </div>
+              <div className="scheduler-lane">
+                <div className="scheduler-lane-head"><h4>Done</h4><span>{doneTasks.length}</span></div>
+                <div className="scheduler-lane-list">{doneTasks.length ? doneTasks.map((item, index) => renderTaskCard(item, 'done', index)) : <div className="auto-task-empty">暂无 Done 任务</div>}</div>
+              </div>
+            </div>
+          </section>
 
-      <div className="auto-task-summary">
-        <div className="auto-task-summary-head">
-          <div className="auto-task-summary-label">最近结果</div>
-          <button className="auto-task-summary-toggle" type="button" onClick={() => setSummaryExpanded((v) => !v)}>
-            {summaryExpanded ? '收起' : '展开完整 RESULT SUMMARY'}
-          </button>
+          <section className="scheduler-decisions-card">
+            <div className="scheduler-section-title">最近决策</div>
+            <div className="scheduler-decision-list">
+              {recentDecisions.length ? recentDecisions.map((decision, index) => (
+                <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
+                  <div className="scheduler-decision-top">
+                    <strong>{decision.decision}</strong>
+                    <span>{decision.timestamp}</span>
+                  </div>
+                  <p>{decision.taskName} · {decision.agent}</p>
+                  <small>{decision.reason}{decision.decision === 'auto_retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
+                </article>
+              )) : <div className="auto-task-empty">暂无 auto_retry / auto_priority_down / auto_pause 记录</div>}
+            </div>
+          </section>
         </div>
-        <div className="auto-task-last-op">最近关键操作: {latestAction ? `${latestAction.task_name} · ${latestAction.action}` : '-'}</div>
-        <div className="auto-task-last-op">自动决策: {data?.board?.flatMap((item) => item.history ?? []).filter((h) => h.decision_type).slice(-1).map((h) => `${h.decision_reason || h.decision_type}（P${h.priority_before ?? '-'} → P${h.priority_after ?? '-'}）`)[0] || data?.board?.flatMap((item) => item.auto_decision_log ?? []).slice(-1)[0] || '-'}</div>
-        <pre>{`=== RESULT SUMMARY ===\n\n${displayedSummary}`}</pre>
+
+        <aside className="scheduler-alert-card">
+          <div className="scheduler-section-title">系统告警</div>
+          <div className="scheduler-alert-group">
+            <h4>连续失败任务</h4>
+            {continuousFailedTasks.length ? continuousFailedTasks.map((item, index) => (
+              <div className="scheduler-alert-item is-critical" key={`failed-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+            )) : <div className="auto-task-empty">暂无连续失败任务</div>}
+          </div>
+          <div className="scheduler-alert-group">
+            <h4>stuck 任务</h4>
+            {stuckTasks.length ? stuckTasks.map((item, index) => (
+              <div className="scheduler-alert-item is-warning" key={`stuck-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+            )) : <div className="auto-task-empty">暂无 stuck 任务</div>}
+          </div>
+          <div className="scheduler-alert-group">
+            <h4>异常任务</h4>
+            {abnormalTasks.length ? abnormalTasks.map((item, index) => (
+              <div className="scheduler-alert-item is-abnormal" key={`abnormal-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+            )) : <div className="auto-task-empty">暂无 abnormal / attention 任务</div>}
+          </div>
+          {(data?.system_alerts?.length ?? 0) > 0 ? (
+            <div className="scheduler-alert-group">
+              <h4>系统级告警</h4>
+              {data?.system_alerts?.map((alert, index) => (
+                <div className={`scheduler-alert-item is-${alert.level}`} key={`sys-alert-${index}`}>{alert.task_name || '-'} · {alert.agent || '-'} · {alert.reason}</div>
+              ))}
+            </div>
+          ) : null}
+        </aside>
       </div>
     </section>
   )

@@ -39,6 +39,12 @@ type TaskHistoryEntry = {
 type TaskBoardItem = {
   task_name: string
   agent: string
+  domain?: string
+  preferred_agent?: string
+  assigned_agent?: string
+  target_system?: string
+  slot_id?: string | null
+  instance_pool?: 'builder' | 'media' | 'family' | 'business' | 'personal'
   priority?: number
   retry_count?: number
   type?: string
@@ -65,42 +71,138 @@ type TaskBoardPayload = {
   failed?: number
   max_concurrency?: number
   current_concurrency?: number
+  running_count?: number
+  queue_count?: number
+  failed_count?: number
+  abnormal_count?: number
+  pools?: Array<{
+    key: 'builder' | 'media' | 'family' | 'business' | 'personal'
+    label: string
+    max_concurrency: number
+    running_count: number
+    queue_count: number
+    health: 'healthy' | 'warning' | 'critical'
+  }>
   system_alerts?: { level: 'warning' | 'critical'; task_name?: string; agent?: string; reason: string }[]
   board: TaskBoardItem[]
 }
 
+const INSTANCE_POOL_ORDER = ['builder', 'media', 'family', 'business', 'personal'] as const
+type InstancePoolKey = (typeof INSTANCE_POOL_ORDER)[number]
+
+const INSTANCE_POOL_CONFIG: Record<InstancePoolKey, { label: string; maxConcurrency: number }> = {
+  builder: { label: 'Builder', maxConcurrency: 2 },
+  media: { label: 'Media', maxConcurrency: 2 },
+  family: { label: 'Family', maxConcurrency: 1 },
+  business: { label: 'Business', maxConcurrency: 1 },
+  personal: { label: 'Personal', maxConcurrency: 1 },
+}
+
+function normalizePoolKey(value?: string): InstancePoolKey | undefined {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return undefined
+  if (INSTANCE_POOL_ORDER.includes(normalized as InstancePoolKey)) return normalized as InstancePoolKey
+  if (normalized === 'main') return 'business'
+  return undefined
+}
+
+function inferPool(item: TaskBoardItem): InstancePoolKey {
+  return (
+    normalizePoolKey(item.assigned_agent) ??
+    normalizePoolKey(item.preferred_agent) ??
+    normalizePoolKey(item.agent) ??
+    normalizePoolKey(item.domain) ??
+    (item.target_system?.toLowerCase().includes('family') ? 'family' : undefined) ??
+    'builder'
+  )
+}
+
 function applyScheduler(payload: TaskBoardPayload) {
-  const maxConcurrency = payload.max_concurrency ?? 2
-  payload.max_concurrency = maxConcurrency
-  const sorted = [...payload.board].sort((a, b) => {
-    const ap = a.priority ?? 99
-    const bp = b.priority ?? 99
-    if (ap !== bp) return ap - bp
-    return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
-  })
-  let runningCount = sorted.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
-  for (const item of sorted) {
-    item.slot_active = ['doing', 'running'].includes(item.status ?? '')
-    if ((item.status === 'todo' || item.status === 'queued') && runningCount < maxConcurrency) {
-      appendHistory(item, {
-        action: 'run',
-        operator: 'system',
-        timestamp: new Date().toISOString(),
-        before: { status: item.status, priority: item.priority },
-        after: { status: 'running', priority: item.priority },
-      })
-      item.status = 'running'
-      item.slot_active = true
-      item.updated_at = new Date().toISOString()
-      runningCount += 1
-    } else if (item.status === 'todo' || item.status === 'queued') {
-      item.status = 'todo'
-      item.slot_active = false
-    } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
-      item.slot_active = false
-    }
+  const poolStats = new Map<InstancePoolKey, { running: number; queue: number; health: 'healthy' | 'warning' | 'critical' }>()
+  const boardByPool = new Map<InstancePoolKey, TaskBoardItem[]>()
+  for (const poolKey of INSTANCE_POOL_ORDER) {
+    poolStats.set(poolKey, { running: 0, queue: 0, health: 'healthy' })
+    boardByPool.set(poolKey, [])
   }
+
+  for (const rawItem of payload.board) {
+    const item = rawItem
+    const poolKey = inferPool(item)
+    item.instance_pool = poolKey
+    item.assigned_agent = normalizePoolKey(item.assigned_agent) ?? poolKey
+    item.preferred_agent = normalizePoolKey(item.preferred_agent) ?? normalizePoolKey(item.agent) ?? poolKey
+    item.domain = item.domain ?? poolKey
+    item.target_system = item.target_system ?? `openclaw-${poolKey}`
+    item.slot_id = item.slot_id ?? null
+    boardByPool.get(poolKey)?.push(item)
+  }
+
+  const now = new Date().toISOString()
+  const sorted = INSTANCE_POOL_ORDER.flatMap((poolKey) => {
+    const maxConcurrency = INSTANCE_POOL_CONFIG[poolKey].maxConcurrency
+    const items = [...(boardByPool.get(poolKey) ?? [])].sort((a, b) => {
+      const ap = a.priority ?? 99
+      const bp = b.priority ?? 99
+      if (ap !== bp) return ap - bp
+      return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
+    })
+
+    let runningCount = items.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
+    items.forEach((item, index) => {
+      item.slot_active = ['doing', 'running'].includes(item.status ?? '')
+      if ((item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') && runningCount < maxConcurrency) {
+        appendHistory(item, {
+          action: 'run',
+          operator: 'system',
+          timestamp: now,
+          before: { status: item.status, priority: item.priority },
+          after: { status: 'running', priority: item.priority },
+        })
+        item.status = 'running'
+        item.slot_active = true
+        item.updated_at = now
+        item.slot_id = `${poolKey}-slot-${runningCount + 1}`
+        runningCount += 1
+      } else if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
+        item.status = 'todo'
+        item.slot_active = false
+        item.slot_id = null
+      } else if (['failed', 'cancelled', 'success', 'done', 'paused'].includes(item.status ?? '')) {
+        item.slot_active = false
+        item.slot_id = null
+      } else if (item.slot_active && !item.slot_id) {
+        item.slot_id = `${poolKey}-slot-${Math.min(index + 1, maxConcurrency)}`
+      }
+    })
+
+    const stats = poolStats.get(poolKey)
+    if (stats) {
+      stats.running = items.filter((item) => item.slot_active).length
+      stats.queue = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+      stats.health = items.some((item) => item.health === 'critical')
+        ? 'critical'
+        : items.some((item) => item.health === 'warning')
+          ? 'warning'
+          : 'healthy'
+    }
+
+    return items
+  })
+
+  payload.max_concurrency = INSTANCE_POOL_ORDER.reduce((sum, key) => sum + INSTANCE_POOL_CONFIG[key].maxConcurrency, 0)
   payload.current_concurrency = sorted.filter((item) => item.slot_active).length
+  payload.running_count = payload.current_concurrency
+  payload.queue_count = sorted.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+  payload.failed_count = sorted.filter((item) => item.status === 'failed').length
+  payload.abnormal_count = sorted.filter((item) => item.abnormal || item.attention).length
+  payload.pools = INSTANCE_POOL_ORDER.map((key) => ({
+    key,
+    label: INSTANCE_POOL_CONFIG[key].label,
+    max_concurrency: INSTANCE_POOL_CONFIG[key].maxConcurrency,
+    running_count: poolStats.get(key)?.running ?? 0,
+    queue_count: poolStats.get(key)?.queue ?? 0,
+    health: poolStats.get(key)?.health ?? 'healthy',
+  }))
   payload.board = sorted
   return payload
 }
@@ -109,6 +211,11 @@ async function readTaskBoard(filePath: string) {
   const payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as TaskBoardPayload
   payload.board = (payload.board ?? []).map((item) => ({
     ...item,
+    domain: item.domain ?? normalizePoolKey(item.agent) ?? 'builder',
+    preferred_agent: item.preferred_agent ?? normalizePoolKey(item.agent) ?? 'builder',
+    assigned_agent: item.assigned_agent ?? normalizePoolKey(item.agent) ?? normalizePoolKey(item.preferred_agent) ?? 'builder',
+    target_system: item.target_system ?? `openclaw-${normalizePoolKey(item.agent) ?? 'builder'}`,
+    slot_id: item.slot_id ?? null,
     retry_count: item.retry_count ?? 0,
     control_status: item.control_status ?? 'active',
     updated_at: item.updated_at ?? item.timestamp ?? payload.generated_at ?? new Date().toISOString(),
@@ -236,6 +343,10 @@ function summarizeTaskBoard(payload: TaskBoardPayload) {
   payload.total = payload.board.length
   payload.success = payload.board.filter((item) => item.status === 'success' || item.status === 'done').length
   payload.failed = payload.board.filter((item) => item.status === 'failed').length
+  payload.running_count = payload.board.filter((item) => ['doing', 'running'].includes(item.status ?? '')).length
+  payload.queue_count = payload.board.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
+  payload.failed_count = payload.failed
+  payload.abnormal_count = payload.board.filter((item) => item.abnormal || item.attention).length
   return payload
 }
 
@@ -358,6 +469,11 @@ export default defineConfig(({ mode }) => {
                     payload.board.unshift({
                       task_name: taskName,
                       agent: 'builder',
+                      domain: 'builder',
+                      preferred_agent: 'builder',
+                      assigned_agent: 'builder',
+                      target_system: 'openclaw-builder',
+                      slot_id: null,
                       priority: 3,
                       retry_count: 0,
                       type: 'dev',
@@ -402,6 +518,11 @@ export default defineConfig(({ mode }) => {
                       payload.board.unshift({
                         task_name: taskInput,
                         agent: 'builder',
+                        domain: 'builder',
+                        preferred_agent: 'builder',
+                        assigned_agent: 'builder',
+                        target_system: 'openclaw-builder',
+                        slot_id: null,
                         priority: 3,
                         retry_count: 0,
                         type: 'dev',
