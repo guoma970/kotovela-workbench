@@ -1352,9 +1352,43 @@ button,
 }
 
 .scheduler-template-strip,
+.scheduler-parent-task-list,
 .scheduler-task-groups {
   display: grid;
   gap: 12px;
+}
+
+.scheduler-parent-task-card {
+  border: 1px solid rgba(91, 140, 255, 0.18);
+  background: rgba(10, 16, 32, 0.78);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.scheduler-parent-task-top,
+.scheduler-parent-task-meta,
+.scheduler-parent-task-domains {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scheduler-parent-task-top span,
+.scheduler-parent-task-meta span {
+  color: #8ea2c6;
+  font-size: 0.78rem;
+}
+
+.scheduler-parent-domain-chip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  color: #dbe7ff;
+  background: rgba(91, 140, 255, 0.12);
 }
 
 .scheduler-template-form {

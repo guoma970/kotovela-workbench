@@ -102,6 +102,8 @@ type DecisionLogEntry = {
 type TaskBoardItem = {
   task_name: string
   agent: string
+  parent_task_id?: string
+  scenario_id?: string
   task_group_id?: string
   task_group_label?: string
   template_key?: string
@@ -244,13 +246,20 @@ type RoutedTaskSpec = {
   target_system: string
 }
 
-type ScenarioTemplateKey = 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+type ScenarioTemplateKey =
+  | 'family_study_evening'
+  | 'media_publish_flow'
+  | 'business_followup_flow'
+  | 'builder_delivery_flow'
+  | 'media_publish_with_distribution'
+  | 'business_quote_with_materials'
 
 type ScenarioTemplateTaskSeed = {
   title: string
   routeHint?: string
   priority?: number
   dependsOnIndexes?: number[]
+  taskGroupSuffix?: string
 }
 
 type ScenarioTemplateDefinition = {
@@ -303,6 +312,30 @@ const SCENARIO_TEMPLATES: Record<ScenarioTemplateKey, ScenarioTemplateDefinition
       { title: '接口联调：确认接口数据与页面联动行为', routeHint: '接口 api 联调 后端', priority: 1, dependsOnIndexes: [0] },
       { title: '回归验证：执行关键路径回归与异常检查', routeHint: '修复 回归 异常', priority: 1, dependsOnIndexes: [1] },
       { title: '交付回执：整理 commit、截图与交付说明', routeHint: '开发 实现 功能', priority: 2, dependsOnIndexes: [2] },
+    ],
+  },
+  media_publish_with_distribution: {
+    key: 'media_publish_with_distribution',
+    label: 'media_publish_with_distribution',
+    description: '主任务下同时编排内容发布、投放分发与落地页支撑。',
+    tasks: [
+      { title: '主任务：确认本轮发布主题、素材包与目标渠道', routeHint: '内容 选题 发布', priority: 0, taskGroupSuffix: 'media' },
+      { title: '内容脚本：输出短视频脚本与封面文案', routeHint: '内容 文案 发布', priority: 0, dependsOnIndexes: [0], taskGroupSuffix: 'media' },
+      { title: '分发计划：整理平台投放节奏与商务分发清单', routeHint: '客户 渠道 分发 报价', priority: 1, dependsOnIndexes: [0], taskGroupSuffix: 'business' },
+      { title: '落地页支持：同步页面素材位与追踪埋点', routeHint: '开发 页面 接口 埋点', priority: 1, dependsOnIndexes: [1], taskGroupSuffix: 'builder' },
+      { title: '发布执行：完成内容上线并回收首轮反馈', routeHint: '账号运营 发布 小红书', priority: 1, dependsOnIndexes: [1, 2, 3], taskGroupSuffix: 'media' },
+    ],
+  },
+  business_quote_with_materials: {
+    key: 'business_quote_with_materials',
+    label: 'business_quote_with_materials',
+    description: '主任务下同时编排报价、物料、样板与家庭确认。',
+    tasks: [
+      { title: '需求梳理：确认客户预算、交付范围与材料偏好', routeHint: '客户 跟进 报价', priority: 0, taskGroupSuffix: 'business' },
+      { title: '材料清单：整理样品、规格与替代方案', routeHint: '开发 物料 清单 页面', priority: 0, dependsOnIndexes: [0], taskGroupSuffix: 'builder' },
+      { title: '报价草案：输出报价说明与组合方案', routeHint: '客户 报价 技术方案', priority: 1, dependsOnIndexes: [0, 1], taskGroupSuffix: 'business' },
+      { title: '家庭确认：确认样板寄送与现场配合时间', routeHint: '家庭 提醒 物料 安排', priority: 1, dependsOnIndexes: [1], taskGroupSuffix: 'family' },
+      { title: '正式回发：发送报价并附带材料说明', routeHint: '客户 合同 报价 跟进', priority: 1, dependsOnIndexes: [2, 3], taskGroupSuffix: 'business' },
     ],
   },
 }
@@ -458,8 +491,9 @@ function executeTask(item: TaskBoardItem, now: string): NonNullable<TaskBoardIte
 
 function createScenarioTemplateTasks(templateKey: ScenarioTemplateKey, now: string) {
   const template = SCENARIO_TEMPLATES[templateKey]
-  const taskGroupId = `${templateKey}-${Date.now()}`
+  const scenarioId = `${templateKey}-${Date.now()}`
   const taskGroupLabel = `${template.label}-${new Date(now).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })}`
+  const parentTaskId = `${scenarioId}:parent`
 
   return template.tasks.map((seed, index) => {
     const route = inferTaskRoute(seed.routeHint ?? seed.title)
@@ -471,8 +505,10 @@ function createScenarioTemplateTasks(templateKey: ScenarioTemplateKey, now: stri
     return {
       task_name: taskName,
       agent: route.assigned_agent,
-      task_group_id: taskGroupId,
-      task_group_label: taskGroupLabel,
+      parent_task_id: parentTaskId,
+      scenario_id: scenarioId,
+      task_group_id: `${scenarioId}:${seed.taskGroupSuffix ?? route.domain}`,
+      task_group_label: `${taskGroupLabel} · ${(seed.taskGroupSuffix ?? route.domain).toUpperCase()}`,
       template_key: template.key,
       template_source: template.label,
       template_task_index: index + 1,
@@ -790,6 +826,8 @@ async function readTaskBoard(filePath: string) {
   payload.board = (payload.board ?? []).map((rawItem) => {
     const routed = enrichTaskRouting({
       ...rawItem,
+      parent_task_id: rawItem.parent_task_id,
+      scenario_id: rawItem.scenario_id,
       domain: rawItem.domain ?? normalizePoolKey(rawItem.agent) ?? 'builder',
       preferred_agent: rawItem.preferred_agent ?? normalizePoolKey(rawItem.agent) ?? 'builder',
       assigned_agent: rawItem.assigned_agent ?? normalizePoolKey(rawItem.agent) ?? normalizePoolKey(rawItem.preferred_agent) ?? 'builder',

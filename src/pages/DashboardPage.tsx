@@ -182,9 +182,17 @@ type AutoDecisionLogEntry = {
 type AutoTaskBoardItem = {
   task_name: string
   agent: string
+  parent_task_id?: string
+  scenario_id?: string
   task_group_id?: string
   task_group_label?: string
-  template_key?: 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+  template_key?:
+    | 'family_study_evening'
+    | 'media_publish_flow'
+    | 'business_followup_flow'
+    | 'builder_delivery_flow'
+    | 'media_publish_with_distribution'
+    | 'business_quote_with_materials'
   template_source?: string
   template_task_index?: number
   domain?: string
@@ -293,10 +301,18 @@ type FailedTaskState = {
 }
 
 const scenarioTemplates: Array<{
-  key: 'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'
+  key:
+    | 'family_study_evening'
+    | 'media_publish_flow'
+    | 'business_followup_flow'
+    | 'builder_delivery_flow'
+    | 'media_publish_with_distribution'
+    | 'business_quote_with_materials'
   label: string
   description: string
 }> = [
+  { key: 'media_publish_with_distribution', label: 'media_publish_with_distribution', description: '跨域发布 + 分发 + 落地页' },
+  { key: 'business_quote_with_materials', label: 'business_quote_with_materials', description: '跨域报价 + 物料 + 家庭确认' },
   { key: 'family_study_evening', label: 'family_study_evening', description: '晚间学习任务链' },
   { key: 'media_publish_flow', label: 'media_publish_flow', description: '内容发布任务链' },
   { key: 'business_followup_flow', label: 'business_followup_flow', description: '客户跟进任务链' },
@@ -578,7 +594,14 @@ export function AutoTaskSystemPanel() {
   const [expandedTaskName, setExpandedTaskName] = useState('')
   const [copyState, setCopyState] = useState('')
   const [activeNoticeDomain, setActiveNoticeDomain] = useState<'builder' | 'media' | 'family' | 'business'>('builder')
-  const [activeTemplateKey, setActiveTemplateKey] = useState<'family_study_evening' | 'media_publish_flow' | 'business_followup_flow' | 'builder_delivery_flow'>('builder_delivery_flow')
+  const [activeTemplateKey, setActiveTemplateKey] = useState<
+    | 'family_study_evening'
+    | 'media_publish_flow'
+    | 'business_followup_flow'
+    | 'builder_delivery_flow'
+    | 'media_publish_with_distribution'
+    | 'business_quote_with_materials'
+  >('media_publish_with_distribution')
 
   const loadBoard = () => {
     setLoading(true)
@@ -860,7 +883,10 @@ export function AutoTaskSystemPanel() {
           <span>agent: {item.agent}</span>
           <span>pool: {item.instance_pool ?? '-'}</span>
           <span>domain: {item.domain ?? '-'}</span>
+          <span>parent_task_id: {item.parent_task_id ?? '-'}</span>
+          <span>scenario_id: {item.scenario_id ?? '-'}</span>
           <span>task_group: {item.task_group_label ?? '-'}</span>
+          <span>task_group_id: {item.task_group_id ?? '-'}</span>
           <span>template_source: {item.template_source ?? item.template_key ?? '-'}</span>
           <span>subdomain: {item.subdomain ?? '-'}</span>
           <span>project_line: {item.project_line ?? '-'}</span>
@@ -1015,6 +1041,35 @@ export function AutoTaskSystemPanel() {
         ]),
     ).values(),
   )
+  const parentTaskViews = Array.from(
+    new Map(
+      sortedBoard
+        .filter((item) => item.parent_task_id)
+        .map((item) => {
+          const parentId = item.parent_task_id as string
+          const children = sortedBoard.filter((entry) => entry.parent_task_id === parentId)
+          const doneChildren = children.filter((entry) => ['done', 'success', 'cancelled'].includes(entry.status)).length
+          const blockedChildren = children.filter((entry) => entry.need_human || entry.status === 'failed' || (entry.blocked_by?.length ?? 0) > 0)
+          const progress = children.length ? Math.round((doneChildren / children.length) * 100) : 0
+          const blockedPoint = blockedChildren[0]
+          return [
+            parentId,
+            {
+              id: parentId,
+              title: item.task_group_label?.split(' · ')[0] ?? item.template_source ?? item.template_key ?? parentId,
+              template: item.template_source ?? item.template_key ?? '-',
+              scenarioId: item.scenario_id ?? '-',
+              childCount: children.length,
+              progress,
+              blockedPoint: blockedPoint
+                ? blockedPoint.blocked_by?.[0] ?? blockedChildren[0]?.task_name ?? '-'
+                : '—',
+              domains: Array.from(new Set(children.map((entry) => entry.domain).filter(Boolean))),
+            },
+          ]
+        }),
+    ).values(),
+  )
   const notificationTabs: Array<{ key: 'builder' | 'media' | 'family' | 'business'; label: string }> = [
     { key: 'builder', label: 'Builder' },
     { key: 'media', label: 'Media' },
@@ -1095,6 +1150,28 @@ export function AutoTaskSystemPanel() {
         <div className="scheduler-hub-main">
           <section className="scheduler-overview-card">
             <div className="scheduler-section-title">调度概览</div>
+            {parentTaskViews.length ? (
+              <div className="scheduler-parent-task-list">
+                {parentTaskViews.slice(0, 6).map((parent) => (
+                  <article className="scheduler-parent-task-card" key={parent.id}>
+                    <div className="scheduler-parent-task-top">
+                      <strong>{parent.title}</strong>
+                      <span>{parent.template}</span>
+                    </div>
+                    <div className="scheduler-parent-task-meta">
+                      <span>子任务 {parent.childCount}</span>
+                      <span>进度 {parent.progress}%</span>
+                      <span>blocked {parent.blockedPoint}</span>
+                    </div>
+                    <div className="scheduler-parent-task-domains">
+                      {parent.domains.map((domain) => (
+                        <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{domain}</span>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             {taskGroups.length ? (
               <div className="scheduler-task-groups">
                 {taskGroups.slice(0, 6).map((group) => (
