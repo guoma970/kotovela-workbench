@@ -226,6 +226,9 @@ type AutoTaskBoardItem = {
     generated_at?: string
     generator?: 'mock' | 'gpt'
   }
+  depends_on?: string[]
+  blocked_by?: string[]
+  dependency_status?: 'ready' | 'blocked' | 'resolved'
 }
 
 type AutoTaskBoardPayload = {
@@ -755,6 +758,7 @@ export function AutoTaskSystemPanel() {
   const poolBoard = sortedBoard.filter((item) => (item.instance_pool ?? 'builder') === normalizedActivePool)
   const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
   const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status))
+  const blockedTasks = queuedTasks.filter((item) => (item.blocked_by?.length ?? 0) > 0)
   const pausedTasks = poolBoard.filter((item) => ['paused', 'pause'].includes(item.status))
   const doneTasks = poolBoard.filter((item) => ['success', 'done', 'cancelled', 'failed'].includes(item.status))
   const failedTasks = sortedBoard.filter((item) => item.status === 'failed')
@@ -823,6 +827,7 @@ export function AutoTaskSystemPanel() {
           <span>target_system: {item.target_system ?? '-'}</span>
           <span>slot_id: {item.slot_id ?? '-'}</span>
           <span>status: {item.status}</span>
+          <span>dependency_status: {item.dependency_status ?? ((item.blocked_by?.length ?? 0) > 0 ? 'blocked' : 'ready')}</span>
           <span>priority: P{item.priority}</span>
           <span>retry_count: {item.retry_count ?? 0}</span>
           <span>need_human: {item.need_human ? 'true' : 'false'}</span>
@@ -831,6 +836,15 @@ export function AutoTaskSystemPanel() {
           <span>manual_decision: {item.manual_decision ?? '-'}</span>
           <span>auto_action: {item.auto_action ?? '-'}</span>
         </div>
+        {item.depends_on?.length ? (
+          <div className="scheduler-task-result-block">
+            <div className="scheduler-task-result-head"><strong>依赖链路</strong></div>
+            <div className="scheduler-task-result-content">
+              <div><span>depends_on</span><strong>{item.depends_on.join(' -> ')}</strong></div>
+              <div><span>blocked_by</span><strong>{item.blocked_by?.length ? item.blocked_by.join(', ') : '-'}</strong></div>
+            </div>
+          </div>
+        ) : null}
         {flags.length > 0 ? (
           <div className="auto-task-flags">
             {flags.map((flag) => (
@@ -1016,6 +1030,7 @@ export function AutoTaskSystemPanel() {
               <div className="scheduler-overview-metric is-concurrency"><span>并发数</span><strong>{currentConcurrency}/{maxConcurrency}</strong></div>
               <div className="scheduler-overview-metric"><span>running_count</span><strong>{runningCount}</strong></div>
               <div className="scheduler-overview-metric"><span>queue_count</span><strong>{queueCount}</strong></div>
+              <div className="scheduler-overview-metric is-warning"><span>blocked_count</span><strong>{blockedTasks.length}</strong></div>
               <div className="scheduler-overview-metric is-failed"><span>failed_count</span><strong>{failedCount}</strong></div>
               <div className="scheduler-overview-metric is-warning"><span>abnormal_count</span><strong>{abnormalCount}</strong></div>
             </div>

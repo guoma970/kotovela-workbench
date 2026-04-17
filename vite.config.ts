@@ -74,6 +74,9 @@ type TaskHistoryEntry = {
     | 'stuck_detected'
     | 'auto_notify'
     | 'need_human'
+    | 'blocked'
+    | 'unblocked'
+    | 'dependency_resolved'
   timestamp: string
   status_before?: string
   status_after?: string
@@ -91,7 +94,7 @@ type TaskHistoryEntry = {
 
 type DecisionLogEntry = {
   timestamp: string
-  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down'
+  action: 'retry' | 'warning' | 'need_human' | 'notify_result' | 'manual_takeover' | 'manual_assign' | 'manual_ignore' | 'manual_done' | 'manual_continue' | 'preempt' | 'priority_up' | 'priority_down' | 'blocked' | 'unblocked' | 'dependency_resolved'
   reason: string
   detail: string
 }
@@ -143,6 +146,9 @@ type TaskBoardItem = {
     generated_at?: string
     generator?: 'mock' | 'gpt'
   }
+  depends_on?: string[]
+  blocked_by?: string[]
+  dependency_status?: 'ready' | 'blocked' | 'resolved'
 }
 
 type TaskBoardPayload = {
@@ -420,6 +426,18 @@ function runQueuedTask(item: TaskBoardItem, now: string) {
   item.slot_id = null
 }
 
+function getTaskKey(item: Pick<TaskBoardItem, 'task_name'>) {
+  return item.task_name.trim()
+}
+
+function getDependencies(item: TaskBoardItem) {
+  return (item.depends_on ?? []).map((value) => value.trim()).filter(Boolean)
+}
+
+function isTaskDone(status?: string) {
+  return ['done', 'success'].includes(status ?? '')
+}
+
 function normalizePoolKey(value?: string): InstancePoolKey | undefined {
   const normalized = value?.trim().toLowerCase()
   if (!normalized) return undefined
@@ -457,8 +475,13 @@ function applyScheduler(payload: TaskBoardPayload) {
     item.target_system = item.target_system ?? `openclaw-${poolKey}`
     item.priority = resolvePriority(item)
     item.slot_id = item.slot_id ?? null
+    item.depends_on = getDependencies(item)
+    item.blocked_by = item.blocked_by ?? []
+    item.dependency_status = item.dependency_status ?? (item.depends_on.length ? 'blocked' : 'ready')
     boardByPool.get(poolKey)?.push(item)
   }
+
+  const taskMap = new Map(payload.board.map((item) => [getTaskKey(item), item]))
 
   const now = new Date().toISOString()
   const sorted = INSTANCE_POOL_ORDER.flatMap((poolKey) => {
@@ -478,7 +501,63 @@ function applyScheduler(payload: TaskBoardPayload) {
         if (ap !== bp) return ap - bp
         return new Date(a.queued_at ?? a.timestamp ?? 0).getTime() - new Date(b.queued_at ?? b.timestamp ?? 0).getTime()
       })
-    const queuedCandidates = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '') && !item.stuck)
+    for (const item of items) {
+      const dependencies = getDependencies(item)
+      const unresolved = dependencies.filter((dependency) => !isTaskDone(taskMap.get(dependency)?.status))
+      const previousBlockedBy = new Set(item.blocked_by ?? [])
+      const wasBlocked = previousBlockedBy.size > 0 || item.dependency_status === 'blocked'
+
+      item.blocked_by = unresolved
+      if (dependencies.length === 0) {
+        item.dependency_status = 'ready'
+      } else if (unresolved.length > 0) {
+        item.dependency_status = 'blocked'
+        if (!wasBlocked || unresolved.some((dependency) => !previousBlockedBy.has(dependency))) {
+          appendHistory(item, {
+            action: 'blocked',
+            operator: 'system',
+            trigger_source: 'rule_engine',
+            timestamp: now,
+            status_before: item.status,
+            status_after: item.status,
+            priority_before: item.priority,
+            priority_after: item.priority,
+            decision_reason: `依赖未完成: ${unresolved.join(' -> ')}`,
+          })
+          appendDecisionLog(item, 'blocked', 'dependency_waiting', `依赖未完成: ${unresolved.join(', ')}`, now)
+        }
+      } else {
+        item.dependency_status = 'resolved'
+        if (wasBlocked) {
+          appendHistory(item, {
+            action: 'dependency_resolved',
+            operator: 'system',
+            trigger_source: 'rule_engine',
+            timestamp: now,
+            status_before: item.status,
+            status_after: item.status,
+            priority_before: item.priority,
+            priority_after: item.priority,
+            decision_reason: `依赖已完成: ${dependencies.join(' -> ')}`,
+          })
+          appendHistory(item, {
+            action: 'unblocked',
+            operator: 'system',
+            trigger_source: 'rule_engine',
+            timestamp: now,
+            status_before: item.status,
+            status_after: item.status,
+            priority_before: item.priority,
+            priority_after: item.priority,
+            decision_reason: `已解除阻塞，等待调度: ${dependencies.join(' -> ')}`,
+          })
+          appendDecisionLog(item, 'dependency_resolved', 'task_done', `上游已完成: ${dependencies.join(', ')}`, now)
+          appendDecisionLog(item, 'unblocked', 'dependency_ready', `解除阻塞，进入可调度队列`, now)
+        }
+      }
+    }
+
+    const queuedCandidates = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '') && !item.stuck && (item.blocked_by?.length ?? 0) === 0)
     const queueStats = items.filter((item) => ['todo', 'queued', 'queue', 'pending'].includes(item.status ?? '')).length
     const preemptableRunning = activeRunning.filter((item) => clampPriority(item.priority) >= 2)
     const urgentQueue = queuedCandidates.find((item) => clampPriority(item.priority) <= 1)
@@ -513,7 +592,10 @@ function applyScheduler(payload: TaskBoardPayload) {
     items.forEach((item, index) => {
       item.slot_active = ['doing', 'running'].includes(item.status ?? '')
       if (item.status === 'todo' || item.status === 'queued' || item.status === 'queue' || item.status === 'pending') {
-        if (item.stuck) {
+        if ((item.blocked_by?.length ?? 0) > 0) {
+          item.slot_active = false
+          item.slot_id = null
+        } else if (item.stuck) {
           item.slot_active = false
           item.slot_id = null
         } else if (runningCount < maxConcurrency) {
@@ -599,6 +681,9 @@ async function readTaskBoard(filePath: string) {
       auto_action: rawItem.auto_action,
       queued_at: rawItem.queued_at ?? rawItem.timestamp ?? payload.generated_at ?? new Date().toISOString(),
       slot_active: rawItem.slot_active ?? false,
+      depends_on: (rawItem.depends_on ?? []).map((value) => String(value).trim()).filter(Boolean),
+      blocked_by: (rawItem.blocked_by ?? []).map((value) => String(value).trim()).filter(Boolean),
+      dependency_status: rawItem.dependency_status,
       result: rawItem.result,
       history:
         rawItem.history && rawItem.history.length > 0
