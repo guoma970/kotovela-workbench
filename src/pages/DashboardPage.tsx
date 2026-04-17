@@ -259,6 +259,7 @@ type AutoTaskBoardPayload = {
 type TaskNotificationItem = {
   id: string
   event_type: 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
+  task_id?: string
   task_name: string
   domain: string
   subdomain?: string
@@ -557,7 +558,7 @@ export function AutoTaskSystemPanel() {
   const [controlLoadingTask, setControlLoadingTask] = useState('')
   const [expandedTaskName, setExpandedTaskName] = useState('')
   const [copyState, setCopyState] = useState('')
-  const [activeNoticeDomain, setActiveNoticeDomain] = useState<'media' | 'family' | 'business'>('media')
+  const [activeNoticeDomain, setActiveNoticeDomain] = useState<'builder' | 'media' | 'family' | 'business'>('builder')
 
   const loadBoard = () => {
     setLoading(true)
@@ -582,6 +583,8 @@ export function AutoTaskSystemPanel() {
 
   useEffect(() => {
     loadBoard()
+    const timer = window.setInterval(loadBoard, 3000)
+    return () => window.clearInterval(timer)
   }, [])
 
   const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -707,6 +710,39 @@ export function AutoTaskSystemPanel() {
       loadBoard()
     } catch (error) {
       setRunError(error instanceof Error ? error.message : '操作失败')
+    } finally {
+      setControlLoadingTask('')
+    }
+  }
+
+  const groupNotificationAction = async (
+    notice: TaskNotificationItem,
+    action: 'done' | 'continue' | 'transfer',
+  ) => {
+    if (running || autoRetryState || controlLoadingTask) return
+    const humanOwner = action === 'transfer' ? window.prompt('请输入转人工负责人', notice.assigned_agent || 'builder')?.trim() : (notice.assigned_agent || 'builder')
+    if (action === 'transfer' && !humanOwner) return
+    setControlLoadingTask(`${notice.task_name}:group:${action}`)
+    try {
+      const res = await fetch('/api/task-notification-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_action: action,
+          task_id: notice.task_id,
+          task_name: notice.task_name,
+          domain: notice.domain,
+          assigned_agent: notice.assigned_agent,
+          human_owner: humanOwner,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || err?.error || '群动作回写失败')
+      }
+      loadBoard()
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : '群动作回写失败')
     } finally {
       setControlLoadingTask('')
     }
@@ -903,7 +939,8 @@ export function AutoTaskSystemPanel() {
   }
 
   const recentResults = data?.recent_results ?? []
-  const notificationTabs: Array<{ key: 'media' | 'family' | 'business'; label: string }> = [
+  const notificationTabs: Array<{ key: 'builder' | 'media' | 'family' | 'business'; label: string }> = [
+    { key: 'builder', label: 'Builder' },
     { key: 'media', label: 'Media' },
     { key: 'family', label: 'Family' },
     { key: 'business', label: 'Business' },
@@ -1066,8 +1103,15 @@ export function AutoTaskSystemPanel() {
             {visibleNotifications.length ? visibleNotifications.map((notice) => (
               <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
                 <strong>{notice.target_group}</strong>
-                <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\n任务：${notice.task_name}\n实例：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
-                <small>{notice.project_line ?? '-'} · {notice.notify_mode ?? '-'} · {notice.target_group_id ?? '-'} · {notice.delivery} · {notice.created_at}</small>
+                <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\ntask_id：${notice.task_id ?? '-'}\ntask_name：${notice.task_name}\ndomain：${notice.domain}\nassigned_agent：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
+                {notice.event_type === 'task_need_human' ? (
+                  <div className="auto-task-actions scheduler-human-actions">
+                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'done')} disabled={running || !!autoRetryState || !!controlLoadingTask}>已处理</button>
+                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'continue')} disabled={running || !!autoRetryState || !!controlLoadingTask}>继续执行</button>
+                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'transfer')} disabled={running || !!autoRetryState || !!controlLoadingTask}>转人工</button>
+                  </div>
+                ) : null}
+                <small>{notice.task_id ?? '-'} · {notice.project_line ?? '-'} · {notice.notify_mode ?? '-'} · {notice.target_group_id ?? '-'} · {notice.delivery} · {notice.created_at}</small>
               </div>
             )) : <div className="auto-task-empty">暂无通知回执</div>}
           </div>

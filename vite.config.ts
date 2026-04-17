@@ -11,6 +11,7 @@ type NotifyMode = 'default' | 'need_human' | 'confirm' | 'assigned' | 'reminder'
 type TaskNotificationRecord = {
   id: string
   event_type: TaskNotifyEvent
+  task_id: string
   task_name: string
   domain: string
   subdomain: string
@@ -815,6 +816,15 @@ async function deliverTaskNotification(record: TaskNotificationRecord) {
   return { ...record, delivery: 'webhook' as const }
 }
 
+function toTaskId(taskName: string) {
+  return taskName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || `task-${Date.now()}`
+}
+
 async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, nextPayload: TaskBoardPayload) {
   const previousByName = new Map((previousPayload?.board ?? []).map((item) => [item.task_name, item]))
   const existing = await readTaskNotifications()
@@ -826,6 +836,7 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
     enrichTaskRouting(item)
     const target = resolveNotifyTarget(item, eventType)
     const summary = buildNotificationSummary(item, eventType)
+    const taskId = toTaskId(item.task_name)
     const messageLines = [
       eventType === 'task_warning'
         ? '【任务告警】'
@@ -836,8 +847,10 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
             : eventType === 'task_failed'
               ? '【任务失败】'
               : '【任务完成】',
-      `任务：${item.task_name}`,
-      `实例：${item.assigned_agent ?? item.agent ?? 'builder'}`,
+      `task_id：${taskId}`,
+      `task_name：${item.task_name}`,
+      `domain：${normalizeNotifyDomain(item.domain)}`,
+      `assigned_agent：${item.assigned_agent ?? item.agent ?? 'builder'}`,
       `状态：${eventType === 'task_warning' ? '告警' : item.status ?? '-'}`,
       `摘要：${summary}`,
       eventType === 'task_need_human' ? '动作：已处理 / 继续执行 / 转人工' : '',
@@ -849,6 +862,7 @@ async function emitTaskNotifications(previousPayload: TaskBoardPayload | null, n
     const draft: TaskNotificationRecord = {
       id: `${new Date().toISOString()}-${item.task_name}-${eventType}`,
       event_type: eventType,
+      task_id: taskId,
       task_name: item.task_name,
       domain: normalizeNotifyDomain(item.domain),
       subdomain: item.subdomain ?? 'engineering',
@@ -905,6 +919,114 @@ function appendManualDecision(
   timestamp: string,
 ) {
   target.decision_log = [...(target.decision_log ?? []), { timestamp, action, reason, detail }]
+}
+
+function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner: string, now: string) {
+  if (action === 'takeover') {
+    const owner = humanOwner || target.human_owner || 'builder'
+    appendHistory(target, {
+      action: 'need_human',
+      operator: 'builder',
+      trigger_source: 'manual',
+      timestamp: now,
+      before: { status: target.status, priority: target.priority },
+      after: { status: target.status, priority: target.priority },
+      decision_type: 'need_human',
+      decision_reason: `人工接管：${owner}`,
+    })
+    target.human_owner = owner
+    target.taken_over_at = now
+    target.need_human = true
+    target.manual_decision = 'taken_over'
+    appendManualDecision(target, 'manual_takeover', 'human_takeover', `已由 ${owner} 接管`, now)
+    return
+  }
+
+  if (action === 'assign') {
+    const owner = humanOwner || target.human_owner || 'builder'
+    appendHistory(target, {
+      action: 'need_human',
+      operator: 'builder',
+      trigger_source: 'manual',
+      timestamp: now,
+      before: { status: target.status, priority: target.priority },
+      after: { status: target.status, priority: target.priority },
+      decision_type: 'need_human',
+      decision_reason: `人工指派：${owner}`,
+    })
+    target.human_owner = owner
+    target.taken_over_at = now
+    target.manual_decision = 'assigned'
+    target.need_human = true
+    appendManualDecision(target, 'manual_assign', 'human_assign', `已指派给 ${owner}`, now)
+    return
+  }
+
+  if (action === 'ignore') {
+    const owner = humanOwner || target.human_owner || 'builder'
+    appendHistory(target, {
+      action: 'need_human',
+      operator: 'builder',
+      trigger_source: 'manual',
+      timestamp: now,
+      before: { status: target.status, priority: target.priority },
+      after: { status: target.status, priority: target.priority },
+      decision_type: 'need_human',
+      decision_reason: `人工忽略：${owner}`,
+    })
+    target.human_owner = owner
+    target.taken_over_at = target.taken_over_at ?? now
+    target.manual_decision = 'ignored'
+    target.need_human = false
+    target.attention = false
+    appendManualDecision(target, 'manual_ignore', 'human_ignore', `${owner} 已忽略人工介入`, now)
+    return
+  }
+
+  if (action === 'manual_done') {
+    const owner = humanOwner || target.human_owner || 'builder'
+    appendHistory(target, {
+      action: 'resume',
+      operator: 'builder',
+      trigger_source: 'manual',
+      timestamp: now,
+      before: { status: target.status, priority: target.priority },
+      after: { status: 'done', priority: target.priority },
+    })
+    target.human_owner = owner
+    target.taken_over_at = target.taken_over_at ?? now
+    target.manual_decision = 'done'
+    target.need_human = false
+    target.status = 'done'
+    target.control_status = 'done'
+    target.attention = false
+    appendManualDecision(target, 'manual_done', 'human_done', `${owner} 已确认处理完成`, now)
+    return
+  }
+
+  if (action === 'manual_continue') {
+    const owner = humanOwner || target.human_owner || 'builder'
+    appendHistory(target, {
+      action: 'resume',
+      operator: 'builder',
+      trigger_source: 'manual',
+      timestamp: now,
+      before: { status: target.status, priority: target.priority },
+      after: { status: 'queued', priority: target.priority },
+    })
+    target.human_owner = owner
+    target.taken_over_at = target.taken_over_at ?? now
+    target.manual_decision = 'continue'
+    target.need_human = false
+    target.status = 'queued'
+    target.control_status = 'active'
+    target.queued_at = now
+    target.attention = false
+    appendManualDecision(target, 'manual_continue', 'human_continue', `${owner} 已确认继续执行`, now)
+    return
+  }
+
+  throw new Error('unsupported action')
 }
 
 export default defineConfig(({ mode }) => {
@@ -1231,94 +1353,8 @@ export default defineConfig(({ mode }) => {
                     after: { status: target.status, priority: Math.min(9, (target.priority ?? 3) + 1) },
                   })
                   target.priority = Math.min(9, (target.priority ?? 3) + 1)
-                } else if (action === 'takeover') {
-                  const owner = humanOwner || target.human_owner || 'builder'
-                  appendHistory(target, {
-                    action: 'need_human',
-                    operator: 'builder',
-                    trigger_source: 'manual',
-                    timestamp: now,
-                    before: { status: target.status, priority: target.priority },
-                    after: { status: target.status, priority: target.priority },
-                    decision_type: 'need_human',
-                    decision_reason: `人工接管：${owner}`,
-                  })
-                  target.human_owner = owner
-                  target.taken_over_at = now
-                  target.manual_decision = 'taken_over'
-                  appendManualDecision(target, 'manual_takeover', 'human_takeover', `已由 ${owner} 接管`, now)
-                } else if (action === 'assign') {
-                  const owner = humanOwner || target.human_owner || 'builder'
-                  appendHistory(target, {
-                    action: 'need_human',
-                    operator: 'builder',
-                    trigger_source: 'manual',
-                    timestamp: now,
-                    before: { status: target.status, priority: target.priority },
-                    after: { status: target.status, priority: target.priority },
-                    decision_type: 'need_human',
-                    decision_reason: `人工指派：${owner}`,
-                  })
-                  target.human_owner = owner
-                  target.taken_over_at = now
-                  target.manual_decision = 'assigned'
-                  target.need_human = true
-                  appendManualDecision(target, 'manual_assign', 'human_assign', `已指派给 ${owner}`, now)
-                } else if (action === 'ignore') {
-                  const owner = humanOwner || target.human_owner || 'builder'
-                  appendHistory(target, {
-                    action: 'need_human',
-                    operator: 'builder',
-                    trigger_source: 'manual',
-                    timestamp: now,
-                    before: { status: target.status, priority: target.priority },
-                    after: { status: target.status, priority: target.priority },
-                    decision_type: 'need_human',
-                    decision_reason: `人工忽略：${owner}`,
-                  })
-                  target.human_owner = owner
-                  target.taken_over_at = target.taken_over_at ?? now
-                  target.manual_decision = 'ignored'
-                  target.need_human = false
-                  target.attention = false
-                  appendManualDecision(target, 'manual_ignore', 'human_ignore', `${owner} 已忽略人工介入`, now)
-                } else if (action === 'manual_done') {
-                  const owner = humanOwner || target.human_owner || 'builder'
-                  appendHistory(target, {
-                    action: 'resume',
-                    operator: 'builder',
-                    trigger_source: 'manual',
-                    timestamp: now,
-                    before: { status: target.status, priority: target.priority },
-                    after: { status: 'done', priority: target.priority },
-                  })
-                  target.human_owner = owner
-                  target.taken_over_at = target.taken_over_at ?? now
-                  target.manual_decision = 'done'
-                  target.need_human = false
-                  target.status = 'done'
-                  target.control_status = 'done'
-                  target.attention = false
-                  appendManualDecision(target, 'manual_done', 'human_done', `${owner} 已确认处理完成`, now)
-                } else if (action === 'manual_continue') {
-                  const owner = humanOwner || target.human_owner || 'builder'
-                  appendHistory(target, {
-                    action: 'resume',
-                    operator: 'builder',
-                    trigger_source: 'manual',
-                    timestamp: now,
-                    before: { status: target.status, priority: target.priority },
-                    after: { status: 'queued', priority: target.priority },
-                  })
-                  target.human_owner = owner
-                  target.taken_over_at = target.taken_over_at ?? now
-                  target.manual_decision = 'continue'
-                  target.need_human = false
-                  target.status = 'queued'
-                  target.control_status = 'active'
-                  target.queued_at = now
-                  target.attention = false
-                  appendManualDecision(target, 'manual_continue', 'human_continue', `${owner} 已确认继续执行`, now)
+                } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue'].includes(action)) {
+                  applyManualTaskAction(target, action, humanOwner, now)
                 } else {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
@@ -1345,6 +1381,105 @@ export default defineConfig(({ mode }) => {
             }
 
             next()
+          })
+
+          server.middlewares.use('/api/task-notification-actions', async (req, res, next) => {
+            if (req.method !== 'POST') {
+              next()
+              return
+            }
+
+            try {
+              const chunks: Buffer[] = []
+              for await (const chunk of req) chunks.push(Buffer.from(chunk))
+              const bodyText = Buffer.concat(chunks).toString('utf8')
+              const body = bodyText ? JSON.parse(bodyText) : {}
+              const groupAction = String(body?.group_action || body?.action || '').trim()
+              const taskId = String(body?.task_id || '').trim()
+              const taskName = String(body?.task_name || '').trim()
+              const domain = String(body?.domain || '').trim()
+              const assignedAgent = String(body?.assigned_agent || '').trim()
+              const humanOwner = String(body?.human_owner || body?.operator || assignedAgent || 'builder').trim()
+
+              const actionMap: Record<string, string> = {
+                done: 'manual_done',
+                processed: 'manual_done',
+                continue: 'manual_continue',
+                transfer: 'assign',
+                assign: 'assign',
+              }
+              const mappedAction = actionMap[groupAction]
+              if (!mappedAction) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'unsupported group_action' }))
+                return
+              }
+
+              const filePath = TASK_BOARD_FILE
+              const payload = await readTaskBoard(filePath)
+              const target = payload.board.find((item) => toTaskId(item.task_name) === taskId)
+                ?? payload.board.find((item) => item.task_name === taskName)
+                ?? payload.board.find((item) => (item.domain ?? '') === domain && (item.assigned_agent ?? item.agent ?? '') === assignedAgent)
+
+              if (!target) {
+                res.statusCode = 404
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'task not found' }))
+                return
+              }
+
+              const now = new Date().toISOString()
+              applyManualTaskAction(target, mappedAction, humanOwner, now)
+              target.updated_at = now
+              payload.generated_at = now
+              await writeTaskBoard(filePath, payload)
+
+              const notifications = await readTaskNotifications()
+              notifications.unshift({
+                id: `${now}-${toTaskId(target.task_name)}-${groupAction}`,
+                event_type: 'task_need_human',
+                task_id: toTaskId(target.task_name),
+                task_name: target.task_name,
+                domain: normalizeNotifyDomain(target.domain),
+                subdomain: target.subdomain ?? 'engineering',
+                project_line: target.project_line ?? 'builder_default',
+                notify_mode: target.notify_mode ?? 'need_human',
+                assigned_agent: target.assigned_agent ?? target.agent ?? 'builder',
+                status: target.status ?? '-',
+                summary: `群内动作已回写：${groupAction}`,
+                target_group: 'Mock Feishu 群动作',
+                target_group_id: target.target_group_id ?? 'mock_group_action',
+                target_channel: target.domain ?? 'builder',
+                scheduler_hint: '群动作已同步到 Scheduler',
+                created_at: now,
+                delivery: 'mock',
+                message: [
+                  '【群内动作已回写】',
+                  `task_id：${toTaskId(target.task_name)}`,
+                  `task_name：${target.task_name}`,
+                  `domain：${normalizeNotifyDomain(target.domain)}`,
+                  `assigned_agent：${target.assigned_agent ?? target.agent ?? 'builder'}`,
+                  `group_action：${groupAction}`,
+                  `human_owner：${humanOwner}`,
+                  `manual_decision：${target.manual_decision ?? '-'}`,
+                ].join('\n'),
+              })
+              await writeTaskNotifications(notifications.slice(0, 60))
+
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ ok: true, task_name: target.task_name, manual_decision: target.manual_decision }))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(
+                JSON.stringify({
+                  error: 'task-notification-action failed',
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+              )
+            }
           })
 
           server.middlewares.use('/api/task-notifications', async (req, res, next) => {
