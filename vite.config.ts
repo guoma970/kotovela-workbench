@@ -361,6 +361,12 @@ type TaskBoardItem = {
   learning_score?: number
   lead_id?: string
   consultant_id?: string
+  consultant_owner?: string
+  assignment_mode?: 'auto' | 'manual'
+  assignment_status?: 'assigned' | 'reassigned' | 'pending' | 'converted' | 'lost'
+  reassigned_to?: string
+  reassigned_at?: string
+  reassigned_reason?: string
   converted?: boolean
   lost?: boolean
   attribution?: {
@@ -369,6 +375,16 @@ type TaskBoardItem = {
     campaign?: string
     content?: string
   }
+}
+
+type ConsultantRecord = {
+  consultant_id: string
+  consultant_owner: string
+  domain: string
+  active_load: number
+  conversion_count: number
+  assignment_count: number
+  status: 'available' | 'busy'
 }
 
 type TaskBoardPayload = {
@@ -573,14 +589,46 @@ function buildLeadId(item: Pick<TaskBoardItem, 'task_name' | 'brand_line' | 'con
   return [item.brand_line ?? 'lead', item.content_line ?? 'task', toTaskId(item.task_name), new Date(item.timestamp ?? Date.now()).getTime()].join('_')
 }
 
-function inferConsultantId(item: Pick<TaskBoardItem, 'brand_line' | 'project_line' | 'account_line' | 'account_type'>) {
+const CONSULTANT_DIRECTORY: Array<Pick<ConsultantRecord, 'consultant_id' | 'consultant_owner' | 'domain'>> = [
+  { consultant_id: 'consultant_kotovela_floor_heating', consultant_owner: '顾问A', domain: 'floor_heating' },
+  { consultant_id: 'consultant_yanfami_residential', consultant_owner: '顾问B', domain: 'layout_renovation' },
+  { consultant_id: 'consultant_kotoharo_material', consultant_owner: '顾问C', domain: 'material_case' },
+  { consultant_id: 'consultant_guoshituan_main', consultant_owner: '顾问D', domain: 'group_buy_material' },
+  { consultant_id: 'consultant_official_account', consultant_owner: '顾问E', domain: 'customer_followup' },
+  { consultant_id: 'consultant_business_default', consultant_owner: '顾问值班', domain: 'general' },
+]
+
+function inferConsultantPoolDomain(item: Pick<TaskBoardItem, 'content_line' | 'brand_line' | 'project_line'>) {
+  if (item.content_line === 'floor_heating' || item.brand_line === 'kotovela') return 'floor_heating'
+  if (item.content_line === 'material_case' || item.brand_line === 'kotoharo') return 'material_case'
+  if (item.content_line === 'group_buy_material' || item.brand_line === 'guoshituan') return 'group_buy_material'
+  if (item.content_line === 'layout_renovation' || item.brand_line === 'yanfami') return 'layout_renovation'
+  if (item.content_line === 'customer_followup' || (item.project_line ?? '').includes('official_account')) return 'customer_followup'
+  return 'general'
+}
+
+function buildConsultantRecords(board: TaskBoardItem[]): ConsultantRecord[] {
+  return CONSULTANT_DIRECTORY.map((item) => {
+    const related = board.filter((entry) => entry.consultant_id === item.consultant_id)
+    const activeLoad = related.filter((entry) => !entry.converted && !entry.lost && !['done', 'success', 'cancelled', 'failed'].includes(entry.status ?? '')).length
+    const converted = related.filter((entry) => entry.converted).length
+    return {
+      ...item,
+      active_load: activeLoad,
+      conversion_count: converted,
+      assignment_count: related.length,
+      status: activeLoad >= 3 ? 'busy' : 'available',
+    }
+  })
+}
+
+function inferConsultantId(item: Pick<TaskBoardItem, 'brand_line' | 'project_line' | 'account_line' | 'account_type' | 'content_line'>, board: TaskBoardItem[] = []) {
   if (item.account_type === 'external_partner') return undefined
-  if (item.brand_line === 'guoshituan') return 'consultant_guoshituan_main'
-  if (item.brand_line === 'kotovela') return 'consultant_kotovela_floor_heating'
-  if (item.brand_line === 'yanfami') return 'consultant_yanfami_residential'
-  if (item.brand_line === 'kotoharo') return 'consultant_kotoharo_material'
-  if ((item.project_line ?? '').includes('official_account')) return 'consultant_official_account'
-  return 'consultant_business_default'
+  const poolDomain = inferConsultantPoolDomain(item)
+  const consultants = buildConsultantRecords(board)
+  const preferred = consultants.filter((entry) => entry.domain === poolDomain)
+  const ranked = (preferred.length ? preferred : consultants).sort((a, b) => a.active_load - b.active_load || a.assignment_count - b.assignment_count)
+  return ranked[0]?.consultant_id
 }
 
 function buildAttribution(item: Pick<TaskBoardItem, 'brand_line' | 'content_line' | 'project_line' | 'account_line' | 'task_name'>) {
@@ -592,7 +640,23 @@ function buildAttribution(item: Pick<TaskBoardItem, 'brand_line' | 'content_line
   }
 }
 
-async function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
+function syncLeadAssignmentStatus(item: TaskBoardItem) {
+  if (item.converted) {
+    item.assignment_status = 'converted'
+    return
+  }
+  if (item.lost) {
+    item.assignment_status = 'lost'
+    return
+  }
+  if (item.reassigned_to) {
+    item.assignment_status = 'reassigned'
+    return
+  }
+  item.assignment_status = item.consultant_id ? 'assigned' : 'pending'
+}
+
+async function ensureBusinessFields(item: TaskBoardItem, timestamp: string, board: TaskBoardItem[] = []) {
   if (item.type !== 'business_task' && item.domain !== 'business' && item.content_line !== 'customer_followup') return
   const previousLeadId = item.lead_id
   const previousConsultantId = item.consultant_id
@@ -623,9 +687,11 @@ async function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
   })
 
   if (!item.consultant_id) {
-    const consultantId = inferConsultantId(item)
+    const consultantId = inferConsultantId(item, board)
     if (consultantId) {
       item.consultant_id = consultantId
+      item.assignment_mode = item.assignment_mode ?? 'auto'
+      item.consultant_owner = CONSULTANT_DIRECTORY.find((entry) => entry.consultant_id === consultantId)?.consultant_owner
       appendDecisionLog(item, 'lead_auto_transfer', 'consultant_assigned', `consultant_id=${consultantId}`, timestamp, {
         attribution_source: item.attribution.source,
         attribution_medium: item.attribution.medium,
@@ -647,6 +713,7 @@ async function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
 
   item.converted = item.converted ?? (item.status === 'done' || item.status === 'success')
   item.lost = item.lost ?? (item.status === 'cancelled' || item.status === 'failed')
+  syncLeadAssignmentStatus(item)
 }
 
 function summarizeBusinessBoard(board: TaskBoardItem[]) {
@@ -2891,7 +2958,12 @@ async function applyManualTaskAction(target: TaskBoardItem, action: string, huma
       decision_reason: `人工接管：${owner}`,
     })
     target.human_owner = owner
-    if (target.domain === 'business' || target.type === 'business_task') target.consultant_id = owner
+    if (target.domain === 'business' || target.type === 'business_task') {
+      target.consultant_id = owner
+      target.consultant_owner = owner
+      target.assignment_mode = 'manual'
+      syncLeadAssignmentStatus(target)
+    }
     target.taken_over_at = now
     target.need_human = true
     target.priority = 0
@@ -2914,7 +2986,17 @@ async function applyManualTaskAction(target: TaskBoardItem, action: string, huma
       decision_reason: `人工指派：${owner}`,
     })
     target.human_owner = owner
-    if (target.domain === 'business' || target.type === 'business_task') target.consultant_id = owner
+    if (target.domain === 'business' || target.type === 'business_task') {
+      target.consultant_id = owner
+      target.consultant_owner = owner
+      target.assignment_mode = 'manual'
+      if (previousConsultantId && previousConsultantId !== owner) {
+        target.reassigned_to = owner
+        target.reassigned_at = now
+        target.reassigned_reason = 'manual_assign'
+      }
+      syncLeadAssignmentStatus(target)
+    }
     target.taken_over_at = now
     target.manual_decision = 'assigned'
     target.need_human = true
@@ -3157,7 +3239,7 @@ export default defineConfig(({ mode }) => {
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(...scenarioTasks.reverse())
                       for (const item of scenarioTasks) {
-                        await ensureBusinessFields(item, now)
+                        await ensureBusinessFields(item, now, payload.board)
                       }
                     })
                     res.statusCode = 200
@@ -3190,7 +3272,7 @@ export default defineConfig(({ mode }) => {
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(...roleTasks.reverse())
                       for (const item of roleTasks) {
-                        await ensureBusinessFields(item, now)
+                        await ensureBusinessFields(item, now, payload.board)
                       }
                     })
                     res.statusCode = 200
@@ -3263,7 +3345,7 @@ export default defineConfig(({ mode }) => {
                     applyUserContextOnCreate(nextItem, memoryRecords)
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(nextItem)
-                      await ensureBusinessFields(nextItem, now)
+                      await ensureBusinessFields(nextItem, now, payload.board)
                     })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
@@ -3372,7 +3454,7 @@ export default defineConfig(({ mode }) => {
                   applyUserContextOnCreate(nextItem, memoryRecords)
                   const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                     payload.board.unshift(nextItem)
-                    await ensureBusinessFields(nextItem, now)
+                    await ensureBusinessFields(nextItem, now, payload.board)
                   })
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
@@ -3470,7 +3552,7 @@ export default defineConfig(({ mode }) => {
                   return
                 }
                 target.updated_at = now
-                await ensureBusinessFields(target, now)
+                await ensureBusinessFields(target, now, payload.board)
                 })
                 if (res.writableEnded) return
                 res.statusCode = 200
@@ -3493,32 +3575,152 @@ export default defineConfig(({ mode }) => {
           })
 
           server.middlewares.use('/api/leads', async (req, res, next) => {
+            if (req.method === 'GET') {
+              try {
+                const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
+                const leads = payload.board
+                  .filter((item) => item.lead_id)
+                  .map((item) => ({
+                    lead_id: item.lead_id,
+                    task_name: item.task_name,
+                    consultant_id: item.consultant_id,
+                    consultant_owner: item.consultant_owner,
+                    assignment_mode: item.assignment_mode,
+                    assignment_status: item.assignment_status,
+                    reassigned_to: item.reassigned_to,
+                    reassigned_at: item.reassigned_at,
+                    reassigned_reason: item.reassigned_reason,
+                    converted: item.converted ?? false,
+                    lost: item.lost ?? false,
+                    attribution: item.attribution ?? null,
+                    status: item.status,
+                    domain: item.domain,
+                  }))
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(JSON.stringify({ leads }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'leads fetch failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            if (req.method === 'POST') {
+              try {
+                const chunks: Buffer[] = []
+                for await (const chunk of req) chunks.push(Buffer.from(chunk))
+                const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Partial<TaskBoardItem>
+                const title = String(body.task_name || '').trim()
+                if (!title) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'missing lead title' }))
+                  return
+                }
+                const now = new Date().toISOString()
+                const nextItem: TaskBoardItem = {
+                  task_name: title,
+                  agent: 'business',
+                  domain: 'business',
+                  subdomain: 'consulting',
+                  project_line: 'kotovela_official',
+                  priority: 1,
+                  type: 'business_task',
+                  status: 'queued',
+                  timestamp: now,
+                  queued_at: now,
+                  updated_at: now,
+                  result: buildTextResult(title),
+                  assignment_mode: 'auto',
+                  history: [{ action: 'create', operator: 'system', trigger_source: 'manual', timestamp: now, status_after: 'queued', priority_after: 1 }],
+                }
+                await mutateTaskBoard(TASK_BOARD_FILE, async (current) => {
+                  current.board.unshift(nextItem)
+                  await ensureBusinessFields(nextItem, now, current.board)
+                })
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ ok: true, lead: nextItem }))
+              } catch (error) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'lead create failed', message: error instanceof Error ? error.message : String(error) }))
+              }
+              return
+            }
+
+            next()
+          })
+
+          server.middlewares.use('/api/consultants', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
               return
             }
             try {
               const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
-              const leads = payload.board
-                .filter((item) => item.lead_id)
-                .map((item) => ({
-                  lead_id: item.lead_id,
-                  task_name: item.task_name,
-                  consultant_id: item.consultant_id,
-                  converted: item.converted ?? false,
-                  lost: item.lost ?? false,
-                  attribution: item.attribution ?? null,
-                  status: item.status,
-                  domain: item.domain,
-                }))
               res.statusCode = 200
               res.setHeader('Content-Type', 'application/json')
               res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify({ leads }))
+              res.end(JSON.stringify({ consultants: buildConsultantRecords(payload.board) }))
             } catch (error) {
               res.statusCode = 500
               res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'leads fetch failed', message: error instanceof Error ? error.message : String(error) }))
+              res.end(JSON.stringify({ error: 'consultants fetch failed', message: error instanceof Error ? error.message : String(error) }))
+            }
+          })
+
+          server.middlewares.use('/api/lead-update', async (req, res, next) => {
+            if (req.method !== 'POST') {
+              next()
+              return
+            }
+            try {
+              const chunks: Buffer[] = []
+              for await (const chunk of req) chunks.push(Buffer.from(chunk))
+              const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>
+              const leadId = String(body.lead_id || '').trim()
+              if (!leadId) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'missing lead_id' }))
+                return
+              }
+              const { payload } = await mutateTaskBoard(TASK_BOARD_FILE, async (current) => {
+                const target = current.board.find((item) => item.lead_id === leadId)
+                if (!target) throw new Error('lead not found')
+                const now = new Date().toISOString()
+                const nextConsultant = String(body.consultant_id || '').trim()
+                const nextStatus = String(body.status || '').trim()
+                const reason = String(body.reassigned_reason || '').trim()
+                if (nextConsultant && nextConsultant !== target.consultant_id) {
+                  target.reassigned_to = nextConsultant
+                  target.reassigned_at = now
+                  target.reassigned_reason = reason || 'manual_reassign'
+                  target.consultant_id = nextConsultant
+                  target.consultant_owner = CONSULTANT_DIRECTORY.find((entry) => entry.consultant_id === nextConsultant)?.consultant_owner || nextConsultant
+                  target.assignment_mode = 'manual'
+                  await appendAuditLog({ action: 'consultant_reassigned', user: 'builder', time: now, target: leadId, result: `assigned to ${nextConsultant}` })
+                }
+                if (nextStatus) {
+                  target.status = nextStatus
+                  target.converted = nextStatus === 'done' || nextStatus === 'success' || nextStatus === 'converted'
+                  target.lost = nextStatus === 'failed' || nextStatus === 'cancelled' || nextStatus === 'lost'
+                }
+                syncLeadAssignmentStatus(target)
+                target.updated_at = now
+              })
+              const lead = payload.board.find((item) => item.lead_id === leadId)
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ ok: true, lead }))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'lead update failed', message: error instanceof Error ? error.message : String(error) }))
             }
           })
 

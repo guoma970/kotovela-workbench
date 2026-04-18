@@ -499,6 +499,12 @@ type AutoTaskBoardItem = {
   learning_score?: number
   lead_id?: string
   consultant_id?: string
+  consultant_owner?: string
+  assignment_mode?: 'auto' | 'manual'
+  assignment_status?: 'assigned' | 'reassigned' | 'pending' | 'converted' | 'lost'
+  reassigned_to?: string
+  reassigned_at?: string
+  reassigned_reason?: string
   converted?: boolean
   lost?: boolean
   attribution?: {
@@ -1673,6 +1679,13 @@ export function AutoTaskSystemPanel() {
           <span>retry_count: {item.retry_count ?? 0}</span>
           <span>need_human: {item.need_human ? 'true' : 'false'}</span>
           <span>human_owner: {item.human_owner ?? '-'}</span>
+          <span>consultant_id: {item.consultant_id ?? '-'}</span>
+          <span>consultant_owner: {item.consultant_owner ?? '-'}</span>
+          <span>assignment_mode: {item.assignment_mode ?? '-'}</span>
+          <span>assignment_status: {item.assignment_status ?? '-'}</span>
+          <span>reassigned_to: {item.reassigned_to ?? '-'}</span>
+          <span>reassigned_at: {item.reassigned_at ?? '-'}</span>
+          <span>reassigned_reason: {item.reassigned_reason ?? '-'}</span>
           <span>taken_over_at: {item.taken_over_at ?? '-'}</span>
           <span>manual_decision: {item.manual_decision ?? '-'}</span>
           <span>auto_action: {item.auto_action ?? '-'}</span>
@@ -1908,6 +1921,21 @@ export function AutoTaskSystemPanel() {
     blocked: poolBoard.filter((item) => item.status === 'blocked' || (item.blocked_by?.length ?? 0) > 0 || item.predicted_block).length,
     needHuman: poolBoard.filter((item) => item.need_human).length,
   }
+  const consultantSummary = Array.from(
+    sortedBoard
+      .filter((item) => item.consultant_id)
+      .reduce((map, item) => {
+        const key = item.consultant_id as string
+        const current = map.get(key) ?? { consultantId: key, owner: item.consultant_owner ?? key, activeLoad: 0, converted: 0, total: 0 }
+        current.total += 1
+        if (item.converted) current.converted += 1
+        if (!item.converted && !item.lost && !['done', 'success', 'cancelled', 'failed'].includes(item.status)) current.activeLoad += 1
+        map.set(key, current)
+        return map
+      }, new Map<string, { consultantId: string; owner: string; activeLoad: number; converted: number; total: number }>()),
+  ).map(([, value]) => ({ ...value, conversionRate: value.total ? Math.round((value.converted / value.total) * 100) : 0 }))
+    .sort((a, b) => b.activeLoad - a.activeLoad || b.total - a.total)
+  const reassignmentRecords = sortedBoard.filter((item) => item.reassigned_to).slice(0, 6)
   const taskGroups = Array.from(
     new Map(
       sortedBoard
@@ -2147,6 +2175,32 @@ export function AutoTaskSystemPanel() {
                           </article>
                         )
                       }) : <div className="auto-task-empty">暂无待人工处理任务</div>}
+                    </div>
+                  </section>
+                </div>
+                <div className="scheduler-summary-grid">
+                  <section className="scheduler-decisions-card">
+                    <div className="scheduler-section-title">顾问负载 / 转化率</div>
+                    <div className="scheduler-decision-list">
+                      {consultantSummary.length ? consultantSummary.map((entry) => (
+                        <article className="scheduler-decision-item" key={entry.consultantId}>
+                          <div className="scheduler-decision-top"><strong>{entry.owner}</strong><span>{entry.consultantId}</span></div>
+                          <p>active_load {entry.activeLoad} · total {entry.total}</p>
+                          <small>conversion_rate {entry.conversionRate}%</small>
+                        </article>
+                      )) : <div className="auto-task-empty">暂无顾问负载数据</div>}
+                    </div>
+                  </section>
+                  <section className="scheduler-decisions-card">
+                    <div className="scheduler-section-title">改派记录</div>
+                    <div className="scheduler-decision-list">
+                      {reassignmentRecords.length ? reassignmentRecords.map((item) => (
+                        <article className="scheduler-decision-item" key={`${item.lead_id}-${item.reassigned_at}`}>
+                          <div className="scheduler-decision-top"><strong>{item.task_name}</strong><span>{item.reassigned_at ?? '-'}</span></div>
+                          <p>{item.consultant_id ?? '-'} → {item.reassigned_to ?? '-'}</p>
+                          <small>{item.reassigned_reason ?? '-'}</small>
+                        </article>
+                      )) : <div className="auto-task-empty">暂无改派记录</div>}
                     </div>
                   </section>
                 </div>
