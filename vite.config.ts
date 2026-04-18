@@ -34,6 +34,43 @@ const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notif
 const MEMORY_STORE_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-memory.json')
 const TEMPLATE_POOL_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-template-pool.json')
 const CONTENT_LEARNING_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/content-learning.json')
+const AUDIT_LOG_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/server/data/audit-log.json')
+
+type AuditLogEntry = {
+  id: string
+  action: string
+  user: string
+  time: string
+  target: string
+  result: string
+}
+
+async function readAuditLog() {
+  try {
+    const raw = await fs.readFile(AUDIT_LOG_FILE, 'utf8')
+    const payload = JSON.parse(raw) as { entries?: AuditLogEntry[] }
+    return Array.isArray(payload.entries) ? payload.entries : []
+  } catch {
+    await fs.mkdir(path.dirname(AUDIT_LOG_FILE), { recursive: true })
+    await fs.writeFile(AUDIT_LOG_FILE, `${JSON.stringify({ entries: [] }, null, 2)}\n`, 'utf8')
+    return []
+  }
+}
+
+async function writeAuditLog(entries: AuditLogEntry[]) {
+  await fs.mkdir(path.dirname(AUDIT_LOG_FILE), { recursive: true })
+  await fs.writeFile(AUDIT_LOG_FILE, `${JSON.stringify({ entries }, null, 2)}\n`, 'utf8')
+}
+
+async function appendAuditLog(entry: Omit<AuditLogEntry, 'id'>) {
+  const entries = await readAuditLog()
+  const nextEntry: AuditLogEntry = {
+    id: `audit-${new Date(entry.time).getTime()}-${entries.length + 1}`,
+    ...entry,
+  }
+  await writeAuditLog([nextEntry, ...entries].slice(0, 100))
+  return nextEntry
+}
 
 type TemplateAssetType = 'script' | 'reply' | 'plan' | 'generic' | 'content_structure'
 
@@ -555,10 +592,22 @@ function buildAttribution(item: Pick<TaskBoardItem, 'brand_line' | 'content_line
   }
 }
 
-function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
+async function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
   if (item.type !== 'business_task' && item.domain !== 'business' && item.content_line !== 'customer_followup') return
+  const previousLeadId = item.lead_id
+  const previousConsultantId = item.consultant_id
   item.lead_id = item.lead_id ?? buildLeadId(item)
   item.attribution = { ...buildAttribution(item), ...(item.attribution ?? {}) }
+
+  if (!previousLeadId && item.lead_id) {
+    await appendAuditLog({
+      action: 'lead_created',
+      user: 'system',
+      time: timestamp,
+      target: item.lead_id,
+      result: `lead created for ${item.task_name}`,
+    })
+  }
 
   appendDecisionLog(item, 'strategy_generate_task', 'lead_bound', `lead_id=${item.lead_id}`, timestamp, {
     attribution_source: item.attribution.source,
@@ -584,6 +633,16 @@ function ensureBusinessFields(item: TaskBoardItem, timestamp: string) {
         attribution_content: item.attribution.content,
       })
     }
+  }
+
+  if (!previousConsultantId && item.consultant_id) {
+    await appendAuditLog({
+      action: 'consultant_assigned',
+      user: 'system',
+      time: timestamp,
+      target: item.lead_id ?? item.task_name,
+      result: `assigned to ${item.consultant_id}`,
+    })
   }
 
   item.converted = item.converted ?? (item.status === 'done' || item.status === 'success')
@@ -868,7 +927,6 @@ function applyUserContextOnCreate(item: TaskBoardItem, records: MemoryRecord[]) 
     }
   }
 
-  ensureBusinessFields(item, timestamp)
 }
 
 function computeBasePriority(item: TaskBoardItem) {
@@ -2303,7 +2361,6 @@ async function readTaskBoard(filePath: string) {
     if (routed.content_line && routed.account_line && routed.result?.structure_id) {
       routed.learning_score = learningRecords.find((record) => record.key === toLearningKey(routed.content_line, routed.account_line, routed.result?.structure_id))?.learning_score
     }
-    ensureBusinessFields(routed, routed.updated_at ?? routed.timestamp ?? new Date().toISOString())
     return routed
   })
   const now = Date.now()
@@ -2820,7 +2877,7 @@ function appendManualDecision(
   target.decision_log = [...(target.decision_log ?? []), { timestamp, action, reason, detail }]
 }
 
-function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner: string, now: string) {
+async function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner: string, now: string) {
   if (action === 'takeover') {
     const owner = humanOwner || target.human_owner || 'builder'
     appendHistory(target, {
@@ -2845,6 +2902,7 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
 
   if (action === 'assign') {
     const owner = humanOwner || target.human_owner || 'builder'
+    const previousConsultantId = target.consultant_id
     appendHistory(target, {
       action: 'need_human',
       operator: 'builder',
@@ -2862,6 +2920,15 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     target.need_human = true
     target.priority = 0
     appendManualDecision(target, 'manual_assign', 'human_assign', `已指派给 ${owner}`, now)
+    if (target.domain === 'business' || target.type === 'business_task') {
+      await appendAuditLog({
+        action: previousConsultantId === owner ? 'consultant_assigned' : 'consultant_reassigned',
+        user: 'builder',
+        time: now,
+        target: target.lead_id ?? target.task_name,
+        result: `assigned to ${owner}`,
+      })
+    }
     return
   }
 
@@ -2907,6 +2974,23 @@ function applyManualTaskAction(target: TaskBoardItem, action: string, humanOwner
     target.result.manual_published_at = now
     target.result.manual_published_by = owner
     appendManualDecision(target, 'manual_done', 'human_done', `${owner} 已确认处理完成`, now)
+    if (action === 'mark_manual_published') {
+      await appendAuditLog({
+        action: 'manual_publish',
+        user: owner,
+        time: now,
+        target: target.task_name,
+        result: 'manual publish recorded',
+      })
+    } else if (target.domain === 'business' || target.type === 'business_task') {
+      await appendAuditLog({
+        action: 'lead_update',
+        user: owner,
+        time: now,
+        target: target.lead_id ?? target.task_name,
+        result: 'lead marked done manually',
+      })
+    }
     return
   }
 
@@ -2953,17 +3037,7 @@ export default defineConfig(({ mode }) => {
         name: 'pwa-html-by-mode',
         transformIndexHtml(html) {
           if (!isInternal) return html
-          return html
-            .replace('/manifest.demo.webmanifest', '/manifest.internal.webmanifest')
-            .replace(
-              '<meta name="description" content="Kotovela Hub · 开源多实例协作演示（Mock）" />',
-              '<meta name="description" content="Kotovela Hub · 内部驾驶舱：实例状态与项目跟进" />',
-            )
-            .replace(
-              '<meta name="apple-mobile-web-app-title" content="Kotovela Hub" />',
-              '<meta name="apple-mobile-web-app-title" content="Kotovela Hub" />',
-            )
-            .replace('<title>Kotovela Hub</title>', '<title>Kotovela Hub</title>')
+          return html.replace('/manifest.demo.webmanifest', '/manifest.internal.webmanifest')
         },
       },
       {
@@ -2986,6 +3060,52 @@ export default defineConfig(({ mode }) => {
               res.end(
                 JSON.stringify({
                   error: 'office-instances fetch failed',
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+              )
+            }
+          })
+
+          server.middlewares.use('/api/system-mode', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+
+            const systemMode = (process.env.SYSTEM_MODE || (isInternal ? 'test' : 'dev')).toLowerCase()
+            const publishMode = (process.env.PUBLISH_MODE || (isInternal ? 'semi_auto' : 'manual_only')).toLowerCase()
+            const forceStop = String(process.env.FORCE_STOP || 'false').toLowerCase() === 'true'
+
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.setHeader('Cache-Control', 'no-store')
+            res.end(
+              JSON.stringify({
+                system_mode: systemMode === 'live' ? 'live' : systemMode === 'test' ? 'test' : 'dev',
+                publish_mode: publishMode === 'semi_auto' ? 'semi_auto' : publishMode === 'auto_disabled' ? 'auto_disabled' : 'manual_only',
+                force_stop: forceStop,
+              }),
+            )
+          })
+
+          server.middlewares.use('/api/audit-log', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+
+            try {
+              const entries = await readAuditLog()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(JSON.stringify({ entries }))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(
+                JSON.stringify({
+                  error: 'audit-log fetch failed',
                   message: error instanceof Error ? error.message : String(error),
                 }),
               )
@@ -3036,6 +3156,9 @@ export default defineConfig(({ mode }) => {
                     })
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(...scenarioTasks.reverse())
+                      for (const item of scenarioTasks) {
+                        await ensureBusinessFields(item, now)
+                      }
                     })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
@@ -3066,6 +3189,9 @@ export default defineConfig(({ mode }) => {
                     })
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(...roleTasks.reverse())
+                      for (const item of roleTasks) {
+                        await ensureBusinessFields(item, now)
+                      }
                     })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
@@ -3090,6 +3216,9 @@ export default defineConfig(({ mode }) => {
                     }) ?? []
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(...tasks.reverse())
+                      for (const item of tasks) {
+                        await ensureBusinessFields(item, now)
+                      }
                     })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
@@ -3134,6 +3263,7 @@ export default defineConfig(({ mode }) => {
                     applyUserContextOnCreate(nextItem, memoryRecords)
                     const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                       payload.board.unshift(nextItem)
+                      await ensureBusinessFields(nextItem, now)
                     })
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
@@ -3242,6 +3372,7 @@ export default defineConfig(({ mode }) => {
                   applyUserContextOnCreate(nextItem, memoryRecords)
                   const { payload: executed } = await mutateTaskBoard(filePath, async (payload) => {
                     payload.board.unshift(nextItem)
+                    await ensureBusinessFields(nextItem, now)
                   })
                   res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
@@ -3331,7 +3462,7 @@ export default defineConfig(({ mode }) => {
                   target.result.meta = { ...(target.result.meta ?? {}), template_source: true }
                   appendDecisionLog(target, 'manual_done', 'template_source_marked', '已标记为模板来源', now)
                 } else if (['takeover', 'assign', 'ignore', 'manual_done', 'manual_continue', 'mark_manual_published'].includes(action)) {
-                  applyManualTaskAction(target, action, humanOwner, now)
+                  await applyManualTaskAction(target, action, humanOwner, now)
                 } else {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
@@ -3339,7 +3470,7 @@ export default defineConfig(({ mode }) => {
                   return
                 }
                 target.updated_at = now
-                ensureBusinessFields(target, now)
+                await ensureBusinessFields(target, now)
                 })
                 if (res.writableEnded) return
                 res.statusCode = 200

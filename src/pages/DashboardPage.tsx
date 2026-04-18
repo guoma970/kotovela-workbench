@@ -16,6 +16,15 @@ type SystemModeState = {
   forceStop?: boolean | null
 }
 
+type AuditLogEntry = {
+  id: string
+  action: string
+  user: string
+  time: string
+  target: string
+  result: string
+}
+
 const DEFAULT_SYSTEM_MODE: SystemModeState = {
   systemMode: 'dev',
   publishMode: 'manual_only',
@@ -73,6 +82,61 @@ function useSystemMode() {
   }, [])
 
   return state
+}
+
+function AuditLogPanel() {
+  const [entries, setEntries] = useState<AuditLogEntry[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadAuditLog = async () => {
+      try {
+        const response = await fetch('/api/audit-log', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        if (!cancelled) {
+          setEntries(Array.isArray(data?.entries) ? data.entries : [])
+        }
+      } catch {
+        if (!cancelled) setEntries([])
+      }
+    }
+
+    loadAuditLog()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <section className="home-section panel strong-card audit-log-panel">
+      <div className="home-section-head">
+        <h3>操作日志面板</h3>
+        <span className="home-count">{entries.length}</span>
+      </div>
+      {entries.length ? (
+        <div className="audit-log-list">
+          {entries.slice(0, 8).map((entry) => (
+            <article key={entry.id} className="audit-log-item">
+              <div className="audit-log-item-top">
+                <strong>{entry.action}</strong>
+                <span>{entry.time}</span>
+              </div>
+              <p>{entry.target}</p>
+              <small>{entry.user} · {entry.result}</small>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">暂无审计记录。</p>
+      )}
+    </section>
+  )
 }
 
 /** 内部版中控：一页看清数据源、健康度、实例与项目概况（不重复堆叠条带）。 */
@@ -2804,6 +2868,7 @@ export function DashboardPage() {
         <div className="home-v1-grid home-v1-grid--internal">
           <div className="home-internal-main-col">
             <AutoTaskSystemSummaryCard />
+            <AuditLogPanel />
             <SectionList
               title="需处理"
               items={blockers}

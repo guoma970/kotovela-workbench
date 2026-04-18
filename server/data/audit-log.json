@@ -1,0 +1,36 @@
+{
+  "entries": [
+    {
+      "id": "audit-1776506674329-4",
+      "action": "consultant_reassigned",
+      "user": "builder",
+      "time": "2026-04-18T10:04:34.329Z",
+      "target": "guoshituan_customer_followup_dev-20260416-50-客户报价跟进-客户跟进业务链_1776506649949",
+      "result": "assigned to consultant_builder_a"
+    },
+    {
+      "id": "audit-1776506650061-3",
+      "action": "manual_publish",
+      "user": "builder",
+      "time": "2026-04-18T10:04:10.061Z",
+      "target": "DEV-20260416-50 发布验收记录",
+      "result": "manual publish recorded"
+    },
+    {
+      "id": "audit-1776506649949-2",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-18T10:04:09.949Z",
+      "target": "guoshituan_customer_followup_dev-20260416-50-客户报价跟进-客户跟进业务链_1776506649949",
+      "result": "assigned to consultant_guoshituan_main"
+    },
+    {
+      "id": "audit-1776506649949-1",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-18T10:04:09.949Z",
+      "target": "guoshituan_customer_followup_dev-20260416-50-客户报价跟进-客户跟进业务链_1776506649949",
+      "result": "lead created for DEV-20260416-50 客户报价跟进 · 客户跟进业务链"
+    }
+  ]
+}
