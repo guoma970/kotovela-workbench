@@ -4,6 +4,8 @@ import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
+import { brandConfig } from '../config/brand'
+import { brandAssets } from '../config/brandAssets'
 
 /** 内部版中控：一页看清数据源、健康度、实例与项目概况（不重复堆叠条带）。 */
 function InternalControlSummary({
@@ -2676,9 +2678,14 @@ export function DashboardPage() {
     return (
       <section className="page home-page-v1 home-page--internal-control">
         <div className="page-header home-header home-header--compact home-header--internal-dash">
-          <div>
-            <p className="eyebrow">Kotovela Hub</p>
-            <h2>Kotovela Hub</h2>
+          <div className="page-brand-head">
+            <div className="page-brand-logo-wrap" aria-hidden="true">
+              <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
+            </div>
+            <div>
+              <p className="eyebrow">{brandConfig.name}</p>
+              <h2>{brandConfig.name}</h2>
+            </div>
           </div>
           <p className="page-note home-internal-page-note">
             核心两件事：各实例在你名下的任务完成情况；各「项目」维度的整体进度（开发、自媒体、家庭事务等可都建成项目，用进度条与阻塞数管控）。
@@ -2735,9 +2742,14 @@ export function DashboardPage() {
   return (
     <section className="page home-page-v1">
       <div className="page-header home-header">
-        <div>
-          <p className="eyebrow">Kotovela Hub</p>
-          <h2>Kotovela Hub</h2>
+        <div className="page-brand-head">
+          <div className="page-brand-logo-wrap" aria-hidden="true">
+            <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
+          </div>
+          <div>
+            <p className="eyebrow">{brandConfig.name}</p>
+            <h2>{brandConfig.name}</h2>
+          </div>
         </div>
         <p className="page-note">
           线上公开站为仓库内置 <strong>Mock</strong>，不依赖实机 API。克隆仓库后可在本地以 Demo / Internal 模式连接 OpenClaw。

@@ -4,6 +4,8 @@ import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
+import { brandConfig } from '../config/brand'
+import { brandAssets } from '../config/brandAssets'
 
 const getNavItems = (isInternal: boolean) =>
   isInternal
@@ -35,14 +37,14 @@ export function AppShell() {
     lastSyncedAtMs,
     pollingIntervalMs,
   } = useOfficeInstances()
-  const productName = 'Kotovela Hub'
+  const productName = brandConfig.name
   const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
-    mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
+    mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : brandConfig.subtitleZh
   /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
-    mode === 'internal' ? null : 'Kotovela Hub collaboration cockpit · OSS-friendly demo'
+    mode === 'internal' ? null : brandConfig.taglineEn
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -177,7 +179,7 @@ export function AppShell() {
       >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/yanting-logo-tight.png" alt={`${productName} · ${productSubtitleZh}`} />
+            <img className="brand-logo" src={brandAssets.logoSrc} alt={`${brandAssets.logoAlt} · ${productName} · ${productSubtitleZh}`} />
           </div>
           <div className="brand-copy">
             <h1>{productName}</h1>
@@ -252,6 +254,9 @@ export function AppShell() {
             <span />
             <span />
           </button>
+          <div className="mobile-nav-logo-wrap" aria-hidden="true">
+            <img className="mobile-nav-logo" src={brandAssets.logoSrc} alt="" />
+          </div>
           <div className="mobile-nav-copy">
             <div className="mobile-nav-label">
               <strong>{currentNavItem.label}</strong>

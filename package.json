@@ -14,6 +14,7 @@
     "check:office": "node scripts/check-office-local.mjs",
     "build:demo": "tsc -b && node scripts/verify-demo-build-safe.mjs && vite build --mode demo",
     "build:internal": "tsc -b && vite build --mode internal",
+    "build:opensource": "tsc -b && vite build --mode opensource",
     "serve:office-api": "tsx scripts/office-api-server.ts",
     "vercel-build": "node scripts/vercel-build.mjs"
   },
