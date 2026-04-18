@@ -2837,7 +2837,7 @@ export function DashboardPage() {
         <div className="page-header home-header home-header--compact home-header--internal-dash">
           <div className="page-brand-head">
             <div className="page-brand-logo-wrap" aria-hidden="true">
-              <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
+              <img className="page-brand-logo" src={brandAssets.logo} alt="" />
             </div>
             <div>
               <p className="eyebrow">{BRAND_NAME}</p>
@@ -2903,7 +2903,7 @@ export function DashboardPage() {
       <div className="page-header home-header">
         <div className="page-brand-head">
           <div className="page-brand-logo-wrap" aria-hidden="true">
-            <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
+            <img className="page-brand-logo" src={brandAssets.logo} alt="" />
           </div>
           <div>
             <p className="eyebrow">{BRAND_NAME}</p>

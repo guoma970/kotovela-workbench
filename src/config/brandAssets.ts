@@ -1,25 +1,27 @@
-import { runtimeConfig } from './runtime'
+import { APP_MODE } from './brand'
 
 export type BrandAssetMode = 'internal' | 'opensource'
 
 export type BrandAssetConfig = {
   mode: BrandAssetMode
-  logoSrc: string
+  name: string
+  logo: string
   logoAlt: string
 }
 
 const BRAND_ASSETS: Record<BrandAssetMode, BrandAssetConfig> = {
   internal: {
     mode: 'internal',
-    logoSrc: '/logos/kotovela.png',
+    name: 'Kotovela',
+    logo: '/logos/kotovela.png',
     logoAlt: 'Kotovela logo',
   },
   opensource: {
     mode: 'opensource',
-    logoSrc: '/logos/openclaw.png',
+    name: 'OpenClaw',
+    logo: '/logos/openclaw.png',
     logoAlt: 'OpenClaw logo',
   },
 }
 
-export const brandAssets =
-  runtimeConfig.mode === 'internal' ? BRAND_ASSETS.internal : BRAND_ASSETS.opensource
+export const brandAssets = BRAND_ASSETS[APP_MODE]

@@ -179,7 +179,7 @@ export function AppShell() {
       >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src={brandAssets.logoSrc} alt={`${brandAssets.logoAlt} · ${productName} · ${productSubtitleZh}`} />
+            <img className="brand-logo" src={brandAssets.logo} alt={`${brandAssets.logoAlt} · ${productName} · ${productSubtitleZh}`} />
           </div>
           <div className="brand-copy">
             <h1>{productName}</h1>
@@ -255,7 +255,7 @@ export function AppShell() {
             <span />
           </button>
           <div className="mobile-nav-logo-wrap" aria-hidden="true">
-            <img className="mobile-nav-logo" src={brandAssets.logoSrc} alt="" />
+            <img className="mobile-nav-logo" src={brandAssets.logo} alt="" />
           </div>
           <div className="mobile-nav-copy">
             <div className="mobile-nav-label">
