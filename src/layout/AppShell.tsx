@@ -35,14 +35,14 @@ export function AppShell() {
     lastSyncedAtMs,
     pollingIntervalMs,
   } = useOfficeInstances()
-  const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
+  const productName = 'Kotovela Hub'
   const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
     mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
   /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
-    mode === 'internal' ? null : 'OpenClaw collaboration cockpit · OSS-friendly demo'
+    mode === 'internal' ? null : 'Kotovela Hub collaboration cockpit · OSS-friendly demo'
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)

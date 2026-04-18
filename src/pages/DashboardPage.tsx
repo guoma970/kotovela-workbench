@@ -2677,8 +2677,8 @@ export function DashboardPage() {
       <section className="page home-page-v1 home-page--internal-control">
         <div className="page-header home-header home-header--compact home-header--internal-dash">
           <div>
-            <p className="eyebrow">KOTOVELA HUB</p>
-            <h2>驾驶舱总览</h2>
+            <p className="eyebrow">Kotovela Hub</p>
+            <h2>Kotovela Hub</h2>
           </div>
           <p className="page-note home-internal-page-note">
             核心两件事：各实例在你名下的任务完成情况；各「项目」维度的整体进度（开发、自媒体、家庭事务等可都建成项目，用进度条与阻塞数管控）。
@@ -2736,8 +2736,8 @@ export function DashboardPage() {
     <section className="page home-page-v1">
       <div className="page-header home-header">
         <div>
-          <p className="eyebrow">开源演示</p>
-          <h2>OpenClaw × KOTOVELA</h2>
+          <p className="eyebrow">Kotovela Hub</p>
+          <h2>Kotovela Hub</h2>
         </div>
         <p className="page-note">
           线上公开站为仓库内置 <strong>Mock</strong>，不依赖实机 API。克隆仓库后可在本地以 Demo / Internal 模式连接 OpenClaw。

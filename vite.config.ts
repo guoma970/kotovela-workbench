@@ -2956,14 +2956,14 @@ export default defineConfig(({ mode }) => {
           return html
             .replace('/manifest.demo.webmanifest', '/manifest.internal.webmanifest')
             .replace(
-              '<meta name="description" content="OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）" />',
-              '<meta name="description" content="KOTOVELA HUB · 内部驾驶舱：实例状态与项目跟进" />',
+              '<meta name="description" content="Kotovela Hub · 开源多实例协作演示（Mock）" />',
+              '<meta name="description" content="Kotovela Hub · 内部驾驶舱：实例状态与项目跟进" />',
             )
             .replace(
-              '<meta name="apple-mobile-web-app-title" content="O×KOTOVELA" />',
-              '<meta name="apple-mobile-web-app-title" content="HUB" />',
+              '<meta name="apple-mobile-web-app-title" content="Kotovela Hub" />',
+              '<meta name="apple-mobile-web-app-title" content="Kotovela Hub" />',
             )
-            .replace('<title>OpenClaw × KOTOVELA</title>', '<title>KOTOVELA HUB</title>')
+            .replace('<title>Kotovela Hub</title>', '<title>Kotovela Hub</title>')
         },
       },
       {
