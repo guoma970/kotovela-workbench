@@ -13,7 +13,7 @@ type PublishModeValue = 'manual_only' | 'auto_disabled' | 'semi_auto'
 type SystemModeState = {
   systemMode: SystemModeValue
   publishMode: PublishModeValue
-  forceStop?: boolean | null
+  forceStop: boolean
 }
 
 type AuditLogEntry = {
@@ -28,7 +28,7 @@ type AuditLogEntry = {
 const DEFAULT_SYSTEM_MODE: SystemModeState = {
   systemMode: 'dev',
   publishMode: 'manual_only',
-  forceStop: null,
+  forceStop: false,
 }
 
 function normalizeSystemModeState(payload: unknown): SystemModeState {
@@ -46,7 +46,7 @@ function normalizeSystemModeState(payload: unknown): SystemModeState {
         : rawPublishMode === 'auto_disabled'
           ? 'auto_disabled'
           : 'manual_only',
-    forceStop: typeof rawForceStop === 'boolean' ? rawForceStop : rawForceStop == null ? null : Boolean(rawForceStop),
+    forceStop: typeof rawForceStop === 'boolean' ? rawForceStop : rawForceStop == null ? false : Boolean(rawForceStop),
   }
 }
 
@@ -216,14 +216,12 @@ function InternalControlSummary({
           </span>
           <span className="system-mode-bar-label">PUBLISH MODE</span>
           <strong className="system-mode-bar-value">{publishMode}</strong>
-          {forceStop != null ? (
-            <span className={`system-mode-flag ${forceStop ? 'is-on' : 'is-off'}`}>
-              FORCE STOP: {forceStop ? 'ON' : 'OFF'}
-            </span>
-          ) : null}
+          <span className={`system-mode-flag ${forceStop ? 'is-on' : 'is-off'}`}>
+            FORCE STOP: {forceStop ? 'ON' : 'OFF'}
+          </span>
         </div>
         <div className="system-mode-bar-side">
-          {systemMode === 'live' ? 'LIVE 模式高风险，请谨慎操作发布链路。' : null}
+          {systemMode === 'live' ? 'LIVE MODE · Real business traffic enabled' : '非 live 环境，仅供联调与验证'}
         </div>
       </div>
 
