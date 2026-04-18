@@ -14,19 +14,6 @@
     <link rel="manifest" href="/manifest.demo.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <title>OpenClaw workbench</title>
-    <script>
-      const appMode = '%VITE_APP_MODE%' === 'internal' ? 'internal' : 'opensource'
-      const brandName = appMode === 'internal' ? 'Kotovela Hub' : 'OpenClaw × KOTOVELA'
-      const brandDescription =
-        appMode === 'internal' ? 'Kotovela Hub · 内部多实例协作驾驶舱' : 'OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）'
-      document.title = brandName
-      document
-        .querySelector('meta[name="description"]')
-        ?.setAttribute('content', brandDescription)
-      document
-        .querySelector('meta[name="apple-mobile-web-app-title"]')
-        ?.setAttribute('content', brandName)
-    </script>
   </head>
   <body>
     <div id="root"></div>
