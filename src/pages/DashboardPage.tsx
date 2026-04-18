@@ -7,6 +7,74 @@ import type { Agent, Project, Room, Task, UpdateItem } from '../types'
 import { brandConfig } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
 
+type SystemModeValue = 'dev' | 'test' | 'live'
+type PublishModeValue = 'manual_only' | 'auto_disabled' | 'semi_auto'
+
+type SystemModeState = {
+  systemMode: SystemModeValue
+  publishMode: PublishModeValue
+  forceStop?: boolean | null
+}
+
+const DEFAULT_SYSTEM_MODE: SystemModeState = {
+  systemMode: 'dev',
+  publishMode: 'manual_only',
+  forceStop: null,
+}
+
+function normalizeSystemModeState(payload: unknown): SystemModeState {
+  if (!payload || typeof payload !== 'object') return DEFAULT_SYSTEM_MODE
+  const data = payload as Record<string, unknown>
+  const rawSystemMode = String(data.system_mode ?? data.systemMode ?? data.mode ?? 'dev').toLowerCase()
+  const rawPublishMode = String(data.publish_mode ?? data.publishMode ?? 'manual_only').toLowerCase()
+  const rawForceStop = data.force_stop ?? data.forceStop
+
+  return {
+    systemMode: rawSystemMode === 'live' ? 'live' : rawSystemMode === 'test' ? 'test' : 'dev',
+    publishMode:
+      rawPublishMode === 'semi_auto'
+        ? 'semi_auto'
+        : rawPublishMode === 'auto_disabled'
+          ? 'auto_disabled'
+          : 'manual_only',
+    forceStop: typeof rawForceStop === 'boolean' ? rawForceStop : rawForceStop == null ? null : Boolean(rawForceStop),
+  }
+}
+
+function useSystemMode() {
+  const [state, setState] = useState<SystemModeState>(DEFAULT_SYSTEM_MODE)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSystemMode = async () => {
+      try {
+        const response = await fetch('/api/system-mode', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        if (!cancelled) {
+          setState(normalizeSystemModeState(data))
+        }
+      } catch {
+        if (!cancelled) {
+          setState(DEFAULT_SYSTEM_MODE)
+        }
+      }
+    }
+
+    loadSystemMode()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return state
+}
+
 /** 内部版中控：一页看清数据源、健康度、实例与项目概况（不重复堆叠条带）。 */
 function InternalControlSummary({
   livePayload,
@@ -19,6 +87,7 @@ function InternalControlSummary({
   onOpenAgentsIdle,
   lastSyncedAtMs,
   pollingIntervalMs,
+  systemModeState,
 }: {
   livePayload: boolean
   isLoading: boolean
@@ -30,6 +99,7 @@ function InternalControlSummary({
   onOpenAgentsIdle: () => void
   lastSyncedAtMs: number | null
   pollingIntervalMs: number
+  systemModeState: SystemModeState
 }) {
   const blocked = agents.filter((a) => a.status === 'blocked').length
   const active = agents.filter((a) => a.status === 'active').length
@@ -61,6 +131,8 @@ function InternalControlSummary({
           : '暂无实例数据'
 
   const pollSec = Math.max(1, Math.round(pollingIntervalMs / 1000))
+  const { systemMode, publishMode, forceStop } = systemModeState
+  const systemModeTone = systemMode === 'live' ? 'is-live' : systemMode === 'test' ? 'is-test' : 'is-dev'
   const syncStatusLine = isLoading
     ? '正在拉取 OpenClaw…'
     : activeDataSource === 'openclaw' && !isFallback
@@ -71,6 +143,26 @@ function InternalControlSummary({
 
   return (
     <section className="control-summary panel strong-card">
+      <div className={`system-mode-bar ${systemModeTone}`}>
+        <div className="system-mode-bar-main">
+          <span className="system-mode-bar-label">SYSTEM MODE</span>
+          <strong className="system-mode-bar-value">{systemMode}</strong>
+          <span className="system-mode-bar-divider" aria-hidden>
+            /
+          </span>
+          <span className="system-mode-bar-label">PUBLISH MODE</span>
+          <strong className="system-mode-bar-value">{publishMode}</strong>
+          {forceStop != null ? (
+            <span className={`system-mode-flag ${forceStop ? 'is-on' : 'is-off'}`}>
+              FORCE STOP: {forceStop ? 'ON' : 'OFF'}
+            </span>
+          ) : null}
+        </div>
+        <div className="system-mode-bar-side">
+          {systemMode === 'live' ? 'LIVE 模式高风险，请谨慎操作发布链路。' : null}
+        </div>
+      </div>
+
       <div className="control-summary-top">
         <div className="control-summary-title-block">
           <h2 className="control-summary-heading">中控总览</h2>
@@ -2537,6 +2629,7 @@ export function AutoTaskSystemPanel() {
 }
 
 export function DashboardPage() {
+  const systemModeState = useSystemMode()
   const {
     agents,
     projects,
@@ -2705,6 +2798,7 @@ export function DashboardPage() {
           onOpenAgentsIdle={() => navigate('/agents')}
           lastSyncedAtMs={lastSyncedAtMs}
           pollingIntervalMs={pollingIntervalMs}
+          systemModeState={systemModeState}
         />
 
         <div className="home-v1-grid home-v1-grid--internal">
