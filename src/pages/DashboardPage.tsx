@@ -4,7 +4,7 @@ import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
-import { brandConfig } from '../config/brand'
+import { BRAND_NAME } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
 
 type SystemModeValue = 'dev' | 'test' | 'live'
@@ -2840,8 +2840,8 @@ export function DashboardPage() {
               <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
             </div>
             <div>
-              <p className="eyebrow">{brandConfig.name}</p>
-              <h2>{brandConfig.name}</h2>
+              <p className="eyebrow">{BRAND_NAME}</p>
+              <h2>{BRAND_NAME}</h2>
             </div>
           </div>
           <p className="page-note home-internal-page-note">
@@ -2906,8 +2906,8 @@ export function DashboardPage() {
             <img className="page-brand-logo" src={brandAssets.logoSrc} alt="" />
           </div>
           <div>
-            <p className="eyebrow">{brandConfig.name}</p>
-            <h2>{brandConfig.name}</h2>
+            <p className="eyebrow">{BRAND_NAME}</p>
+            <h2>{BRAND_NAME}</h2>
           </div>
         </div>
         <p className="page-note">

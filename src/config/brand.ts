@@ -1,11 +1,19 @@
+export const APP_MODE = import.meta.env.VITE_APP_MODE === 'internal' ? 'internal' : 'opensource'
+
+export const BRAND_NAME = APP_MODE === 'internal' ? 'Kotovela Hub' : 'OpenClaw × KOTOVELA'
+
 export const brandConfig = {
-  name: import.meta.env.VITE_BRAND_NAME?.trim() || 'Kotovela Hub',
-  title: import.meta.env.VITE_BRAND_TITLE?.trim() || import.meta.env.VITE_BRAND_NAME?.trim() || 'Kotovela Hub',
-  appTitle: import.meta.env.VITE_BRAND_APP_TITLE?.trim() || import.meta.env.VITE_BRAND_NAME?.trim() || 'Kotovela Hub',
+  name: BRAND_NAME,
+  title: BRAND_NAME,
+  appTitle: BRAND_NAME,
   description:
-    import.meta.env.VITE_BRAND_DESCRIPTION?.trim() || 'Kotovela Hub · 开源多实例协作演示（Mock）',
+    APP_MODE === 'internal'
+      ? 'Kotovela Hub · 内部多实例协作驾驶舱'
+      : 'OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）',
   subtitleZh:
-    import.meta.env.VITE_BRAND_SUBTITLE_ZH?.trim() || '开源演示 · 多实例协作叙事（内置 Mock）',
+    APP_MODE === 'internal' ? 'Kotovela Hub 内部驾驶舱' : '开源演示 · 多实例协作叙事（内置 Mock）',
   taglineEn:
-    import.meta.env.VITE_BRAND_TAGLINE_EN?.trim() || 'Kotovela Hub collaboration cockpit · OSS-friendly demo',
+    APP_MODE === 'internal'
+      ? 'Kotovela Hub internal collaboration cockpit'
+      : 'OpenClaw × KOTOVELA collaboration cockpit · OSS-friendly demo',
 } as const

@@ -4,7 +4,7 @@ import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
-import { brandConfig } from '../config/brand'
+import { BRAND_NAME, brandConfig } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
 
 const getNavItems = (isInternal: boolean) =>
@@ -37,7 +37,7 @@ export function AppShell() {
     lastSyncedAtMs,
     pollingIntervalMs,
   } = useOfficeInstances()
-  const productName = brandConfig.name
+  const productName = BRAND_NAME
   const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
