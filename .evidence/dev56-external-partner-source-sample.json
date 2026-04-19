@@ -1,0 +1,794 @@
+[
+  {
+    "task_name": "DEV-56 果实团限时团购名额 · 果妈970解释版",
+    "agent": "media",
+    "parent_task_id": "content-line-1776611939517:parent",
+    "scenario_id": "content-line-1776611939517",
+    "task_group_id": "content-line-1776611939517:material_case",
+    "task_group_label": "DEV-56 果实团限时团购名额 · material_case",
+    "domain": "media",
+    "subdomain": "content",
+    "project_line": "guoshituan_official",
+    "source_line": "guoshituan_official",
+    "brand_line": "guoshituan",
+    "brand_display": "果实团",
+    "content_line": "material_case",
+    "account_line": "guoma970",
+    "account_display": "果妈970 Guoma970",
+    "account_type": "hybrid",
+    "distribution_channel": "short_content",
+    "content_variant": "short",
+    "target_group_id": "guoshituan_official",
+    "notify_mode": "default",
+    "preferred_agent": "media",
+    "assigned_agent": "media",
+    "target_system": "openclaw-media",
+    "slot_id": null,
+    "priority": 0,
+    "retry_count": 0,
+    "type": "content_task",
+    "status": "done",
+    "timestamp": "2026-04-19T15:18:59.517Z",
+    "queued_at": "2026-04-19T15:18:59.517Z",
+    "updated_at": "2026-04-19T15:18:59.541Z",
+    "auto_generated": true,
+    "trigger_source": "manual",
+    "auto_decision_log": [
+      "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+      "预测风险 high，失败率/依赖/时间冲突触发",
+      "structure_selected=material_short_v1",
+      "structure_variant_applied=hybrid",
+      "cta_policy_applied=default"
+    ],
+    "decision_log": [
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "content_line_detected",
+        "detail": "content_line=material_case / locked_by=keyword"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "brand_selected",
+        "detail": "brand_line=guoshituan / brand_display=果实团"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "route_decision",
+        "detail": "account_line=guoma970 / persona=guoma970_content"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "account_selected",
+        "detail": "account_line=guoma970 / account_type=hybrid"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "invalid_account_filtered",
+        "detail": "filtered_account_lines=latin_boy_guoguo,luyi_children"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "persona_applied",
+        "detail": "persona=guoma970_content"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_applied",
+        "detail": "structure_type=hybrid"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "variant_generated",
+        "detail": "variant=short"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "channel_selected",
+        "detail": "channel=short_content"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "priority_up",
+        "reason": "profile_bootstrap",
+        "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+        "memory_hit": "20:00",
+        "profile_rule": "晚间学习"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "risk_detected",
+        "reason": "predictive_risk",
+        "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_selected",
+        "detail": "structure_selected=material_short_v1",
+        "learning_key": "material_case|guoma970|material_short_v1",
+        "learning_score": 0,
+        "learning_rank": 1,
+        "learning_top_n": 2,
+        "learning_total_candidates": 2
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_variant_applied",
+        "detail": "structure_variant_applied=hybrid"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "cta_policy_applied",
+        "detail": "cta_policy_applied=default"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.548Z",
+        "action": "warning",
+        "reason": "publish_engine.enriched",
+        "detail": "persona=official_account / recommend=21:00",
+        "publish_rhythm_hit": "21:00 · 3/week · today=false",
+        "persona_hit": "official_account · 正式可信，偏信息整合 · 适合引导收藏、转发和留言咨询",
+        "publish_risk_warning": [
+          "同时段连续发布过密"
+        ]
+      }
+    ],
+    "source": {
+      "source_type": "product_brochure",
+      "source_project": "product_material_system",
+      "chapter_title": "",
+      "core_points": "团购 限时 名额 建材 合作渠道",
+      "title": "DEV-56 果实团限时团购名额",
+      "source_line": "guoshituan_official"
+    },
+    "role_version": "guoma970",
+    "history": [
+      {
+        "action": "create",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "status_after": "queued",
+        "priority_after": 1
+      },
+      {
+        "action": "run",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "before": {
+          "status": "preparing",
+          "priority": 0
+        },
+        "after": {
+          "status": "running",
+          "priority": 0
+        },
+        "status_before": "preparing",
+        "status_after": "running",
+        "priority_before": 0,
+        "priority_after": 0
+      },
+      {
+        "action": "run",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "before": {
+          "status": "running",
+          "priority": 0
+        },
+        "after": {
+          "status": "done",
+          "priority": 0
+        },
+        "status_before": "running",
+        "status_after": "done",
+        "priority_before": 0,
+        "priority_after": 0
+      }
+    ],
+    "user_id": "default_user",
+    "profile_tags": [
+      "晚间学习"
+    ],
+    "memory_hits": [
+      "20:00"
+    ],
+    "recommended_execute_at": "20:00",
+    "control_status": "active",
+    "attention": false,
+    "stuck": false,
+    "abnormal": false,
+    "need_human": false,
+    "slot_active": false,
+    "depends_on": [],
+    "blocked_by": [],
+    "dependency_status": "ready",
+    "result": {
+      "type": "text",
+      "content": "DEV-56 果实团限时团购名额｜案例短内容\n\nDEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\n\nhook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\n\ncommon_mistake：误区是只被单一卖点打动，忽略长期使用体验。\n\nmethod：先看产品点，再看适配空间和维护成本。\n\naction_prompt：把你家最核心的使用场景先写出来再选。\n\ninteraction_question：你更在意颜值、耐用还是后期打理？\n\nhook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\ncommon_mistake：误区是只被单一卖点打动，忽略长期使用体验。\nmethod：先看产品点，再看适配空间和维护成本。\naction_prompt：把你家最核心的使用场景先写出来再选。\ninteraction_question：你更在意颜值、耐用还是后期打理？",
+      "meta": {
+        "source_line": "guoshituan_official",
+        "content_line": "material_case",
+        "distribution_channel": "short_content",
+        "content_variant": "short",
+        "structure_id": "material_short_v1",
+        "cta_policy": "default"
+      },
+      "title": "DEV-56 果实团限时团购名额｜案例短内容",
+      "hook": "DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。",
+      "outline": [
+        "hook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。",
+        "common_mistake：误区是只被单一卖点打动，忽略长期使用体验。",
+        "method：先看产品点，再看适配空间和维护成本。",
+        "action_prompt：把你家最核心的使用场景先写出来再选。",
+        "interaction_question：你更在意颜值、耐用还是后期打理？"
+      ],
+      "structure": [
+        "hook",
+        "common_mistake",
+        "method",
+        "action_prompt",
+        "interaction_question"
+      ],
+      "script": "hook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\ncommon_mistake：误区是只被单一卖点打动，忽略长期使用体验。\nmethod：先看产品点，再看适配空间和维护成本。\naction_prompt：把你家最核心的使用场景先写出来再选。\ninteraction_question：你更在意颜值、耐用还是后期打理？",
+      "publish_text": "DEV-56 果实团限时团购名额｜案例短内容\n\n1. hook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\n2. common_mistake：误区是只被单一卖点打动，忽略长期使用体验。\n3. method：先看产品点，再看适配空间和维护成本。\n4. action_prompt：把你家最核心的使用场景先写出来再选。\n5. interaction_question：你更在意颜值、耐用还是后期打理？\n\nhook：DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。\ncommon_mistake：误区是只被单一卖点打动，忽略长期使用体验。\nmethod：先看产品点，再看适配空间和维护成本。\naction_prompt：把你家最核心的使用场景先写出来再选。\ninteraction_question：你更在意颜值、耐用还是后期打理？",
+      "generated_at": "2026-04-19T15:18:59.541Z",
+      "generator": "mock",
+      "persona": "品牌官方人格",
+      "persona_id": "official_account",
+      "tone_style": "正式可信，偏信息整合",
+      "interaction_style": "适合引导收藏、转发和留言咨询",
+      "structure_type": "short_content",
+      "structure_id": "material_short_v1",
+      "section_map": {
+        "hook": "DEV-56 果实团限时团购名额 值不值得看，不只看参数，还要看它适不适合真实生活场景。",
+        "common_mistake": "误区是只被单一卖点打动，忽略长期使用体验。",
+        "method": "先看产品点，再看适配空间和维护成本。",
+        "action_prompt": "把你家最核心的使用场景先写出来再选。",
+        "interaction_question": "你更在意颜值、耐用还是后期打理？"
+      },
+      "cta_policy": "default",
+      "structure_summary": "产品点 → 为什么值得看 → 场景适配 → 提示",
+      "publish_ready": true,
+      "archive_ready": true,
+      "asset_type": "media",
+      "recommend_publish_time": "21:00",
+      "recommend_frequency": "3/week",
+      "publish_today": false,
+      "suggested_title": "DEV-56 果实团限时团购名额｜案例短内容",
+      "suggested_first_comment": "首评建议：补一句真实场景，强调 正式可信，偏信息整合",
+      "suggested_interaction_question": "你更想先看案例拆解，还是避坑清单？",
+      "publish_risk_warning": [
+        "同时段连续发布过密"
+      ]
+    },
+    "health": "healthy",
+    "predicted_risk": "high",
+    "predicted_block": false,
+    "instance_pool": "media",
+    "learning_score": 0
+  },
+  {
+    "task_name": "DEV-56 果实团限时团购名额 · 果实团品牌案例版",
+    "agent": "business",
+    "parent_task_id": "content-line-1776611939517:parent",
+    "scenario_id": "content-line-1776611939517",
+    "task_group_id": "content-line-1776611939517:material_case",
+    "task_group_label": "DEV-56 果实团限时团购名额 · material_case",
+    "domain": "business",
+    "subdomain": "official_account",
+    "project_line": "guoshituan_official",
+    "source_line": "guoshituan_official",
+    "brand_line": "guoshituan",
+    "brand_display": "果实团",
+    "content_line": "material_case",
+    "account_line": "guoshituan_official",
+    "account_display": "果实团 官方",
+    "account_type": "official",
+    "distribution_channel": "official_account",
+    "content_variant": "article",
+    "target_group_id": "official_account",
+    "notify_mode": "default",
+    "preferred_agent": "business",
+    "assigned_agent": "business",
+    "target_system": "openclaw-business",
+    "slot_id": null,
+    "priority": 0,
+    "retry_count": 0,
+    "type": "content_task",
+    "status": "done",
+    "timestamp": "2026-04-19T15:18:59.517Z",
+    "queued_at": "2026-04-19T15:18:59.517Z",
+    "updated_at": "2026-04-19T15:18:59.541Z",
+    "auto_generated": true,
+    "trigger_source": "manual",
+    "auto_decision_log": [
+      "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+      "lead_id=guoshituan_material_case_dev-56-果实团限时团购名额-果实团品牌案例版_1776611939517",
+      "attribution=guoshituan_official/material_case/guoshituan_material_case",
+      "consultant_id=consultant_kotoharo_material",
+      "预测风险 high，失败率/依赖/时间冲突触发",
+      "structure_selected=material_article_v1",
+      "structure_variant_applied=official",
+      "cta_policy_applied=default"
+    ],
+    "decision_log": [
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "content_line_detected",
+        "detail": "content_line=material_case / locked_by=keyword"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "brand_selected",
+        "detail": "brand_line=guoshituan / brand_display=果实团"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "route_decision",
+        "detail": "account_line=guoshituan_official / persona=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "account_selected",
+        "detail": "account_line=guoshituan_official / account_type=official"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "invalid_account_filtered",
+        "detail": "filtered_account_lines=latin_boy_guoguo,luyi_children"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "persona_applied",
+        "detail": "persona=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_applied",
+        "detail": "structure_type=official"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "variant_generated",
+        "detail": "variant=article"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "channel_selected",
+        "detail": "channel=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "priority_up",
+        "reason": "profile_bootstrap",
+        "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+        "memory_hit": "20:00",
+        "profile_rule": "晚间学习"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "lead_bound",
+        "detail": "lead_id=guoshituan_material_case_dev-56-果实团限时团购名额-果实团品牌案例版_1776611939517",
+        "attribution_source": "guoshituan_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-果实团品牌案例版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "attribution_bound",
+        "detail": "attribution=guoshituan_official/material_case/guoshituan_material_case",
+        "attribution_source": "guoshituan_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-果实团品牌案例版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "lead_auto_transfer",
+        "reason": "consultant_assigned",
+        "detail": "consultant_id=consultant_kotoharo_material",
+        "attribution_source": "guoshituan_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-果实团品牌案例版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "risk_detected",
+        "reason": "predictive_risk",
+        "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_selected",
+        "detail": "structure_selected=material_article_v1",
+        "learning_key": "material_case|guoshituan_official|material_article_v1",
+        "learning_score": 0,
+        "learning_rank": 1,
+        "learning_top_n": 1,
+        "learning_total_candidates": 1
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_variant_applied",
+        "detail": "structure_variant_applied=official"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "strategy_generate_task",
+        "reason": "cta_policy_applied",
+        "detail": "cta_policy_applied=default"
+      }
+    ],
+    "source": {
+      "source_type": "product_brochure",
+      "source_project": "product_material_system",
+      "chapter_title": "",
+      "core_points": "团购 限时 名额 建材 合作渠道",
+      "title": "DEV-56 果实团限时团购名额",
+      "source_line": "guoshituan_official"
+    },
+    "role_version": "official_account",
+    "history": [
+      {
+        "action": "create",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "status_after": "queued",
+        "priority_after": 1
+      },
+      {
+        "action": "run",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "before": {
+          "status": "preparing",
+          "priority": 0
+        },
+        "after": {
+          "status": "running",
+          "priority": 0
+        },
+        "status_before": "preparing",
+        "status_after": "running",
+        "priority_before": 0,
+        "priority_after": 0
+      },
+      {
+        "action": "run",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "before": {
+          "status": "running",
+          "priority": 0
+        },
+        "after": {
+          "status": "done",
+          "priority": 0
+        },
+        "status_before": "running",
+        "status_after": "done",
+        "priority_before": 0,
+        "priority_after": 0
+      }
+    ],
+    "user_id": "default_user",
+    "profile_tags": [
+      "晚间学习"
+    ],
+    "memory_hits": [
+      "20:00"
+    ],
+    "recommended_execute_at": "20:00",
+    "lead_id": "guoshituan_material_case_dev-56-果实团限时团购名额-果实团品牌案例版_1776611939517",
+    "attribution": {
+      "source": "guoshituan_official",
+      "medium": "material_case",
+      "campaign": "guoshituan_material_case",
+      "content": "dev-56-果实团限时团购名额-果实团品牌案例版"
+    },
+    "consultant_id": "consultant_kotoharo_material",
+    "assignment_mode": "auto",
+    "consultant_owner": "顾问C",
+    "converted": false,
+    "lost": false,
+    "assignment_status": "assigned",
+    "control_status": "active",
+    "attention": false,
+    "stuck": false,
+    "abnormal": false,
+    "need_human": false,
+    "slot_active": false,
+    "depends_on": [],
+    "blocked_by": [],
+    "dependency_status": "ready",
+    "result": {
+      "type": "text",
+      "content": "DEV-56 果实团限时团购名额｜案例深度拆解\n\nDEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。\n\nopening：DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。\n\nproblem：很多人选材料时只抓单点卖点。\n\nanalysis：把材料背景和实际使用条件对齐。\n\nmethod：按预算、耐用、维护成本建立选择逻辑。\n\ncase_or_example：结合一个落地案例看取舍。\n\nconclusion：选材先看匹配，再看参数。\n\nCTA：需要我继续拆材料适配逻辑，欢迎留言。\n\n1. opening：DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。\n\n2. problem：很多人选材料时只抓单点卖点。\n\n3. analysis：把材料背景和实际使用条件对齐。\n\n4. method：按预算、耐用、维护成本建立选择逻辑。\n\n5. case_or_example：结合一个落地案例看取舍。\n\n6. conclusion：选材先看匹配，再看参数。\n\n7. CTA：需要我继续拆材料适配逻辑，欢迎留言。",
+      "meta": {
+        "source_line": "guoshituan_official",
+        "content_line": "material_case",
+        "distribution_channel": "official_account",
+        "content_variant": "article",
+        "structure_id": "material_article_v1",
+        "cta_policy": "default"
+      },
+      "title": "DEV-56 果实团限时团购名额｜案例深度拆解",
+      "hook": "DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。",
+      "outline": [
+        "opening：DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。",
+        "problem：很多人选材料时只抓单点卖点。",
+        "analysis：把材料背景和实际使用条件对齐。",
+        "method：按预算、耐用、维护成本建立选择逻辑。",
+        "case_or_example：结合一个落地案例看取舍。",
+        "conclusion：选材先看匹配，再看参数。",
+        "CTA：需要我继续拆材料适配逻辑，欢迎留言。"
+      ],
+      "structure": [
+        "opening",
+        "problem",
+        "analysis",
+        "method",
+        "case_or_example",
+        "conclusion",
+        "CTA"
+      ],
+      "script": "1. opening：DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。\n\n2. problem：很多人选材料时只抓单点卖点。\n\n3. analysis：把材料背景和实际使用条件对齐。\n\n4. method：按预算、耐用、维护成本建立选择逻辑。\n\n5. case_or_example：结合一个落地案例看取舍。\n\n6. conclusion：选材先看匹配，再看参数。\n\n7. CTA：需要我继续拆材料适配逻辑，欢迎留言。",
+      "full_article": "1. opening：DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。\n\n2. problem：很多人选材料时只抓单点卖点。\n\n3. analysis：把材料背景和实际使用条件对齐。\n\n4. method：按预算、耐用、维护成本建立选择逻辑。\n\n5. case_or_example：结合一个落地案例看取舍。\n\n6. conclusion：选材先看匹配，再看参数。\n\n7. CTA：需要我继续拆材料适配逻辑，欢迎留言。",
+      "publish_text": "DEV-56 果实团限时团购名额｜案例深度拆解",
+      "generated_at": "2026-04-19T15:18:59.541Z",
+      "generator": "mock",
+      "persona": "品牌官方人格",
+      "persona_id": "official_account",
+      "tone_style": "正式可信，偏信息整合",
+      "interaction_style": "适合引导收藏、转发和留言咨询",
+      "structure_type": "article",
+      "structure_id": "material_article_v1",
+      "section_map": {
+        "opening": "DEV-56 果实团限时团购名额 的价值，不在宣传词，而在真实使用场景里能不能成立。",
+        "problem": "很多人选材料时只抓单点卖点。",
+        "analysis": "把材料背景和实际使用条件对齐。",
+        "method": "按预算、耐用、维护成本建立选择逻辑。",
+        "case_or_example": "结合一个落地案例看取舍。",
+        "conclusion": "选材先看匹配，再看参数。",
+        "CTA": "需要我继续拆材料适配逻辑，欢迎留言。"
+      },
+      "cta_policy": "default",
+      "structure_summary": "材料背景 → 使用场景 → 选择逻辑 → 案例",
+      "publish_ready": true,
+      "archive_ready": true,
+      "asset_type": "business"
+    },
+    "health": "healthy",
+    "predicted_risk": "high",
+    "predicted_block": false,
+    "instance_pool": "business",
+    "learning_score": 0
+  },
+  {
+    "task_name": "DEV-56 果实团限时团购名额 · 言家官方案例长文版",
+    "agent": "business",
+    "parent_task_id": "content-line-1776611939517:parent",
+    "scenario_id": "content-line-1776611939517",
+    "task_group_id": "content-line-1776611939517:material_case",
+    "task_group_label": "DEV-56 果实团限时团购名额 · material_case",
+    "domain": "business",
+    "subdomain": "official_account",
+    "project_line": "guoshituan_official",
+    "source_line": "guoshituan_official",
+    "brand_line": "guoshituan",
+    "brand_display": "果实团",
+    "content_line": "material_case",
+    "account_line": "yanfami_official",
+    "account_display": "言家 Yanfami 官方",
+    "account_type": "official",
+    "distribution_channel": "official_account",
+    "content_variant": "article",
+    "target_group_id": "official_account",
+    "notify_mode": "default",
+    "preferred_agent": "business",
+    "assigned_agent": "business",
+    "target_system": "openclaw-business",
+    "slot_id": null,
+    "priority": 0,
+    "retry_count": 0,
+    "type": "content_task",
+    "status": "queued",
+    "timestamp": "2026-04-19T15:18:59.517Z",
+    "queued_at": "2026-04-19T15:18:59.517Z",
+    "updated_at": "2026-04-19T15:18:59.517Z",
+    "auto_generated": true,
+    "trigger_source": "manual",
+    "auto_decision_log": [
+      "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+      "lead_id=guoshituan_material_case_dev-56-果实团限时团购名额-言家官方案例长文版_1776611939517",
+      "attribution=yanfami_official/material_case/guoshituan_material_case",
+      "consultant_id=consultant_kotoharo_material",
+      "预测风险 high，失败率/依赖/时间冲突触发"
+    ],
+    "decision_log": [
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "content_line_detected",
+        "detail": "content_line=material_case / locked_by=keyword"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "brand_selected",
+        "detail": "brand_line=guoshituan / brand_display=果实团"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "route_decision",
+        "detail": "account_line=yanfami_official / persona=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "account_selected",
+        "detail": "account_line=yanfami_official / account_type=official"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "invalid_account_filtered",
+        "detail": "filtered_account_lines=latin_boy_guoguo,luyi_children"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "persona_applied",
+        "detail": "persona=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "structure_applied",
+        "detail": "structure_type=official"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "variant_generated",
+        "detail": "variant=article"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "channel_selected",
+        "detail": "channel=official_account"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "priority_up",
+        "reason": "profile_bootstrap",
+        "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+        "memory_hit": "20:00",
+        "profile_rule": "晚间学习"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "lead_bound",
+        "detail": "lead_id=guoshituan_material_case_dev-56-果实团限时团购名额-言家官方案例长文版_1776611939517",
+        "attribution_source": "yanfami_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-言家官方案例长文版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "strategy_generate_task",
+        "reason": "attribution_bound",
+        "detail": "attribution=yanfami_official/material_case/guoshituan_material_case",
+        "attribution_source": "yanfami_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-言家官方案例长文版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "action": "lead_auto_transfer",
+        "reason": "consultant_assigned",
+        "detail": "consultant_id=consultant_kotoharo_material",
+        "attribution_source": "yanfami_official",
+        "attribution_medium": "material_case",
+        "attribution_campaign": "guoshituan_material_case",
+        "attribution_content": "dev-56-果实团限时团购名额-言家官方案例长文版"
+      },
+      {
+        "timestamp": "2026-04-19T15:18:59.541Z",
+        "action": "risk_detected",
+        "reason": "predictive_risk",
+        "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+      }
+    ],
+    "source": {
+      "source_type": "product_brochure",
+      "source_project": "product_material_system",
+      "chapter_title": "",
+      "core_points": "团购 限时 名额 建材 合作渠道",
+      "title": "DEV-56 果实团限时团购名额",
+      "source_line": "guoshituan_official"
+    },
+    "role_version": "official_account",
+    "history": [
+      {
+        "action": "create",
+        "operator": "system",
+        "trigger_source": "system",
+        "timestamp": "2026-04-19T15:18:59.517Z",
+        "status_after": "queued",
+        "priority_after": 1
+      }
+    ],
+    "user_id": "default_user",
+    "profile_tags": [
+      "晚间学习"
+    ],
+    "memory_hits": [
+      "20:00"
+    ],
+    "recommended_execute_at": "20:00",
+    "lead_id": "guoshituan_material_case_dev-56-果实团限时团购名额-言家官方案例长文版_1776611939517",
+    "attribution": {
+      "source": "yanfami_official",
+      "medium": "material_case",
+      "campaign": "guoshituan_material_case",
+      "content": "dev-56-果实团限时团购名额-言家官方案例长文版"
+    },
+    "consultant_id": "consultant_kotoharo_material",
+    "assignment_mode": "auto",
+    "consultant_owner": "顾问C",
+    "converted": false,
+    "lost": false,
+    "assignment_status": "assigned",
+    "control_status": "active",
+    "attention": false,
+    "stuck": false,
+    "abnormal": false,
+    "need_human": false,
+    "slot_active": false,
+    "depends_on": [],
+    "blocked_by": [],
+    "dependency_status": "ready",
+    "health": "healthy",
+    "predicted_risk": "high",
+    "predicted_block": false,
+    "instance_pool": "business"
+  }
+]
