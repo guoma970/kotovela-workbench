@@ -8,6 +8,7 @@ import { ProjectsPage } from './pages/ProjectsPage'
 import { RoomsPage } from './pages/RoomsPage'
 import { TasksPage } from './pages/TasksPage'
 import { AutoTasksPage } from './pages/AutoTasksPage'
+import { ConsultantsPage } from './pages/ConsultantsPage'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="scheduler" element={<AutoTasksPage />} />
+          <Route path="consultants" element={<ConsultantsPage />} />
           <Route path="auto-tasks" element={<Navigate to="/scheduler" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

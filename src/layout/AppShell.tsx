@@ -15,7 +15,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: '驾驶舱层', to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
         { group: '驾驶舱层', to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
         { group: '调度系统', to: '/scheduler', step: 5, label: 'Scheduler 调度', note: '执行控制 · 队列调度' },
-        { group: '执行层', to: '/agents', step: 6, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { group: '调度系统', to: '/consultants', step: 6, label: 'Consultants 顾问', note: '顾问配置 · 分配规则' },
+        { group: '执行层', to: '/agents', step: 7, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
         { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -23,7 +24,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Cockpit', to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
         { group: 'Cockpit', to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
         { group: 'Scheduling', to: '/scheduler', step: 5, label: 'Scheduler', note: 'Execution control and queue' },
-        { group: 'Execution', to: '/agents', step: 6, label: 'Agents', note: 'Agent activity and routing' },
+        { group: 'Scheduling', to: '/consultants', step: 6, label: 'Consultants', note: 'Consultant settings and routing' },
+        { group: 'Execution', to: '/agents', step: 7, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {
