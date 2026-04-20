@@ -14,6 +14,7 @@ const pageLinks = [
   { to: '/projects', label: 'Projects', internalLabel: 'Projects 项目' },
   { to: '/agents', label: 'Agents', internalLabel: 'Agents 实例' },
   { to: '/tasks', label: 'Tasks', internalLabel: 'Tasks 任务' },
+  { to: '/leads', label: 'Leads', internalLabel: 'Leads 线索' },
   { to: '/rooms', label: 'Rooms', internalLabel: 'Rooms 房间' },
 ]
 

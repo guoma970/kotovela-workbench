@@ -9,6 +9,7 @@ import { RoomsPage } from './pages/RoomsPage'
 import { TasksPage } from './pages/TasksPage'
 import { AutoTasksPage } from './pages/AutoTasksPage'
 import { ConsultantsPage } from './pages/ConsultantsPage'
+import { LeadsPage } from './pages/LeadsPage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="agents" element={<AgentsPage />} />
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="tasks" element={<TasksPage />} />
+          <Route path="leads" element={<LeadsPage />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="scheduler" element={<AutoTasksPage />} />
           <Route path="consultants" element={<ConsultantsPage />} />

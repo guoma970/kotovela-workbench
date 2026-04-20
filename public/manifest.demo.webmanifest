@@ -1,7 +1,7 @@
 {
-  "name": "OpenClaw × KOTOVELA",
-  "short_name": "O×KOTOVELA",
-  "description": "OpenClaw × KOTOVELA · 开源多实例协作演示（Mock）",
+  "name": "KOTOVELA OSS Demo",
+  "short_name": "KOTOVELA OSS",
+  "description": "KOTOVELA OSS Demo · 开源多实例协作演示（Mock）",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

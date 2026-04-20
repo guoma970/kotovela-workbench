@@ -18,9 +18,9 @@ const BRAND_ASSETS: Record<BrandAssetMode, BrandAssetConfig> = {
   },
   opensource: {
     mode: 'opensource',
-    name: 'OpenClaw',
-    logo: '/logos/openclaw.png',
-    logoAlt: 'OpenClaw logo',
+    name: 'KOTOVELA OSS Demo',
+    logo: '/logos/kotovela.png',
+    logoAlt: 'KOTOVELA OSS Demo logo',
   },
 }
 
