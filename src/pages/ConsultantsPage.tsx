@@ -130,6 +130,7 @@ export function ConsultantsPage() {
   )
 
   const auditEvidence = auditEntries.filter((entry) => entry.action.includes('consultant')).slice(0, 6)
+  const totalActiveLoad = consultants.reduce((sum, item) => sum + item.active_load, 0)
 
   const updateConsultant = (consultantId: string, key: keyof ConsultantRecord, value: string) => {
     setConsultants((current) =>
@@ -165,7 +166,13 @@ export function ConsultantsPage() {
           <div className="context-strip"><span>publish_mode</span><strong>{systemMode.publishMode}</strong></div>
           <div className="context-strip"><span>force_stop</span><strong>{String(systemMode.forceStop)}</strong></div>
           <div className="context-strip"><span>consultant_pool</span><strong>{consultants.length}</strong></div>
+          <div className="context-strip"><span>configured_active_load</span><strong>{totalActiveLoad}</strong></div>
         </div>
+        <p className="page-note top-gap">
+          {APP_MODE === 'internal'
+            ? '当前口径已纳入“顾问可为团长”，例如 consultant_guoshituan_main 以团长顾问身份承接 lead_router。'
+            : 'Open-source mode only keeps mock-safe consultant samples and does not expose internal group leader assignments.'}
+        </p>
         <div className="cross-link-row top-gap">
           <Link className="inline-link-chip" to="/scheduler">查看调度证据</Link>
           <Link className="inline-link-chip" to="/">返回 Dashboard</Link>
@@ -178,7 +185,7 @@ export function ConsultantsPage() {
             <h3>顾问配置</h3>
             <span className="home-count">{consultants.length}</span>
           </div>
-          <p className="page-note">当前为最小可用配置页，支持 consultant_id / name / domain / active_load / status 展示与本地编辑。</p>
+          <p className="page-note">当前为最小可用配置页，支持 consultant_id / name / role / status / account_type / active_load / domain 展示与本地编辑。</p>
           <div className="consultant-card-list">
             {consultants.map((item) => (
               <article key={item.consultant_id} className="consultant-card">
@@ -190,8 +197,16 @@ export function ConsultantsPage() {
                 </div>
                 <div className="consultant-form-grid">
                   <label>
+                    <span>display_role</span>
+                    <input value={item.role === 'group_leader_consultant' ? '团长顾问 / group leader consultant' : item.role} readOnly />
+                  </label>
+                  <label>
                     <span>name</span>
                     <input value={item.name} onChange={(event) => updateConsultant(item.consultant_id, 'name', event.target.value)} />
+                  </label>
+                  <label>
+                    <span>role</span>
+                    <input value={item.role} onChange={(event) => updateConsultant(item.consultant_id, 'role', event.target.value)} />
                   </label>
                   <label>
                     <span>domain</span>
@@ -207,6 +222,16 @@ export function ConsultantsPage() {
                       <option value="online">online</option>
                       <option value="busy">busy</option>
                       <option value="offline">offline</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>account_type</span>
+                    <select value={item.account_type} onChange={(event) => updateConsultant(item.consultant_id, 'account_type', event.target.value)}>
+                      <option value="owned">owned</option>
+                      <option value="brand">brand</option>
+                      <option value="ip">ip</option>
+                      <option value="external_partner">external_partner</option>
+                      <option value="demo">demo</option>
                     </select>
                   </label>
                   <label>
@@ -244,6 +269,7 @@ export function ConsultantsPage() {
                     .map((entry) => `${entry.reason ?? entry.action ?? '-'} / ${entry.rule_hit_reason ?? entry.detail ?? '-'}`)
                     .join('；') || 'no decision log'}
                 </small>
+                {item.consultant_id === 'consultant_guoshituan_main' ? <small>role evidence: 团长顾问可直接承接 consultant_id</small> : null}
               </article>
             ))}
           </div>
@@ -262,6 +288,7 @@ export function ConsultantsPage() {
                 <small>active_load {item.active} · total {item.total} · domains {item.domains.join(', ') || '-'}</small>
               </article>
             ))}
+            {!consultantLoadSummary.length ? <p className="empty-state">当前无顾问负载回写数据，保留配置态展示。</p> : null}
           </div>
         </section>
 

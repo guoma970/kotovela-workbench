@@ -5,6 +5,8 @@ export type ConsultantStatus = 'online' | 'busy' | 'offline'
 export type ConsultantRecord = {
   consultant_id: string
   name: string
+  role: string
+  account_type: 'owned' | 'brand' | 'ip' | 'external_partner' | 'demo'
   domain: string
   active_load: number
   status: ConsultantStatus
@@ -27,16 +29,20 @@ const internalConfig: ConsultantSettingsConfig = {
   consultants: [
     {
       consultant_id: 'consultant_guoshituan_main',
-      name: '果石团主顾问',
+      name: '果实团团长顾问',
+      role: 'group_leader_consultant',
+      account_type: 'owned',
       domain: 'business',
       active_load: 6,
       status: 'busy',
       assignment_scope: 'guoshituan / customer_followup / lead_router',
-      note: '主承接客户报价与 CRM 跟进。',
+      note: '顾问可兼任团长，主承接客户报价、团购咨询与 CRM 跟进。',
     },
     {
       consultant_id: 'consultant_kotoharo_material',
       name: '言家材料顾问',
+      role: 'material_consultant',
+      account_type: 'brand',
       domain: 'material_case',
       active_load: 4,
       status: 'online',
@@ -46,6 +52,8 @@ const internalConfig: ConsultantSettingsConfig = {
     {
       consultant_id: 'consultant_kotovela_floor_heating',
       name: 'Kotovela 地暖顾问',
+      role: 'heating_consultant',
+      account_type: 'brand',
       domain: 'floor_heating',
       active_load: 3,
       status: 'online',
@@ -55,6 +63,8 @@ const internalConfig: ConsultantSettingsConfig = {
     {
       consultant_id: 'consultant_yanfami_residential',
       name: '言范家住宅顾问',
+      role: 'residential_consultant',
+      account_type: 'brand',
       domain: 'layout_renovation',
       active_load: 2,
       status: 'online',
@@ -64,6 +74,7 @@ const internalConfig: ConsultantSettingsConfig = {
   ],
   ruleSummary: [
     '同 domain 优先命中，active_load 更低者优先。',
+    '顾问可兼任团长角色，展示与分配证据统一落在 consultant_id。',
     'external_partner 不直分 consultant_id，lead 场景转 business.lead_router，非 lead 场景拦截。',
     'consult_only / content_only / no_delivery 仍按现有 guardrails 执行，不覆盖 system_mode / publish_mode / force_stop。',
   ],
@@ -77,6 +88,8 @@ const opensourceConfig: ConsultantSettingsConfig = {
     {
       consultant_id: 'consultant_demo_business',
       name: 'Demo Business Consultant',
+      role: 'business_consultant',
+      account_type: 'demo',
       domain: 'business',
       active_load: 2,
       status: 'online',
@@ -86,6 +99,8 @@ const opensourceConfig: ConsultantSettingsConfig = {
     {
       consultant_id: 'consultant_demo_material',
       name: 'Demo Material Consultant',
+      role: 'material_consultant',
+      account_type: 'demo',
       domain: 'material_case',
       active_load: 1,
       status: 'offline',

@@ -6,6 +6,7 @@ import { createFocusSearch } from '../lib/workbenchLinking'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
 import { BRAND_NAME } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
+import { consultantSettingsConfig } from '../config/consultantSettings'
 
 type SystemModeValue = 'dev' | 'test' | 'live'
 type PublishModeValue = 'manual_only' | 'auto_disabled' | 'semi_auto'
@@ -135,6 +136,36 @@ function AuditLogPanel() {
       ) : (
         <p className="empty-state">暂无审计记录。</p>
       )}
+    </section>
+  )
+}
+
+function ConsultantConfigSummaryCard() {
+  const consultants = consultantSettingsConfig.consultants
+  const activeCount = consultants.filter((item) => item.status !== 'offline').length
+
+  return (
+    <section className="home-section panel strong-card audit-log-panel">
+      <div className="home-section-head">
+        <h3>顾问配置摘要</h3>
+        <span className="home-count">{consultants.length}</span>
+      </div>
+      <div className="audit-log-list">
+        {consultants.slice(0, 4).map((item) => (
+          <article key={item.consultant_id} className="audit-log-item">
+            <div className="audit-log-item-top">
+              <strong>{item.name}</strong>
+              <span>{item.status}</span>
+            </div>
+            <p>{item.role} · {item.account_type} · {item.domain}</p>
+            <small>{item.consultant_id} · active_load {item.active_load}</small>
+          </article>
+        ))}
+      </div>
+      <div className="cross-link-row top-gap">
+        <span className="inline-link-chip">app_mode {consultantSettingsConfig.mode}</span>
+        <span className="inline-link-chip">active consultants {activeCount}</span>
+      </div>
     </section>
   )
 }
@@ -607,7 +638,7 @@ const BRAND_LABELS: Record<NonNullable<AutoTaskBoardItem['brand_line']>, string>
   kotovela: 'KOTOVELA',
   yanfami: 'YANFAMI',
   kotoharo: 'KOTOHARO',
-  guoshituan: '果石团',
+  guoshituan: '果实团',
 }
 
 const MCN_LABELS: Record<NonNullable<AutoTaskBoardItem['mcn_line']>, string> = {
@@ -2920,6 +2951,7 @@ export function DashboardPage() {
         <div className="home-v1-grid home-v1-grid--internal">
           <div className="home-internal-main-col">
             <AutoTaskSystemSummaryCard />
+            <ConsultantConfigSummaryCard />
             <AuditLogPanel />
             <SectionList
               title="需处理"

@@ -1,9 +1,9 @@
-export type WorkbenchMode = 'demo' | 'internal'
+export type WorkbenchMode = 'opensource' | 'internal'
 export type PreferredDataSource = 'mock' | 'openclaw'
 
 const parseMode = (value: string | undefined): WorkbenchMode => {
   const normalized = value?.trim().toLowerCase()
-  return normalized === 'internal' ? 'internal' : 'demo'
+  return normalized === 'internal' ? 'internal' : 'opensource'
 }
 
 const parsePreferredDataSource = (value: string | undefined, fallbackMode: WorkbenchMode): PreferredDataSource => {
@@ -43,6 +43,6 @@ export const runtimeConfig = {
 } as const
 
 export const runtimeLabels = {
-  mode: runtimeConfig.mode === 'internal' ? 'Internal' : 'Demo',
+  mode: runtimeConfig.mode === 'internal' ? 'Internal' : 'OpenSource',
   preferredDataSource: runtimeConfig.preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock',
 }
