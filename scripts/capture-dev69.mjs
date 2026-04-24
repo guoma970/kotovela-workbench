@@ -17,6 +17,16 @@ const apiFixtures = {
   '/api/system-mode': JSON.parse(fs.readFileSync(path.resolve(`server/data/system-mode.${mode}.json`), 'utf8')),
 }
 
+const shots = mode === 'internal'
+  ? [
+      ['/dashboard', 'DEV-69-internal-dashboard-evidence-coverage.png', '[data-evidence-link="true"]'],
+      ['/system-control', 'DEV-69-internal-system-control-evidence-coverage.png', '[data-evidence-link="true"]'],
+    ]
+  : [
+      ['/', 'DEV-69-opensource-dashboard-isolation.png', 'body'],
+      ['/tasks', 'DEV-69-opensource-tasks-isolation.png', 'body'],
+    ]
+
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1512, height: 982 }, deviceScaleFactor: 1.5 })
 await page.route('**/api/**', async (route) => {
@@ -25,30 +35,14 @@ await page.route('**/api/**', async (route) => {
   await route.fulfill({ status: payload ? 200 : 404, contentType: 'application/json', body: JSON.stringify(payload ?? { message: 'fixture not found' }) })
 })
 
-const targets = mode === 'internal'
-  ? [
-      ['/dashboard', 'DEV-69-internal-dashboard-evidence-links.png', true],
-      ['/system-control', 'DEV-69-internal-system-control-evidence-links.png', true],
-    ]
-  : [
-      ['/dashboard', 'DEV-69-opensource-dashboard-isolation.png', false],
-      ['/tasks', 'DEV-69-opensource-tasks-isolation.png', false],
-    ]
-
-for (const [routePath, filename, expectChips] of targets) {
+for (const [routePath, filename, waitFor] of shots) {
   await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: 'networkidle' })
-  if (expectChips) {
-    await page.waitForSelector('.inline-link-chip', { timeout: 15000 })
-  } else {
-    await page.waitForTimeout(1000)
-  }
+  await page.waitForSelector(waitFor, { timeout: 15000 })
   await page.screenshot({ path: path.join(outDir, filename), fullPage: true })
 }
 
-if (mode === 'opensource') {
-  const chips = await page.locator('.consultant-evidence-card .inline-link-chip').count()
-  fs.writeFileSync(path.join(evidenceDir, 'mode-isolation-opensource.json'), JSON.stringify({ mode, evidence_chip_count: chips }, null, 2))
-}
+const evidenceChipCount = await page.evaluate(() => document.querySelectorAll('[data-evidence-link="true"]').length)
+fs.writeFileSync(path.join(evidenceDir, mode === 'internal' ? 'internal-evidence-count.json' : 'mode-isolation-opensource.json'), JSON.stringify({ mode, evidence_chip_count: evidenceChipCount }, null, 2))
 
 await browser.close()
 console.log(`Captured DEV-69 ${mode} screenshots at ${outDir}`)

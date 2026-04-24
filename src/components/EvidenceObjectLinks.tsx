@@ -216,11 +216,12 @@ export function EvidenceObjectLinks({
   if (!items.length) return null
 
   return (
-    <div className="cross-link-row top-gap evidence-link-row">
+    <div className="cross-link-row top-gap evidence-link-row" data-evidence-links="true">
       {items.map((item) => (
         <Link
           key={`${item.kind}:${item.id}`}
           className="inline-link-chip"
+          data-evidence-link="true"
           to={{ pathname: PATHNAME_BY_KIND[item.kind], search: createFocusSearch(currentSearch, item.kind, item.id) }}
         >
           {item.kind}: {item.name}
