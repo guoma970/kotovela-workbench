@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
-import { createFocusSearch } from '../lib/workbenchLinking'
+import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
 import { BRAND_NAME } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
@@ -87,6 +88,8 @@ function useSystemMode() {
 
 function AuditLogPanel() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([])
+  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
 
   useEffect(() => {
     let cancelled = false
@@ -123,13 +126,22 @@ function AuditLogPanel() {
       {entries.length ? (
         <div className="audit-log-list">
           {entries.slice(0, 8).map((entry) => (
-            <article key={entry.id} className="audit-log-item">
+            <article key={entry.id} className="audit-log-item consultant-evidence-card">
               <div className="audit-log-item-top">
                 <strong>{entry.action}</strong>
                 <span>{entry.time}</span>
               </div>
               <p>{entry.target}</p>
               <small>{entry.user} · {entry.result}</small>
+              <EvidenceObjectLinks
+                textParts={[entry.action, entry.target, entry.result]}
+                signalParts={[entry.user, entry.target, entry.result]}
+                currentSearch={linking.currentSearch}
+                projects={projects}
+                agents={agents}
+                rooms={rooms}
+                tasks={tasks}
+              />
             </article>
           ))}
         </div>
@@ -143,6 +155,8 @@ function AuditLogPanel() {
 function ConsultantConfigSummaryCard() {
   const consultants = consultantSettingsConfig.consultants
   const activeCount = consultants.filter((item) => item.status !== 'offline').length
+  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
 
   return (
     <section className="home-section panel strong-card audit-log-panel">
@@ -152,13 +166,22 @@ function ConsultantConfigSummaryCard() {
       </div>
       <div className="audit-log-list">
         {consultants.slice(0, 4).map((item) => (
-          <article key={item.consultant_id} className="audit-log-item">
+          <article key={item.consultant_id} className="audit-log-item consultant-evidence-card">
             <div className="audit-log-item-top">
               <strong>{item.name}</strong>
               <span>{item.status}</span>
             </div>
             <p>{item.role} · {item.account_type} · {item.domain}</p>
             <small>{item.consultant_id} · active_load {item.active_load}</small>
+            <EvidenceObjectLinks
+              textParts={[item.name, item.role, item.domain]}
+              signalParts={[item.consultant_id, item.account_type, item.domain]}
+              currentSearch={linking.currentSearch}
+              projects={projects}
+              agents={agents}
+              rooms={rooms}
+              tasks={tasks}
+            />
           </article>
         ))}
       </div>

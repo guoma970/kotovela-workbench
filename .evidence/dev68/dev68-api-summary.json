@@ -1,0 +1,6 @@
+{
+  "tasks_board": "dev68-tasks-board-api.json",
+  "leads": "dev68-leads-api.json",
+  "audit_log": "dev68-audit-log-api.json",
+  "mode_isolation": "mode-isolation-opensource.json"
+}

@@ -1,0 +1,15 @@
+{
+  "dev": "DEV-68",
+  "goal": "extend evidence chips into dashboard summary cards",
+  "artifacts": [
+    "DEV-68-internal-dashboard-evidence-links.png",
+    "DEV-68-internal-system-control-parser-links.png",
+    "DEV-68-internal-tasks-parser-links.png"
+  ],
+  "api_files": [
+    "dev68-audit-log-api.json",
+    "dev68-leads-api.json",
+    "dev68-tasks-board-api.json",
+    "mode-isolation-opensource.json"
+  ]
+}
