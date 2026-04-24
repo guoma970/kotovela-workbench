@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { EvidenceObjectLinks, resolveEvidenceObjects } from '../components/EvidenceObjectLinks'
+import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceRow } from '../lib/evidenceAcceptance'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type BoardEntry = {
@@ -39,21 +40,7 @@ type AuditEntry = {
   time?: string
 }
 
-type EvidenceRow = {
-  id: string
-  source: 'tasks-board' | 'leads' | 'audit-log'
-  title: string
-  detail: string
-  timestamp: string
-  success: boolean
-  hitCount: number
-  reason: string
-  textParts: string[]
-  signalParts: string[]
-}
-
 const normalize = (value?: string) => String(value ?? '').trim()
-const hasValue = (value?: string) => normalize(value).length > 0
 
 export function EvidenceAcceptancePage() {
   const { projects, agents, rooms, tasks, mode } = useOfficeInstances()
@@ -99,26 +86,8 @@ export function EvidenceAcceptancePage() {
     if (!isInternal) return []
 
     const result: EvidenceRow[] = []
-    const pushRow = (row: Omit<EvidenceRow, 'success' | 'hitCount' | 'reason'>) => {
-      const textParts = row.textParts.filter(hasValue)
-      const signalParts = row.signalParts.filter(hasValue)
-      const hits = resolveEvidenceObjects({
-        textParts,
-        signalParts,
-        projects,
-        agents,
-        rooms,
-        tasks,
-      })
-      const success = hits.length > 0
-      const reason = success
-        ? 'resolved'
-        : signalParts.length === 0
-          ? 'missing_signals'
-          : textParts.join(' ').length < 8
-            ? 'text_too_thin'
-            : 'no_object_match'
-      result.push({ ...row, textParts, signalParts, success, hitCount: hits.length, reason })
+    const pushRow = (row: { id: string; source: 'tasks-board' | 'leads' | 'audit-log'; title: string; detail: string; timestamp: string; textParts: string[]; signalParts: string[] }) => {
+      result.push(buildEvidenceRow(row, { projects, agents, rooms, tasks }))
     }
 
     board.slice(0, 24).forEach((entry, entryIndex) => {
@@ -163,6 +132,13 @@ export function EvidenceAcceptancePage() {
 
     return result
   }, [isInternal, board, leads, auditEntries, projects, agents, rooms, tasks])
+
+  const fixtureDataset = useMemo(
+    () => buildEvidenceParserFixtureDataset({ projects, agents, rooms, tasks }),
+    [projects, agents, rooms, tasks],
+  )
+
+  const fixtureSummary = useMemo(() => summarizeFixtureDataset(fixtureDataset), [fixtureDataset])
 
   const summary = useMemo(() => {
     const bySource = {
@@ -253,6 +229,37 @@ export function EvidenceAcceptancePage() {
                 <span key={reason} className="inline-link-chip">{reason} · {count}</span>
               ))}
               {Object.keys(summary.missReasonCounts).length === 0 ? <span className="inline-link-chip">all resolved</span> : null}
+            </div>
+          </section>
+
+          <section className="panel strong-card">
+            <div className="panel-header">
+              <h3>parser fixture dataset</h3>
+              <span className="badge-count">{fixtureDataset.length}</span>
+            </div>
+            <div className="evidence-source-stats">
+              {Object.entries(fixtureSummary).map(([reason, count]) => (
+                <span key={reason} className="inline-link-chip">{reason} · {count}</span>
+              ))}
+            </div>
+            <div className="consultant-evidence-list top-gap">
+              {fixtureDataset.map(({ fixture, row }) => (
+                <article key={fixture.id} className="consultant-evidence-card">
+                  <div className="audit-log-item-top">
+                    <strong>{fixture.title}</strong>
+                    <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
+                      {row.success ? `hit × ${row.hitCount}` : `${row.category} / ${row.reason}`}
+                    </span>
+                  </div>
+                  <p>{fixture.detail}</p>
+                  <small>expected {fixture.expectation.category} / {fixture.expectation.reason}</small>
+                  <div className="cross-link-row top-gap">
+                    {fixture.signalParts.map((item) => (
+                      <span key={`${fixture.id}-${item}`} className="inline-link-chip">{item}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
 

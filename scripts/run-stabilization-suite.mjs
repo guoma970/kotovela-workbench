@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { resolveBaseUrl } from './shared/base-url.mjs'
 
 const repoRoot = '/Users/ztl/.openclaw/workspace-builder/kotovela-workbench'
@@ -13,6 +15,7 @@ const outputJson = path.join(repoRoot, 'public/system-test-results.json')
 const outputMd = path.join(repoRoot, 'docs/task-log/DEV-20260416-43-stabilization.md')
 const baseUrl = resolveBaseUrl({ envNames: ['WORKBENCH_BASE_URL', 'STAB_BASE_URL', 'CAPTURE_BASE_URL'] })
 const runId = `stab-${Date.now()}`
+const execFileAsync = promisify(execFile)
 
 const backupDir = path.join(repoRoot, '.tmp', runId)
 const backupTargets = [boardFile, notificationsFile, learningFile, memoryFile, templateFile]
@@ -81,6 +84,10 @@ async function patchBoard(payload) {
 }
 
 async function run() {
+  const parserFixtureTest = await execFileAsync('npx', ['tsx', 'scripts/evidence-parser-fixture-tests.ts'], { cwd: repoRoot })
+  if (parserFixtureTest.stdout) process.stdout.write(parserFixtureTest.stdout)
+  if (parserFixtureTest.stderr) process.stderr.write(parserFixtureTest.stderr)
+
   await backupFiles()
   try {
     const baseline = await getBoard()
