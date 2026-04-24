@@ -1,0 +1,15 @@
+{
+  "dev": "DEV-66",
+  "goal": "harden evidence parser for source_line / attribution / account_line / consultant_id mapping",
+  "artifacts": [
+    "DEV-66-internal-leads-parser-links.png",
+    "DEV-66-internal-system-control-parser-links.png",
+    "DEV-66-internal-tasks-parser-links.png"
+  ],
+  "api_files": [
+    "dev66-audit-log-api.json",
+    "dev66-leads-api.json",
+    "dev66-tasks-board-api.json",
+    "mode-isolation-opensource.json"
+  ]
+}

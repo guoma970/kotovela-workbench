@@ -1,0 +1,13 @@
+
+> openclaw-workbench@0.0.0 build
+> tsc -b && vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 55 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.08 kB │ gzip:   0.47 kB
+dist/assets/index-Cg879uDf.css   60.41 kB │ gzip:  11.73 kB
+dist/assets/index-DuYTUHMH.js   427.45 kB │ gzip: 118.74 kB
+
+✓ built in 101ms
