@@ -4,6 +4,7 @@ import fs from 'node:fs'
 
 const baseUrl = process.env.BASE_URL ?? 'http://127.0.0.1:4173'
 const outDir = path.resolve(process.env.SCREENSHOT_DIR ?? 'screenshots/dev68')
+const prefix = process.env.SCREENSHOT_PREFIX ?? 'DEV-68'
 const evidenceDir = path.resolve(process.env.EVIDENCE_DIR ?? '.evidence/dev68')
 
 fs.mkdirSync(outDir, { recursive: true })
@@ -16,9 +17,9 @@ const apiFixtures = {
 }
 
 const shots = [
-  ['/dashboard', 'DEV-68-internal-dashboard-evidence-links.png'],
-  ['/tasks?focusType=task&focusId=task-2', 'DEV-68-internal-tasks-parser-links.png'],
-  ['/system-control', 'DEV-68-internal-system-control-parser-links.png'],
+  ['/dashboard?focusType=agent&focusId=agent-2', `${prefix}-internal-dashboard-focus-canonical.png`],
+  ['/tasks?focusType=task&focusId=TASK-2', `${prefix}-internal-tasks-focus-canonical.png`],
+  ['/system-control?focusType=agent&focusId=builder', `${prefix}-internal-system-control-focus-canonical.png`],
 ]
 
 const browser = await chromium.launch({ headless: true })

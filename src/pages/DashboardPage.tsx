@@ -126,27 +126,43 @@ function AuditLogPanel() {
       </div>
       {entries.length ? (
         <div className="audit-log-list">
-          {entries.slice(0, 8).map((entry) => (
-            <article key={entry.id} className="audit-log-item consultant-evidence-card">
-              <div className="audit-log-item-top">
-                <strong>{entry.action}</strong>
-                <span>{entry.time}</span>
-              </div>
-              <p>{entry.target}</p>
-              <small>{entry.user} · {entry.result}</small>
-              {isInternal ? (
-                <EvidenceObjectLinks
-                  textParts={[entry.action, entry.target, entry.result]}
-                  signalParts={[entry.user, entry.target, entry.result]}
-                  currentSearch={linking.currentSearch}
-                  projects={projects}
-                  agents={agents}
-                  rooms={rooms}
-                  tasks={tasks}
-                />
-              ) : null}
-            </article>
-          ))}
+          {entries.slice(0, 8).map((entry) => {
+            const relatedAgent = agents.find((agent) => [agent.id, agent.code, agent.name, agent.instanceKey].some((value) => value && entry.user.toLowerCase().includes(String(value).toLowerCase())))
+            const relatedProject = projects.find((project) => [project.id, project.code, project.name].some((value) => value && entry.target.toLowerCase().includes(String(value).toLowerCase())))
+            const relatedTask = tasks.find((task) => [task.id, task.code, task.title].some((value) => value && entry.target.toLowerCase().includes(String(value).toLowerCase())))
+            const relatedRoom = rooms.find((room) => [room.id, room.code, room.name].some((value) => value && entry.target.toLowerCase().includes(String(value).toLowerCase())))
+            return (
+              <article key={entry.id} className="audit-log-item consultant-evidence-card">
+                <div className="audit-log-item-top">
+                  <strong>{entry.action}</strong>
+                  <span>{entry.time}</span>
+                </div>
+                <p>{entry.target}</p>
+                <small>{entry.user} · {entry.result}</small>
+                {isInternal ? (
+                  <EvidenceObjectLinks
+                    textParts={[entry.action, entry.target, entry.result]}
+                    signalParts={[entry.user, entry.target, entry.result]}
+                    currentSearch={linking.currentSearch}
+                    projects={projects}
+                    agents={agents}
+                    rooms={rooms}
+                    tasks={tasks}
+                    projectId={relatedProject?.id}
+                    agentId={relatedAgent?.id}
+                    roomId={relatedRoom?.id}
+                    taskId={relatedTask?.id}
+                    routingHints={{
+                      projectSignals: [entry.target, entry.result],
+                      agentSignals: [entry.user],
+                      roomSignals: [entry.target],
+                      taskSignals: [entry.action, entry.target],
+                    }}
+                  />
+                ) : null}
+              </article>
+            )
+          })}
         </div>
       ) : (
         <p className="empty-state">暂无审计记录。</p>
@@ -169,27 +185,41 @@ function ConsultantConfigSummaryCard() {
         <span className="home-count">{consultants.length}</span>
       </div>
       <div className="audit-log-list">
-        {consultants.slice(0, 4).map((item) => (
-          <article key={item.consultant_id} className="audit-log-item consultant-evidence-card">
-            <div className="audit-log-item-top">
-              <strong>{item.name}</strong>
-              <span>{item.status}</span>
-            </div>
-            <p>{item.role} · {item.account_type} · {item.domain}</p>
-            <small>{item.consultant_id} · active_load {item.active_load}</small>
-            {isInternal ? (
-              <EvidenceObjectLinks
-                textParts={[item.name, item.role, item.domain]}
-                signalParts={[item.consultant_id, item.account_type, item.domain]}
-                currentSearch={linking.currentSearch}
-                projects={projects}
-                agents={agents}
-                rooms={rooms}
-                tasks={tasks}
-              />
-            ) : null}
-          </article>
-        ))}
+        {consultants.slice(0, 4).map((item) => {
+          const relatedAgent = agents.find((agent) => [agent.id, agent.code, agent.name, agent.instanceKey].some((value) => value && [item.name, item.consultant_id].some((target) => target.toLowerCase().includes(String(value).toLowerCase()) || String(value).toLowerCase().includes(target.toLowerCase()))))
+          const relatedProject = projects.find((project) => [project.id, project.code, project.name].some((value) => value && item.domain.toLowerCase().includes(String(value).toLowerCase())))
+          const relatedRoom = rooms.find((room) => [room.id, room.code, room.name].some((value) => value && item.account_type.toLowerCase().includes(String(value).toLowerCase())))
+          return (
+            <article key={item.consultant_id} className="audit-log-item consultant-evidence-card">
+              <div className="audit-log-item-top">
+                <strong>{item.name}</strong>
+                <span>{item.status}</span>
+              </div>
+              <p>{item.role} · {item.account_type} · {item.domain}</p>
+              <small>{item.consultant_id} · active_load {item.active_load}</small>
+              {isInternal ? (
+                <EvidenceObjectLinks
+                  textParts={[item.name, item.role, item.domain]}
+                  signalParts={[item.consultant_id, item.account_type, item.domain]}
+                  currentSearch={linking.currentSearch}
+                  projects={projects}
+                  agents={agents}
+                  rooms={rooms}
+                  tasks={tasks}
+                  projectId={relatedProject?.id}
+                  agentId={relatedAgent?.id}
+                  roomId={relatedRoom?.id}
+                  routingHints={{
+                    agentSignals: [item.name, item.consultant_id],
+                    projectSignals: [item.domain],
+                    roomSignals: [item.account_type],
+                    taskSignals: [item.role],
+                  }}
+                />
+              ) : null}
+            </article>
+          )
+        })}
       </div>
       <div className="cross-link-row top-gap">
         <span className="inline-link-chip">app_mode {consultantSettingsConfig.mode}</span>

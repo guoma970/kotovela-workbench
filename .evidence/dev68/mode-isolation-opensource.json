@@ -1,7 +1,6 @@
 {
-  "mode": "opensource",
-  "page": "/tasks?focusType=task&focusId=task-1",
-  "taskEvidenceCards": 0,
-  "hasDecisionPanel": 0,
-  "screenshot": "screenshots/dev65/DEV-65-opensource-tasks-isolation.png"
+  "page": "/dashboard?focusType=task&focusId=TASK-1",
+  "normalizedSearch": "",
+  "evidenceCards": 0,
+  "decisionPanels": 0
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Agent, Project, Room, Task } from '../types'
 
@@ -81,6 +81,24 @@ export function createFocusSearch(
   return next ? `?${next}` : ''
 }
 
+function resolveFocusAliases(
+  focus: FocusState,
+  data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] },
+): FocusState {
+  const normalize = (value?: string) => String(value ?? '').trim().toLowerCase()
+  const matchProject = (value?: string) => data.projects.find((item) => [item.id, item.code, item.name].some((candidate) => normalize(candidate) === normalize(value)))
+  const matchAgent = (value?: string) => data.agents.find((item) => [item.id, item.code, item.name, item.instanceKey].some((candidate) => normalize(candidate) === normalize(value)))
+  const matchRoom = (value?: string) => data.rooms.find((item) => [item.id, item.code, item.name].some((candidate) => normalize(candidate) === normalize(value)))
+  const matchTask = (value?: string) => data.tasks.find((item) => [item.id, item.code, item.title].some((candidate) => normalize(candidate) === normalize(value)))
+
+  return {
+    projectId: matchProject(focus.projectId)?.id,
+    agentId: matchAgent(focus.agentId)?.id,
+    roomId: matchRoom(focus.roomId)?.id,
+    taskId: matchTask(focus.taskId)?.id,
+  }
+}
+
 export function buildRelationScope(
   focus: FocusState,
   data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] },
@@ -155,7 +173,19 @@ export function useWorkbenchLinking(data: {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const focus = useMemo<FocusState>(() => parseFocusFromSearchParams(searchParams), [searchParams])
+  const rawFocus = useMemo<FocusState>(() => parseFocusFromSearchParams(searchParams), [searchParams])
+  const focus = useMemo<FocusState>(() => resolveFocusAliases(rawFocus, data), [rawFocus, data])
+
+  useEffect(() => {
+    const raw = getFocusTarget(rawFocus)
+    const normalized = getFocusTarget(focus)
+    if (!raw && !normalized) return
+    if (raw?.type === normalized?.type && raw?.id === normalized?.id) return
+    navigate(
+      { search: createFocusSearch(searchParams, normalized?.type, normalized?.id) },
+      { replace: true, preventScrollReset: true },
+    )
+  }, [focus, navigate, rawFocus, searchParams])
 
   const relationScope = useMemo(() => buildRelationScope(focus, data), [focus, data])
 
@@ -183,7 +213,15 @@ export function useWorkbenchLinking(data: {
     )
   }
 
-  return { focus, relationScope, hasFocus, getState, select, clear, currentSearch: createFocusSearch(searchParams) }
+  return {
+    focus,
+    relationScope,
+    hasFocus,
+    getState,
+    select,
+    clear,
+    currentSearch: createFocusSearch(undefined, getFocusTarget(focus)?.type, getFocusTarget(focus)?.id),
+  }
 }
 
 export function getFocusSummary(
