@@ -358,6 +358,16 @@ export function TasksPage() {
                 const linkedRoom = taskRecord
                   ? rooms.find((room) => room.mainProjectId === taskRecord.projectId || room.instanceIds.includes(taskRecord.executorAgentId))
                   : undefined
+                const routingHints = {
+                  projectIds: project ? [project.id, project.code, project.name] : [],
+                  agentIds: (agent ? [agent.id, agent.code, agent.name, agent.instanceKey] : []).filter((value): value is string => Boolean(value)),
+                  roomIds: linkedRoom ? [linkedRoom.id, linkedRoom.code, linkedRoom.name] : [],
+                  taskIds: taskRecord ? [taskRecord.id, taskRecord.code, taskRecord.title] : [task.task_id, task.title],
+                  projectSignals: [task.project_line].filter((value): value is string => Boolean(value)),
+                  roomSignals: [task.account_line, task.source_line].filter((value): value is string => Boolean(value)),
+                  taskSignals: [task.content_line].filter((value): value is string => Boolean(value)),
+                  agentSignals: [task.owner, task.consultant_id].filter((value): value is string => Boolean(value)),
+                }
                 return (
                   <article key={key} className="consultant-evidence-card">
                     <strong>{entry.action}</strong>
@@ -383,6 +393,7 @@ export function TasksPage() {
                       agentId={agent?.id}
                       roomId={linkedRoom?.id}
                       taskId={taskRecord?.id}
+                      routingHints={routingHints}
                     />
                   </article>
                 )
@@ -403,6 +414,11 @@ export function TasksPage() {
                   agents={agents}
                   rooms={rooms}
                   tasks={tasks}
+                  routingHints={{
+                    agentSignals: [entry.actor].filter((value): value is string => Boolean(value)),
+                    roomSignals: [entry.target],
+                    taskSignals: [entry.target, entry.result],
+                  }}
                 />
               </article>
             ))}

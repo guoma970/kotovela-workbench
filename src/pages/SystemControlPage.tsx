@@ -186,6 +186,11 @@ export function SystemControlPage() {
                 agents={agents}
                 rooms={rooms}
                 tasks={tasks}
+                routingHints={{
+                  agentSignals: [entry.actor],
+                  roomSignals: [entry.reason, entry.detail],
+                  taskSignals: [entry.action, entry.reason],
+                }}
               />
             </article>
           ))}
@@ -196,12 +201,17 @@ export function SystemControlPage() {
               <small>{entry.result} · {entry.time}</small>
               <EvidenceObjectLinks
                 textParts={[entry.action, entry.target, entry.result]}
-                signalParts={[entry.actor, entry.target, entry.result]}
+                signalParts={[entry.user, entry.target, entry.result]}
                 currentSearch={linking.currentSearch}
                 projects={projects}
                 agents={agents}
                 rooms={rooms}
                 tasks={tasks}
+                routingHints={{
+                  agentSignals: [entry.user],
+                  roomSignals: [entry.target, entry.result],
+                  taskSignals: [entry.action],
+                }}
               />
             </article>
           ))}

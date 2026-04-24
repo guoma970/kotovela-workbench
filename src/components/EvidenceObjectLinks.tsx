@@ -16,6 +16,17 @@ interface EvidenceSignals {
   agentSignals: string[]
 }
 
+export interface EvidenceRoutingHints {
+  projectIds?: Array<string | undefined>
+  roomIds?: Array<string | undefined>
+  taskIds?: Array<string | undefined>
+  agentIds?: Array<string | undefined>
+  projectSignals?: Array<string | undefined>
+  roomSignals?: Array<string | undefined>
+  taskSignals?: Array<string | undefined>
+  agentSignals?: Array<string | undefined>
+}
+
 const PATHNAME_BY_KIND: Record<FocusKind, string> = {
   project: '/projects',
   agent: '/agents',
@@ -81,6 +92,8 @@ const matchesSignalMap = (kind: FocusKind, id: string, signals: string[]) => {
   return candidates.some((token: string) => signals.some((signal) => includesToken(signal, token) || includesToken(token, signal)))
 }
 
+const normalizeList = (values: Array<string | undefined> = []) => values.map((value) => normalize(value)).filter(Boolean)
+
 export function resolveEvidenceObjects({
   textParts,
   signalParts = [],
@@ -92,6 +105,7 @@ export function resolveEvidenceObjects({
   agentId,
   roomId,
   taskId,
+  routingHints,
 }: {
   textParts: Array<string | undefined>
   signalParts?: Array<string | undefined>
@@ -103,10 +117,15 @@ export function resolveEvidenceObjects({
   agentId?: string
   roomId?: string
   taskId?: string
+  routingHints?: EvidenceRoutingHints
 }): EvidenceObject[] {
   const allTextParts = [...textParts, ...signalParts]
   const text = normalize(allTextParts.filter(Boolean).join(' | '))
   const signals = parseStructuredSignals(allTextParts)
+  const projectHints = new Set(normalizeList([projectId, ...(routingHints?.projectIds ?? []), ...(routingHints?.projectSignals ?? [])]))
+  const agentHints = new Set(normalizeList([agentId, ...(routingHints?.agentIds ?? []), ...(routingHints?.agentSignals ?? [])]))
+  const roomHints = new Set(normalizeList([roomId, ...(routingHints?.roomIds ?? []), ...(routingHints?.roomSignals ?? [])]))
+  const taskHints = new Set(normalizeList([taskId, ...(routingHints?.taskIds ?? []), ...(routingHints?.taskSignals ?? [])]))
   const items: EvidenceObject[] = []
   const seen = new Set<string>()
 
@@ -119,30 +138,39 @@ export function resolveEvidenceObjects({
   }
 
   const matchProject = (project: Project) =>
-    project.id === projectId
+    projectHints.has(normalize(project.id))
+      || projectHints.has(normalize(project.code))
+      || projectHints.has(normalize(project.name))
       || includesToken(text, project.id)
       || includesToken(text, project.code)
       || includesToken(text, project.name)
-      || matchesSignalMap('project', project.id, signals.projectSignals)
+      || matchesSignalMap('project', project.id, [...signals.projectSignals, ...projectHints])
   const matchAgent = (agent: Agent) =>
-    agent.id === agentId
+    agentHints.has(normalize(agent.id))
+      || agentHints.has(normalize(agent.code))
+      || agentHints.has(normalize(agent.name))
+      || agentHints.has(normalize(agent.instanceKey))
       || includesToken(text, agent.id)
       || includesToken(text, agent.code)
       || includesToken(text, agent.name)
       || includesToken(text, agent.instanceKey)
-      || matchesSignalMap('agent', agent.id, signals.agentSignals)
+      || matchesSignalMap('agent', agent.id, [...signals.agentSignals, ...agentHints])
   const matchRoom = (room: Room) =>
-    room.id === roomId
+    roomHints.has(normalize(room.id))
+      || roomHints.has(normalize(room.code))
+      || roomHints.has(normalize(room.name))
       || includesToken(text, room.id)
       || includesToken(text, room.code)
       || includesToken(text, room.name)
-      || matchesSignalMap('room', room.id, signals.roomSignals)
+      || matchesSignalMap('room', room.id, [...signals.roomSignals, ...roomHints])
   const matchTask = (task: Task) =>
-    task.id === taskId
+    taskHints.has(normalize(task.id))
+      || taskHints.has(normalize(task.code))
+      || taskHints.has(normalize(task.title))
       || includesToken(text, task.id)
       || includesToken(text, task.code)
       || includesToken(text, task.title)
-      || matchesSignalMap('task', task.id, signals.taskSignals)
+      || matchesSignalMap('task', task.id, [...signals.taskSignals, ...taskHints])
 
   projects.filter(matchProject).slice(0, 2).forEach((project) => push({ kind: 'project', id: project.id, code: project.code, name: project.name }))
   agents.filter(matchAgent).slice(0, 2).forEach((agent) => push({ kind: 'agent', id: agent.id, code: agent.code, name: agent.name }))
@@ -164,6 +192,7 @@ export function EvidenceObjectLinks({
   agentId,
   roomId,
   taskId,
+  routingHints,
 }: {
   textParts: Array<string | undefined>
   signalParts?: Array<string | undefined>
@@ -176,11 +205,12 @@ export function EvidenceObjectLinks({
   agentId?: string
   roomId?: string
   taskId?: string
+  routingHints?: EvidenceRoutingHints
 }) {
   const items = useMemo(
     () =>
-      resolveEvidenceObjects({ textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId }),
-    [textParts, signalParts, currentSearch, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId],
+      resolveEvidenceObjects({ textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints }),
+    [textParts, signalParts, currentSearch, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints],
   )
 
   if (!items.length) return null

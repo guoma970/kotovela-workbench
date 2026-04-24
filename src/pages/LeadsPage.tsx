@@ -322,6 +322,16 @@ export function LeadsPage() {
                   decision_log: [],
                 }
                 const relations = resolveLeadRelations(leadRecord)
+                const routingHints = {
+                  projectIds: relations.relatedProject ? [relations.relatedProject.id, relations.relatedProject.code, relations.relatedProject.name] : [],
+                  agentIds: (relations.relatedAgent ? [relations.relatedAgent.id, relations.relatedAgent.code, relations.relatedAgent.name, relations.relatedAgent.instanceKey] : []).filter((value): value is string => Boolean(value)),
+                  roomIds: relations.relatedRooms[0] ? [relations.relatedRooms[0].id, relations.relatedRooms[0].code, relations.relatedRooms[0].name] : [],
+                  taskIds: relations.relatedTask ? [relations.relatedTask.id, relations.relatedTask.code, relations.relatedTask.title] : [leadRecord.lead_id, leadRecord.name],
+                  projectSignals: [leadRecord.source].filter((value): value is string => Boolean(value)),
+                  roomSignals: [leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
+                  taskSignals: [leadRecord.attribution?.content].filter((value): value is string => Boolean(value)),
+                  agentSignals: [leadRecord.owner, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
+                }
                 return (
                   <article key={entry.key} className="consultant-evidence-card">
                     <strong>{entry.action}</strong>
@@ -345,6 +355,7 @@ export function LeadsPage() {
                       agentId={relations.relatedAgent?.id}
                       taskId={relations.relatedTask?.id}
                       roomId={relations.relatedRooms[0]?.id}
+                      routingHints={routingHints}
                     />
                   </article>
                 )
@@ -365,6 +376,11 @@ export function LeadsPage() {
                   agents={agents}
                   rooms={rooms}
                   tasks={tasks}
+                  routingHints={{
+                    agentSignals: [entry.actor].filter((value): value is string => Boolean(value)),
+                    roomSignals: [entry.target],
+                    taskSignals: [entry.target, entry.result],
+                  }}
                 />
               </article>
             ))}

@@ -1,18 +1,18 @@
 # DEV-67 Evidence
 
 ## target
-- refreshed_at: 2026-04-24 16:08 GMT+8
-- goal: pass structured evidence hints from page payloads into `EvidenceObjectLinks`, so routing chips rely less on raw prose extraction
+- refreshed_at: 2026-04-24 15:46 GMT+8
+- goal: pass structured routing hints from page-level evidence rows into `EvidenceObjectLinks`, so linked-focus uses explicit ids/codes/names before falling back to text parsing
 - rationale:
-  - DEV-66 improved parser stability
-  - page-level payloads already carry cleaner `source/account/consultant/attribution` fields
-  - DEV-67 keeps the same mainline and only improves page-to-parser wiring
+  - DEV-66 already hardened parser fallback for routing-heavy audit text
+  - DEV-67 keeps the same mainline, but reduces parser dependence by feeding page-resolved relations directly into the evidence component
 
 ## code_scope
 - `src/components/EvidenceObjectLinks.tsx`
 - `src/pages/TasksPage.tsx`
 - `src/pages/LeadsPage.tsx`
 - `src/pages/SystemControlPage.tsx`
+- `scripts/capture-dev67.mjs`
 
 ## verification
 - npm_build: pass (`.evidence/dev67-npm-build.log`)
@@ -21,9 +21,9 @@
 - opensource build: pass (`.evidence/dev67-build-opensource.log`)
 
 ## screenshots
-- `screenshots/dev67/DEV-67-internal-tasks-parser-links.png`
-- `screenshots/dev67/DEV-67-internal-leads-parser-links.png`
-- `screenshots/dev67/DEV-67-internal-system-control-parser-links.png`
+- `screenshots/dev67/DEV-67-internal-tasks-routing-hints.png`
+- `screenshots/dev67/DEV-67-internal-leads-routing-hints.png`
+- `screenshots/dev67/DEV-67-internal-system-control-routing-hints.png`
 
 ## api_and_logs
 - `.evidence/dev67/dev67-tasks-board-api.json`
@@ -35,10 +35,10 @@
 
 ## mode_isolation
 - `.evidence/dev67/mode-isolation-opensource.json`
-- note: `signalParts` only feeds the internal evidence-link resolver and does not widen opensource data exposure
+- note: opensource `/tasks` still renders zero evidence cards and zero decision panels, so explicit routing hints remain internal-only read-path wiring
 
 ## checkpoint
-- `EvidenceObjectLinks` now accepts explicit `signalParts`
-- Tasks / Leads / SystemControl pass `source_line`, `account_line`, `content_line`, `consultant_id`, and attribution fragments directly where available
-- audit rows now also preserve actor-oriented tokens when building link chips
-- next_suggestion: DEV-68 should extend the same linked-focus evidence chips into Dashboard-level summary cards so cross-page navigation starts earlier in the funnel
+- evidence links now accept structured `routingHints` with ids and hint signals per object kind
+- tasks / leads / system-control pages now pass explicit project, agent, room, and task relations into evidence rows instead of relying only on extracted text
+- audit rows still keep parser fallback, but page-resolved hints now win first for cross-page linking stability
+- next_suggestion: DEV-68 should stabilize the generated focus search so evidence jumps preserve only one canonical target across repeated cross-page hops
