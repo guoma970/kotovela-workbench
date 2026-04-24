@@ -1,0 +1,15 @@
+
+> openclaw-workbench@0.0.0 test
+> node scripts/run-stabilization-suite.mjs
+
+{
+  "task_id": "DEV-20260416-44",
+  "run_id": "stab-1777016813034",
+  "generated_at": "2026-04-24T07:46:53.992Z",
+  "total_cases": 32,
+  "pass": 32,
+  "fail": 0,
+  "failed_modules": [],
+  "build_status": "pass",
+  "commit_message": "fix: close stabilization blockers for launch candidate"
+}

@@ -1,0 +1,7 @@
+{
+  "tasks_board": "dev70-tasks-board-api.json",
+  "leads": "dev70-leads-api.json",
+  "audit_log": "dev70-audit-log-api.json",
+  "coverage_summary": "dev70-coverage-summary.json",
+  "mode_isolation": "mode-isolation-opensource.json"
+}

@@ -1,0 +1,87 @@
+{
+  "dev_range": [
+    "DEV-66",
+    "DEV-67",
+    "DEV-68",
+    "DEV-69",
+    "DEV-70"
+  ],
+  "pages": {
+    "dashboard": {
+      "internal": true,
+      "opensource": true
+    },
+    "tasks": {
+      "internal": true,
+      "opensource": true
+    },
+    "leads": {
+      "internal": true,
+      "opensource": false
+    },
+    "system_control": {
+      "internal": true,
+      "opensource": false
+    }
+  },
+  "evidence": [
+    {
+      "file": "screenshots/dev66/DEV-66-internal-tasks-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev66/DEV-66-internal-leads-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev66/DEV-66-internal-system-control-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev67/DEV-67-internal-tasks-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev67/DEV-67-internal-leads-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev67/DEV-67-internal-system-control-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev68/DEV-68-internal-dashboard-evidence-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev68/DEV-68-internal-tasks-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev68/DEV-68-internal-system-control-parser-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev69/DEV-69-internal-dashboard-evidence-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev69/DEV-69-internal-system-control-evidence-links.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev69/DEV-69-opensource-dashboard-isolation.png",
+      "exists": true
+    },
+    {
+      "file": "screenshots/dev69/DEV-69-opensource-tasks-isolation.png",
+      "exists": true
+    }
+  ],
+  "mode_isolation_files": [
+    ".evidence/dev66/mode-isolation-opensource.json",
+    ".evidence/dev67/mode-isolation-opensource.json",
+    ".evidence/dev68/mode-isolation-opensource.json",
+    ".evidence/dev69/mode-isolation-opensource.json"
+  ]
+}
