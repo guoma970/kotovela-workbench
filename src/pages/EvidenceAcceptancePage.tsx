@@ -123,7 +123,17 @@ export function EvidenceAcceptancePage() {
           detail: `${log.action ?? '-'} · ${log.reason ?? '-'} · ${log.detail ?? '-'}`,
           timestamp: log.timestamp ?? '-',
           textParts: [entry.task_name, log.action, log.reason, log.detail].map((item) => normalize(item)),
-          signalParts: [entry.project_line, entry.source_line, entry.account_line, entry.content_line, entry.consultant_id, entry.assigned_agent, entry.agent, entry.route_target, entry.route_result].map((item) => normalize(item)),
+          signalParts: [
+            entry.project_line ? `project_line=${entry.project_line}` : undefined,
+            entry.source_line ? `source_line=${entry.source_line}` : undefined,
+            entry.account_line ? `account_line=${entry.account_line}` : undefined,
+            entry.content_line ? `content_line=${entry.content_line}` : undefined,
+            entry.consultant_id ? `consultant_id=${entry.consultant_id}` : undefined,
+            entry.assigned_agent,
+            entry.agent,
+            entry.route_target,
+            entry.route_result,
+          ].map((item) => normalize(item)),
         })
       })
     })
@@ -137,7 +147,13 @@ export function EvidenceAcceptancePage() {
           detail: `${log.action ?? '-'} · ${log.reason ?? '-'} · ${log.detail ?? '-'}`,
           timestamp: log.timestamp ?? '-',
           textParts: [entry.title, entry.lead_id, log.action, log.reason, log.detail].map((item) => normalize(item)),
-          signalParts: [entry.source_line, entry.account_line, entry.content_line, entry.consultant_id, entry.status].map((item) => normalize(item)),
+          signalParts: [
+            entry.source_line ? `source_line=${entry.source_line}` : undefined,
+            entry.account_line ? `account_line=${entry.account_line}` : undefined,
+            entry.content_line ? `content_line=${entry.content_line}` : undefined,
+            entry.consultant_id ? `consultant_id=${entry.consultant_id}` : undefined,
+            entry.status,
+          ].map((item) => normalize(item)),
         })
       })
     })

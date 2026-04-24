@@ -30,7 +30,11 @@ export type EvidenceRowInput = {
   signalParts: string[]
 }
 
-export type EvidenceRow = EvidenceRowInput & EvidenceClassification
+export type EvidenceStructuredSplitSource = Exclude<HeuristicDriftSource, 'signal_map_only'>
+
+export type EvidenceRow = EvidenceRowInput & EvidenceClassification & {
+  structuredSplitSource?: EvidenceStructuredSplitSource
+}
 
 export const EVIDENCE_TEXT_MIN_LENGTH = 8
 
@@ -71,6 +75,20 @@ export function classifyEvidenceRow({
   return { category: 'no_object_match', reason: 'signals_present_but_unmapped', success: false, hitCount, matchSource, matchConfidence }
 }
 
+const normalizeMatchToken = (value?: string) => String(value ?? '').trim().toLowerCase()
+
+export function inferStructuredSplitSource(signalParts: string[]): EvidenceStructuredSplitSource | undefined {
+  const normalized = signalParts.map((part) => normalizeMatchToken(part)).filter(Boolean)
+  const hasAccount = normalized.some((part) => part.startsWith('account_line='))
+  const hasRoom = normalized.some((part) => part.startsWith('source_line='))
+  const hasContent = normalized.some((part) => part.startsWith('content_line='))
+
+  if (hasAccount) return 'signal_map_account'
+  if (hasRoom) return 'signal_map_room'
+  if (hasContent) return 'signal_map_content'
+  return undefined
+}
+
 export function buildEvidenceRow(
   input: EvidenceRowInput,
   data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] },
@@ -87,7 +105,8 @@ export function buildEvidenceRow(
   })
   const hitCount = resolution.items.length
   const classification = classifyEvidenceRow({ textParts, signalParts, hitCount, matchSource: resolution.matchSource, matchConfidence: resolution.matchConfidence })
-  return { ...input, textParts, signalParts, ...classification }
+  const structuredSplitSource = inferStructuredSplitSource(signalParts)
+  return { ...input, textParts, signalParts, ...classification, structuredSplitSource }
 }
 
 export function buildEvidenceParserFixtureDataset(data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] }) {
@@ -165,8 +184,13 @@ export type EvidenceDriftSummary = {
 
 export function summarizeHeuristicDrift(rows: EvidenceRow[]) {
   const unresolved = rows.filter((row) => !row.success)
+  const splitRows = rows.filter((row) => row.structuredSplitSource)
   const counts = HEURISTIC_DRIFT_SOURCES.reduce<Record<HeuristicDriftSource, number>>((acc, source) => {
-    acc[source] = unresolved.filter((row) => row.matchSource === source).length
+    if (source === 'signal_map_only') {
+      acc[source] = unresolved.filter((row) => row.matchSource === source).length
+      return acc
+    }
+    acc[source] = splitRows.filter((row) => row.structuredSplitSource === source).length
     return acc
   }, {
     signal_map_account: 0,
@@ -208,13 +232,19 @@ export function buildEvidenceDriftSummary(
     const ratioDelta = Number((latestRatio - previousRatio).toFixed(4))
 
     let driftStartedAt: string | undefined
-    for (let index = 1; index < counts.length; index += 1) {
-      const count = counts[index]
-      const prevCount = counts[index - 1] ?? 0
-      const ratio = ratios[index] ?? 0
-      if (count > prevCount && (count >= countThreshold || ratio >= ratioThreshold)) {
-        driftStartedAt = sampleSummaries[index]?.label
-        break
+    const firstCount = counts[0] ?? 0
+    const firstRatio = ratios[0] ?? 0
+    if (firstCount >= countThreshold || firstRatio >= ratioThreshold) {
+      driftStartedAt = sampleSummaries[0]?.label
+    } else {
+      for (let index = 1; index < counts.length; index += 1) {
+        const count = counts[index]
+        const prevCount = counts[index - 1] ?? 0
+        const ratio = ratios[index] ?? 0
+        if (count > prevCount && (count >= countThreshold || ratio >= ratioThreshold)) {
+          driftStartedAt = sampleSummaries[index]?.label
+          break
+        }
       }
     }
 

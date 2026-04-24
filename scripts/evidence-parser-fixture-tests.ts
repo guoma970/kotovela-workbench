@@ -115,21 +115,21 @@ const driftSummary = buildEvidenceDriftSummary([
     sampleId: 'round-1',
     label: 'round-1',
     rows: [
-      { ...dataset[0].row, id: 'drift-row-1', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low' },
+      { ...dataset[0].row, id: 'drift-row-1', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low', structuredSplitSource: 'signal_map_room' },
     ],
   },
   {
     sampleId: 'round-2',
     label: 'round-2',
     rows: [
-      { ...dataset[0].row, id: 'drift-row-2', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low' },
-      { ...dataset[1].row, id: 'drift-row-3', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low' },
-      { ...dataset[2].row, id: 'drift-row-4', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low' },
+      { ...dataset[0].row, id: 'drift-row-2', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low', structuredSplitSource: 'signal_map_account' },
+      { ...dataset[1].row, id: 'drift-row-3', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low', structuredSplitSource: 'signal_map_account' },
+      { ...dataset[2].row, id: 'drift-row-4', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low', structuredSplitSource: 'signal_map_room' },
     ],
   },
 ])
 assert.equal(driftSummary.buckets.find((bucket) => bucket.source === 'signal_map_account')?.alertLevel, 'critical')
-assert.equal(driftSummary.firstDriftSource, 'signal_map_account')
+assert.equal(driftSummary.firstDriftSource, 'signal_map_room')
 
 console.log(JSON.stringify({
   total: dataset.length,

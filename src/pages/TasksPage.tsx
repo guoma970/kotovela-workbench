@@ -376,11 +376,11 @@ export function TasksPage() {
                     <EvidenceObjectLinks
                       textParts={[task.title, task.task_id, entry.reason, entry.detail]}
                       signalParts={[
-                        task.project_line,
-                        task.source_line,
-                        task.account_line,
-                        task.content_line,
-                        task.consultant_id,
+                        task.project_line ? `project_line=${task.project_line}` : undefined,
+                        task.source_line ? `source_line=${task.source_line}` : undefined,
+                        task.account_line ? `account_line=${task.account_line}` : undefined,
+                        task.content_line ? `content_line=${task.content_line}` : undefined,
+                        task.consultant_id ? `consultant_id=${task.consultant_id}` : undefined,
                         task.attribution ? `attribution=${task.attribution.source}/${task.attribution.medium}/${task.attribution.campaign}` : undefined,
                         task.attribution?.content,
                       ]}

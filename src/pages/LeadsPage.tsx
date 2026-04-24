@@ -14,6 +14,9 @@ type InternalLeadPayloadItem = {
   name?: string
   task_name?: string
   source?: string
+  source_line?: string
+  account_line?: string
+  content_line?: string
   attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
   status?: string
   assignment_status?: string
@@ -33,6 +36,9 @@ type LeadListItem = {
   owner: string
   updated_at: string
   source_mode: 'internal' | 'opensource'
+  source_line?: string
+  account_line?: string
+  content_line?: string
   consultant_id?: string
   attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
   decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
@@ -89,11 +95,14 @@ export function LeadsPage() {
         const mapped = (payload?.leads ?? []).map((item, index) => ({
           lead_id: item.lead_id ?? `internal-lead-${index + 1}`,
           name: item.name ?? item.task_name ?? `Lead ${index + 1}`,
-          source: item.source ?? item.attribution?.source ?? 'internal_api',
+          source: item.source ?? item.source_line ?? item.account_line ?? item.attribution?.source ?? 'internal_api',
           status: normalizeLeadStatus(item.status, item.assignment_status),
           owner: item.owner ?? item.consultant_owner ?? item.consultant_id ?? 'unassigned',
           updated_at: item.updated_at ?? item.reassigned_at ?? '-',
           source_mode: 'internal' as const,
+          source_line: item.source_line,
+          account_line: item.account_line,
+          content_line: item.content_line,
           consultant_id: item.consultant_id,
           attribution: item.attribution,
           decision_log: (item.decision_log ?? []).map((entry) => ({
@@ -327,9 +336,9 @@ export function LeadsPage() {
                   agentIds: (relations.relatedAgent ? [relations.relatedAgent.id, relations.relatedAgent.code, relations.relatedAgent.name, relations.relatedAgent.instanceKey] : []).filter((value): value is string => Boolean(value)),
                   roomIds: relations.relatedRooms[0] ? [relations.relatedRooms[0].id, relations.relatedRooms[0].code, relations.relatedRooms[0].name] : [],
                   taskIds: relations.relatedTask ? [relations.relatedTask.id, relations.relatedTask.code, relations.relatedTask.title] : [leadRecord.lead_id, leadRecord.name],
-                  projectSignals: [leadRecord.source].filter((value): value is string => Boolean(value)),
-                  roomSignals: [leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
-                  taskSignals: [leadRecord.attribution?.content].filter((value): value is string => Boolean(value)),
+                  projectSignals: [leadRecord.source, leadRecord.account_line].filter((value): value is string => Boolean(value)),
+                  roomSignals: [leadRecord.source_line, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
+                  taskSignals: [leadRecord.content_line, leadRecord.attribution?.content].filter((value): value is string => Boolean(value)),
                   agentSignals: [leadRecord.owner, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
                 }
                 return (
@@ -341,8 +350,11 @@ export function LeadsPage() {
                       textParts={[entry.leadId, entry.reason, entry.detail]}
                       signalParts={[
                         leadRecord.source,
+                        leadRecord.source_line ? `source_line=${leadRecord.source_line}` : undefined,
+                        leadRecord.account_line ? `account_line=${leadRecord.account_line}` : undefined,
+                        leadRecord.content_line ? `content_line=${leadRecord.content_line}` : undefined,
                         leadRecord.owner,
-                        leadRecord.consultant_id,
+                        leadRecord.consultant_id ? `consultant_id=${leadRecord.consultant_id}` : undefined,
                         leadRecord.attribution ? `attribution=${leadRecord.attribution.source}/${leadRecord.attribution.medium}/${leadRecord.attribution.campaign}` : undefined,
                         leadRecord.attribution?.content,
                       ]}
