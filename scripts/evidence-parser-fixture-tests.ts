@@ -27,7 +27,7 @@ const agents: Agent[] = [
     name: 'builder',
     role: 'builder',
     status: 'active',
-    currentTask: 'DEV-72',
+    currentTask: 'DEV-74',
     project: '言町科技工作台',
     projectId: 'project-1',
     updatedAt: '2026-04-24T19:34:00+08:00',
@@ -71,7 +71,7 @@ const tasks: Task[] = [
 ]
 
 const dataset = buildEvidenceParserFixtureDataset({ projects, agents, rooms, tasks })
-assert.equal(dataset.length, 7, 'fixture dataset size should stay stable for regression checks')
+assert.equal(dataset.length, 8, 'fixture dataset size should stay stable for regression checks')
 
 for (const entry of dataset) {
   assert.equal(entry.row.category, entry.fixture.expectation.category, `${entry.fixture.id} category mismatch`)
@@ -103,11 +103,12 @@ const signalMapOnlyClassification = classifyEvidenceRow({
   textParts: ['route decision', 'auto handoff'],
   signalParts: ['account_line=yanfami_official'],
   hitCount: 2,
-  matchSource: 'signal_map_only',
+  matchSource: 'signal_map_account',
   matchConfidence: 'low',
 })
 assert.equal(signalMapOnlyClassification.category, 'no_object_match')
 assert.equal(signalMapOnlyClassification.success, false)
+assert.equal(signalMapOnlyClassification.matchSource, 'signal_map_account')
 
 console.log(JSON.stringify({
   total: dataset.length,

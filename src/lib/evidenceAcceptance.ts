@@ -42,7 +42,13 @@ export function classifyEvidenceRow({
   signalParts,
   hitCount,
   matchSource = hitCount > 0 ? 'signal_map_only' : 'none',
-  matchConfidence = matchSource === 'direct_id' ? 'high' : matchSource === 'direct_name' ? 'medium' : matchSource === 'signal_map_only' ? 'low' : 'none',
+  matchConfidence = matchSource === 'direct_id'
+    ? 'high'
+    : matchSource === 'direct_name'
+      ? 'medium'
+      : matchSource === 'signal_map_account' || matchSource === 'signal_map_room' || matchSource === 'signal_map_content' || matchSource === 'signal_map_only'
+        ? 'low'
+        : 'none',
 }: {
   textParts: string[]
   signalParts: string[]

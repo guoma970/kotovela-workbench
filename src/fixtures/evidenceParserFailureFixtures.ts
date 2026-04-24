@@ -2,7 +2,7 @@ export type EvidenceFixtureExpectation = {
   category: string
   success: boolean
   reason: string
-  match_source: 'none' | 'direct_id' | 'direct_name' | 'signal_map_only'
+  match_source: 'none' | 'direct_id' | 'direct_name' | 'signal_map_account' | 'signal_map_room' | 'signal_map_content' | 'signal_map_only'
   match_confidence: 'none' | 'low' | 'medium' | 'high'
 }
 
@@ -51,7 +51,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['咨询顾问回执', 'consultant assigned', 'waiting followup shadow'],
     signalParts: ['consultant_id=consultant_shadow', 'source_line=unknown_channel'],
-    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_room', match_confidence: 'low' },
   },
   {
     id: 'fixture-unknown-account-line',
@@ -60,7 +60,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['物料案例', 'route decision', 'account selected'],
     signalParts: ['account_line=ghost_official', 'source_line=ghost_room', 'content_line=material_case'],
-    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_account', match_confidence: 'low' },
   },
   {
     id: 'fixture-signal-map-only-hit',
@@ -69,7 +69,16 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['route decision', 'auto handoff', 'parser fallback'],
     signalParts: ['account_line=yanfami_official', 'source_line=yanfami_official', 'content_line=material_case'],
-    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_account', match_confidence: 'low' },
+  },
+  {
+    id: 'fixture-content-signal-hit',
+    title: 'content signal hit',
+    detail: 'content line alone can still map heuristically and must be labeled as content drift',
+    source: 'fixture',
+    textParts: ['route decision', 'content drift', 'fallback mapping'],
+    signalParts: ['content_line=material_case'],
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_content', match_confidence: 'low' },
   },
   {
     id: 'fixture-route-hit-success',

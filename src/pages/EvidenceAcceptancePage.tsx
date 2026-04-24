@@ -153,15 +153,19 @@ export function EvidenceAcceptancePage() {
       acc[row.reason] = (acc[row.reason] ?? 0) + 1
       return acc
     }, {})
+    const heuristicDriftCounts = unresolved.reduce<Record<string, number>>((acc, row) => {
+      if (row.matchSource.startsWith('signal_map_')) acc[row.matchSource] = (acc[row.matchSource] ?? 0) + 1
+      return acc
+    }, {})
 
-    return { bySource, unresolved, successCount, successRate, missReasonCounts }
+    return { bySource, unresolved, successCount, successRate, missReasonCounts, heuristicDriftCounts }
   }, [rows])
 
   return (
     <section className="page evidence-acceptance-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">DEV-71 Evidence Acceptance</p>
+          <p className="eyebrow">DEV-74 Evidence Acceptance</p>
           <h2>{isInternal ? 'evidence 命中率验收页' : 'Evidence acceptance'}</h2>
         </div>
         <p className="page-note">
@@ -229,6 +233,12 @@ export function EvidenceAcceptancePage() {
                 <span key={reason} className="inline-link-chip">{reason} · {count}</span>
               ))}
               {Object.keys(summary.missReasonCounts).length === 0 ? <span className="inline-link-chip">all resolved</span> : null}
+            </div>
+            <div className="evidence-source-stats top-gap">
+              {Object.entries(summary.heuristicDriftCounts).map(([source, count]) => (
+                <span key={source} className="inline-link-chip">heuristic {source} · {count}</span>
+              ))}
+              {Object.keys(summary.heuristicDriftCounts).length === 0 ? <span className="inline-link-chip">heuristic clean</span> : null}
             </div>
           </section>
 

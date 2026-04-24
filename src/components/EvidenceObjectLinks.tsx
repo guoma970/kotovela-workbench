@@ -9,7 +9,14 @@ type EvidenceObject =
   | { kind: 'room'; id: string; code: string; name: string }
   | { kind: 'task'; id: string; code: string; name: string }
 
-export type EvidenceMatchSource = 'none' | 'direct_id' | 'direct_name' | 'signal_map_only'
+export type EvidenceMatchSource =
+  | 'none'
+  | 'direct_id'
+  | 'direct_name'
+  | 'signal_map_account'
+  | 'signal_map_room'
+  | 'signal_map_content'
+  | 'signal_map_only'
 export type EvidenceMatchConfidence = 'none' | 'low' | 'medium' | 'high'
 
 export interface EvidenceResolutionResult {
@@ -23,6 +30,9 @@ interface EvidenceSignals {
   roomSignals: string[]
   taskSignals: string[]
   agentSignals: string[]
+  accountSignals: string[]
+  roomSourceSignals: string[]
+  contentSignals: string[]
 }
 
 export interface EvidenceRoutingHints {
@@ -83,6 +93,16 @@ const parseStructuredSignals = (textParts: Array<string | undefined>): EvidenceS
   const attributionTokens = captures
     .filter((match) => match[1] === 'attribution')
     .flatMap((match) => match[2].split('/').map((token) => token.trim()).filter(Boolean))
+  const accountSignals = captures
+    .filter((match) => match[1] === 'account_line' || match[1] === 'attribution')
+    .flatMap((match) => [match[2], `${match[1]}=${match[2]}`])
+    .concat(attributionTokens)
+  const roomSourceSignals = captures
+    .filter((match) => match[1] === 'source_line' || match[1] === 'lead_id')
+    .flatMap((match) => [match[2], `${match[1]}=${match[2]}`])
+  const contentSignals = captures
+    .filter((match) => match[1] === 'content_line' || match[1] === 'project_line')
+    .flatMap((match) => [match[2], `${match[1]}=${match[2]}`])
   const rawTokens = joined
     .split(/[|,\n]/)
     .map((part) => normalize(part))
@@ -93,6 +113,9 @@ const parseStructuredSignals = (textParts: Array<string | undefined>): EvidenceS
     roomSignals: [...rawTokens, ...values, ...attributionTokens],
     taskSignals: [...rawTokens, ...values, ...attributionTokens],
     agentSignals: [...rawTokens, ...values, ...attributionTokens],
+    accountSignals: accountSignals.map((part) => normalize(part)).filter(Boolean),
+    roomSourceSignals: roomSourceSignals.map((part) => normalize(part)).filter(Boolean),
+    contentSignals: contentSignals.map((part) => normalize(part)).filter(Boolean),
   }
 }
 
@@ -102,6 +125,9 @@ const matchesSignalMap = (kind: FocusKind, id: string, signals: string[]) => {
 }
 
 const normalizeList = (values: Array<string | undefined> = []) => values.map((value) => normalize(value)).filter(Boolean)
+
+const includesAnyToken = (signals: string[], candidates: string[]) =>
+  candidates.some((candidate) => signals.some((signal) => includesToken(signal, candidate) || includesToken(candidate, signal)))
 
 export function resolveEvidenceObjects({
   textParts,
@@ -259,18 +285,31 @@ export function resolveEvidenceMatch({
   tasks.filter(matchTask).slice(0, 2).forEach((task) => push({ kind: 'task', id: task.id, code: task.code, name: task.title }))
 
   const resolvedItems = items.slice(0, 4)
+  const signalMapSource: EvidenceMatchSource = (() => {
+    const projectTokens = Object.values(SIGNAL_MAP.project).flat()
+    const roomTokens = Object.values(SIGNAL_MAP.room).flat()
+    const taskTokens = Object.values(SIGNAL_MAP.task).flat()
+    const accountDrift = includesAnyToken(signals.accountSignals, [...projectTokens, ...roomTokens, ...taskTokens])
+    const roomDrift = includesAnyToken(signals.roomSourceSignals, [...roomTokens, ...taskTokens])
+    const contentDrift = includesAnyToken(signals.contentSignals, [...projectTokens, ...roomTokens, ...taskTokens])
+
+    if (accountDrift) return 'signal_map_account'
+    if (roomDrift) return 'signal_map_room'
+    if (contentDrift) return 'signal_map_content'
+    return 'signal_map_only'
+  })()
   const matchSource: EvidenceMatchSource = resolvedItems.length === 0
     ? 'none'
     : hasDirectIdMatch
       ? 'direct_id'
       : hasDirectNameMatch
         ? 'direct_name'
-        : 'signal_map_only'
+        : signalMapSource
   const matchConfidence: EvidenceMatchConfidence = matchSource === 'direct_id'
     ? 'high'
     : matchSource === 'direct_name'
       ? 'medium'
-      : matchSource === 'signal_map_only'
+      : matchSource === 'signal_map_account' || matchSource === 'signal_map_room' || matchSource === 'signal_map_content' || matchSource === 'signal_map_only'
         ? 'low'
         : 'none'
 
