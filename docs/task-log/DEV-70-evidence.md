@@ -1,18 +1,16 @@
 # DEV-70 Evidence
 
 ## target
-- refreshed_at: 2026-04-24 16:31 GMT+8
-- goal: consolidate evidence coverage across Dashboard / Tasks / Leads / SystemControl and internal / opensource modes into one final summary
+- refreshed_at: 2026-04-24 15:57 GMT+8
+- goal: close the linked-focus / evidence mainline with one final coverage pass across DEV-67 to DEV-70 artifacts, screenshots, and mode-isolation summaries
 - rationale:
-  - DEV-66 ~ DEV-69 already produced per-step evidence
-  - final handoff still needed a single view of page coverage and mode-isolation coverage
-  - DEV-70 closes the mainline with summary scripts, final screenshots, and one last verification pass
+  - DEV-67 to DEV-69 already delivered routing hints, canonical focus normalization, and evidence-only isolation selectors
+  - DEV-70 does not widen product scope, it only consolidates coverage and verifies the final evidence path stays isolated in opensource mode
 
 ## code_scope
-- `scripts/collect-evidence-coverage.mjs`
 - `scripts/capture-dev70.mjs`
-- `.evidence/dev70/dev70-coverage-summary.json`
-- `.evidence/dev70/dev70-coverage-summary.md`
+- `scripts/collect-evidence-coverage.mjs`
+- `docs/task-log/DEV-70-evidence.md`
 
 ## verification
 - npm_build: pass (`.evidence/dev70-npm-build.log`)
@@ -33,18 +31,16 @@
 - `.evidence/dev70/dev70-audit-log-api.json`
 - `.evidence/dev70/dev70-api-summary.json`
 - `.evidence/dev70/dev70-summary.json`
-- `.evidence/dev70/dev70-coverage-summary.json`
-- `.evidence/dev70/dev70-coverage-summary.md`
 - `.evidence/dev70/capture-internal.log`
 - `.evidence/dev70/capture-opensource.log`
+- `.evidence/dev70/dev70-coverage-summary.json`
+- `.evidence/dev70/dev70-coverage-summary.md`
 
 ## mode_isolation
 - `.evidence/dev70/mode-isolation-opensource.json`
-- `.evidence/dev70/build-opensource-capture.log`
-- note: final coverage summary explicitly records which pages have internal evidence coverage and which opensource screens were checked for isolation
+- note: final opensource evidence chip count remains `0`, and the coverage summary now references DEV-66 through DEV-70 artifacts with the updated routing-hints / canonical-focus / evidence-only filenames
 
 ## checkpoint
-- final coverage summary now centralizes DEV-66 ~ DEV-69 screenshot and mode-isolation evidence
-- handoff can now verify page coverage without reading every prior task log first
-- linked-focus / evidence mapping / cross-page navigation / mode isolation all have one final summary anchor
-- next_suggestion: none, DEV-66 ~ DEV-70 mainline is closed
+- final capture now waits for `[data-evidence-link="true"]`, so internal screenshots and opensource isolation checks use the same evidence-only contract
+- coverage summary now indexes DEV-66 through DEV-70 screenshots and all mode-isolation json files in one place
+- linked-focus / evidence mainline is closed with internal coverage on dashboard / leads / system-control and opensource isolation on dashboard / tasks

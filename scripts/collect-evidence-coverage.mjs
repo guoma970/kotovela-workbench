@@ -9,16 +9,21 @@ const files = [
   'screenshots/dev66/DEV-66-internal-tasks-parser-links.png',
   'screenshots/dev66/DEV-66-internal-leads-parser-links.png',
   'screenshots/dev66/DEV-66-internal-system-control-parser-links.png',
-  'screenshots/dev67/DEV-67-internal-tasks-parser-links.png',
-  'screenshots/dev67/DEV-67-internal-leads-parser-links.png',
-  'screenshots/dev67/DEV-67-internal-system-control-parser-links.png',
-  'screenshots/dev68/DEV-68-internal-dashboard-evidence-links.png',
-  'screenshots/dev68/DEV-68-internal-tasks-parser-links.png',
-  'screenshots/dev68/DEV-68-internal-system-control-parser-links.png',
-  'screenshots/dev69/DEV-69-internal-dashboard-evidence-links.png',
-  'screenshots/dev69/DEV-69-internal-system-control-evidence-links.png',
+  'screenshots/dev67/DEV-67-internal-tasks-routing-hints.png',
+  'screenshots/dev67/DEV-67-internal-leads-routing-hints.png',
+  'screenshots/dev67/DEV-67-internal-system-control-routing-hints.png',
+  'screenshots/dev68/DEV-68-internal-dashboard-focus-canonical.png',
+  'screenshots/dev68/DEV-68-internal-tasks-focus-canonical.png',
+  'screenshots/dev68/DEV-68-internal-system-control-focus-canonical.png',
+  'screenshots/dev69/DEV-69-internal-dashboard-evidence-coverage.png',
+  'screenshots/dev69/DEV-69-internal-system-control-evidence-coverage.png',
   'screenshots/dev69/DEV-69-opensource-dashboard-isolation.png',
   'screenshots/dev69/DEV-69-opensource-tasks-isolation.png',
+  'screenshots/dev70/DEV-70-internal-dashboard-coverage.png',
+  'screenshots/dev70/DEV-70-internal-leads-coverage.png',
+  'screenshots/dev70/DEV-70-internal-system-control-coverage.png',
+  'screenshots/dev70/DEV-70-opensource-dashboard-isolation.png',
+  'screenshots/dev70/DEV-70-opensource-tasks-isolation.png',
 ]
 
 const coverage = {
@@ -35,6 +40,7 @@ const coverage = {
     '.evidence/dev67/mode-isolation-opensource.json',
     '.evidence/dev68/mode-isolation-opensource.json',
     '.evidence/dev69/mode-isolation-opensource.json',
+    '.evidence/dev70/mode-isolation-opensource.json',
   ],
 }
 

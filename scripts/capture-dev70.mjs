@@ -38,9 +38,14 @@ await page.route('**/api/**', async (route) => {
 
 for (const [routePath, filename, expectChips] of shots) {
   await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: 'networkidle' })
-  if (expectChips) await page.waitForSelector('.inline-link-chip', { timeout: 15000 })
+  if (expectChips) await page.waitForSelector('[data-evidence-link="true"]', { timeout: 15000 })
   else await page.waitForTimeout(1000)
   await page.screenshot({ path: path.join(outDir, filename), fullPage: true })
+}
+
+const evidenceChipCount = await page.evaluate(() => document.querySelectorAll('[data-evidence-link="true"]').length)
+if (mode === 'opensource') {
+  fs.writeFileSync(path.join(evidenceDir, 'mode-isolation-opensource.json'), JSON.stringify({ mode, evidence_chip_count: evidenceChipCount }, null, 2))
 }
 
 await browser.close()
