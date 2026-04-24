@@ -1,0 +1,330 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { EvidenceObjectLinks, resolveEvidenceObjects } from '../components/EvidenceObjectLinks'
+import { useOfficeInstances } from '../data/useOfficeInstances'
+import { useWorkbenchLinking } from '../lib/workbenchLinking'
+
+type BoardEntry = {
+  task_name?: string
+  status?: string
+  project_line?: string
+  source_line?: string
+  account_line?: string
+  content_line?: string
+  consultant_id?: string
+  assigned_agent?: string
+  agent?: string
+  route_target?: string
+  route_result?: string
+  decision_log?: Array<{ action?: string; reason?: string; detail?: string; timestamp?: string }>
+}
+
+type LeadEntry = {
+  lead_id?: string
+  title?: string
+  status?: string
+  source_line?: string
+  account_line?: string
+  content_line?: string
+  consultant_id?: string
+  decision_log?: Array<{ action?: string; reason?: string; detail?: string; timestamp?: string }>
+}
+
+type AuditEntry = {
+  id?: string
+  action?: string
+  target?: string
+  result?: string
+  user?: string
+  time?: string
+}
+
+type EvidenceRow = {
+  id: string
+  source: 'tasks-board' | 'leads' | 'audit-log'
+  title: string
+  detail: string
+  timestamp: string
+  success: boolean
+  hitCount: number
+  reason: string
+  textParts: string[]
+  signalParts: string[]
+}
+
+const normalize = (value?: string) => String(value ?? '').trim()
+const hasValue = (value?: string) => normalize(value).length > 0
+
+export function EvidenceAcceptancePage() {
+  const { projects, agents, rooms, tasks, mode } = useOfficeInstances()
+  const isInternal = mode === 'internal'
+  const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
+  const [board, setBoard] = useState<BoardEntry[]>([])
+  const [leads, setLeads] = useState<LeadEntry[]>([])
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
+
+  useEffect(() => {
+    if (!isInternal) {
+      setBoard([])
+      setLeads([])
+      setAuditEntries([])
+      return
+    }
+
+    let cancelled = false
+    Promise.all([
+      fetch('/api/tasks-board', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : { board: [] })),
+      fetch('/api/leads', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : { leads: [] })),
+      fetch('/api/audit-log', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : { entries: [] })),
+    ])
+      .then(([boardPayload, leadsPayload, auditPayload]) => {
+        if (cancelled) return
+        setBoard(Array.isArray(boardPayload?.board) ? boardPayload.board : [])
+        setLeads(Array.isArray(leadsPayload?.leads) ? leadsPayload.leads : [])
+        setAuditEntries(Array.isArray(auditPayload?.entries) ? auditPayload.entries : [])
+      })
+      .catch(() => {
+        if (cancelled) return
+        setBoard([])
+        setLeads([])
+        setAuditEntries([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isInternal])
+
+  const rows = useMemo<EvidenceRow[]>(() => {
+    if (!isInternal) return []
+
+    const result: EvidenceRow[] = []
+    const pushRow = (row: Omit<EvidenceRow, 'success' | 'hitCount' | 'reason'>) => {
+      const textParts = row.textParts.filter(hasValue)
+      const signalParts = row.signalParts.filter(hasValue)
+      const hits = resolveEvidenceObjects({
+        textParts,
+        signalParts,
+        projects,
+        agents,
+        rooms,
+        tasks,
+      })
+      const success = hits.length > 0
+      const reason = success
+        ? 'resolved'
+        : signalParts.length === 0
+          ? 'missing_signals'
+          : textParts.join(' ').length < 8
+            ? 'text_too_thin'
+            : 'no_object_match'
+      result.push({ ...row, textParts, signalParts, success, hitCount: hits.length, reason })
+    }
+
+    board.slice(0, 24).forEach((entry, entryIndex) => {
+      ;(entry.decision_log ?? []).slice(-2).forEach((log, logIndex) => {
+        pushRow({
+          id: `task-${entryIndex}-${logIndex}`,
+          source: 'tasks-board',
+          title: entry.task_name ?? `task-${entryIndex + 1}`,
+          detail: `${log.action ?? '-'} · ${log.reason ?? '-'} · ${log.detail ?? '-'}`,
+          timestamp: log.timestamp ?? '-',
+          textParts: [entry.task_name, log.action, log.reason, log.detail].map((item) => normalize(item)),
+          signalParts: [entry.project_line, entry.source_line, entry.account_line, entry.content_line, entry.consultant_id, entry.assigned_agent, entry.agent, entry.route_target, entry.route_result].map((item) => normalize(item)),
+        })
+      })
+    })
+
+    leads.slice(0, 24).forEach((entry, entryIndex) => {
+      ;(entry.decision_log ?? []).slice(-2).forEach((log, logIndex) => {
+        pushRow({
+          id: `lead-${entryIndex}-${logIndex}`,
+          source: 'leads',
+          title: entry.title ?? entry.lead_id ?? `lead-${entryIndex + 1}`,
+          detail: `${log.action ?? '-'} · ${log.reason ?? '-'} · ${log.detail ?? '-'}`,
+          timestamp: log.timestamp ?? '-',
+          textParts: [entry.title, entry.lead_id, log.action, log.reason, log.detail].map((item) => normalize(item)),
+          signalParts: [entry.source_line, entry.account_line, entry.content_line, entry.consultant_id, entry.status].map((item) => normalize(item)),
+        })
+      })
+    })
+
+    auditEntries.slice(0, 24).forEach((entry, entryIndex) => {
+      pushRow({
+        id: `audit-${entryIndex}`,
+        source: 'audit-log',
+        title: entry.action ?? `audit-${entryIndex + 1}`,
+        detail: `${entry.target ?? '-'} · ${entry.result ?? '-'}`,
+        timestamp: entry.time ?? '-',
+        textParts: [entry.action, entry.target, entry.result].map((item) => normalize(item)),
+        signalParts: [entry.user, entry.target, entry.result].map((item) => normalize(item)),
+      })
+    })
+
+    return result
+  }, [isInternal, board, leads, auditEntries, projects, agents, rooms, tasks])
+
+  const summary = useMemo(() => {
+    const bySource = {
+      'tasks-board': rows.filter((row) => row.source === 'tasks-board'),
+      leads: rows.filter((row) => row.source === 'leads'),
+      'audit-log': rows.filter((row) => row.source === 'audit-log'),
+    }
+    const unresolved = rows.filter((row) => !row.success)
+    const successCount = rows.filter((row) => row.success).length
+    const successRate = rows.length ? Math.round((successCount / rows.length) * 100) : 0
+    const missReasonCounts = unresolved.reduce<Record<string, number>>((acc, row) => {
+      acc[row.reason] = (acc[row.reason] ?? 0) + 1
+      return acc
+    }, {})
+
+    return { bySource, unresolved, successCount, successRate, missReasonCounts }
+  }, [rows])
+
+  return (
+    <section className="page evidence-acceptance-page">
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">DEV-71 Evidence Acceptance</p>
+          <h2>{isInternal ? 'evidence 命中率验收页' : 'Evidence acceptance'}</h2>
+        </div>
+        <p className="page-note">
+          {isInternal
+            ? '把 parser 命中结果、未命中原因、回链成功率放到同一页，直接暴露“哪些日志还回不去对象”。'
+            : 'Open source mode keeps this page isolated. No internal evidence payload is rendered.'}
+        </p>
+      </div>
+
+      <section className="panel strong-card evidence-hero-card">
+        <div className="evidence-hero-metrics">
+          <article className="evidence-metric-card">
+            <span>evidence rows</span>
+            <strong>{rows.length}</strong>
+          </article>
+          <article className="evidence-metric-card is-hit">
+            <span>parser hits</span>
+            <strong>{summary.successCount}</strong>
+          </article>
+          <article className="evidence-metric-card is-miss">
+            <span>unresolved</span>
+            <strong>{summary.unresolved.length}</strong>
+          </article>
+          <article className="evidence-metric-card">
+            <span>link-back success</span>
+            <strong>{summary.successRate}%</strong>
+          </article>
+        </div>
+        <div className="cross-link-row top-gap">
+          <Link className="inline-link-chip" to="/tasks">Tasks evidence</Link>
+          <Link className="inline-link-chip" to="/leads">Leads evidence</Link>
+          <Link className="inline-link-chip" to="/system-control">System control</Link>
+        </div>
+      </section>
+
+      {isInternal ? (
+        <>
+          <div className="evidence-acceptance-grid">
+            {Object.entries(summary.bySource).map(([source, list]) => {
+              const hitCount = list.filter((row) => row.success).length
+              const rate = list.length ? Math.round((hitCount / list.length) * 100) : 0
+              return (
+                <section key={source} className="panel strong-card evidence-source-card">
+                  <div className="panel-header">
+                    <h3>{source}</h3>
+                    <span className="badge-count">{list.length}</span>
+                  </div>
+                  <div className="evidence-source-stats">
+                    <span className="inline-link-chip">hits {hitCount}</span>
+                    <span className="inline-link-chip">misses {list.length - hitCount}</span>
+                    <span className="inline-link-chip">success {rate}%</span>
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+
+          <section className="panel strong-card">
+            <div className="panel-header">
+              <h3>未命中原因</h3>
+              <span className="badge-count">{Object.keys(summary.missReasonCounts).length}</span>
+            </div>
+            <div className="evidence-source-stats">
+              {Object.entries(summary.missReasonCounts).map(([reason, count]) => (
+                <span key={reason} className="inline-link-chip">{reason} · {count}</span>
+              ))}
+              {Object.keys(summary.missReasonCounts).length === 0 ? <span className="inline-link-chip">all resolved</span> : null}
+            </div>
+          </section>
+
+          <section className="panel strong-card">
+            <div className="panel-header">
+              <h3>未回链日志</h3>
+              <span className="badge-count">{summary.unresolved.length}</span>
+            </div>
+            <div className="consultant-evidence-list evidence-unresolved-list">
+              {summary.unresolved.slice(0, 12).map((row) => (
+                <article key={row.id} className="consultant-evidence-card">
+                  <div className="audit-log-item-top">
+                    <strong>{row.title}</strong>
+                    <span>{row.source}</span>
+                  </div>
+                  <p>{row.detail}</p>
+                  <small>{row.reason} · {row.timestamp}</small>
+                  <div className="cross-link-row top-gap">
+                    {row.signalParts.map((item) => (
+                      <span key={`${row.id}-${item}`} className="inline-link-chip">{item}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+              {summary.unresolved.length === 0 ? <p className="empty-state">暂无未回链日志。</p> : null}
+            </div>
+          </section>
+
+          <section className="panel strong-card">
+            <div className="panel-header">
+              <h3>parser 命中明细</h3>
+              <span className="badge-count">{rows.length}</span>
+            </div>
+            <div className="consultant-evidence-list">
+              {rows.slice(0, 18).map((row) => (
+                <article key={row.id} className="consultant-evidence-card">
+                  <div className="audit-log-item-top">
+                    <strong>{row.title}</strong>
+                    <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
+                      {row.success ? `hit × ${row.hitCount}` : row.reason}
+                    </span>
+                  </div>
+                  <p>{row.detail}</p>
+                  <small>{row.source} · {row.timestamp}</small>
+                  <EvidenceObjectLinks
+                    textParts={row.textParts}
+                    signalParts={row.signalParts}
+                    currentSearch={linking.currentSearch}
+                    projects={projects}
+                    agents={agents}
+                    rooms={rooms}
+                    tasks={tasks}
+                  />
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="panel strong-card">
+          <div className="panel-header">
+            <h3>mode isolation</h3>
+            <span className="badge-count">readonly</span>
+          </div>
+          <p className="page-note">opensource 模式下不读取 internal evidence payload，不显示 parser rows，也不渲染对象回链。</p>
+          <div className="evidence-source-stats">
+            <span className="inline-link-chip">evidence rows 0</span>
+            <span className="inline-link-chip">parser hits 0</span>
+            <span className="inline-link-chip">unresolved 0</span>
+          </div>
+        </section>
+      )}
+    </section>
+  )
+}

@@ -1,0 +1,736 @@
+{
+  "leads": [
+    {
+      "lead_id": "derived-lead-1",
+      "title": "客户方案依赖确认",
+      "status": "done",
+      "source_line": "builder_default",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T09:52:46.592Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T09:52:46.592Z",
+          "action": "priority_up",
+          "reason": "predicted_risk_high",
+          "detail": "预测高风险，优先级提升到 P1"
+        },
+        {
+          "timestamp": "2026-04-17T09:52:49.204Z",
+          "action": "priority_up",
+          "reason": "predicted_risk_high",
+          "detail": "预测高风险，优先级提升到 P0"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-2",
+      "title": "客户跟进任务 · T+3 未跟进客户",
+      "status": "done",
+      "source_line": "tech",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T09:52:46.592Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T09:52:46.592Z",
+          "action": "priority_up",
+          "reason": "predicted_risk_high",
+          "detail": "预测高风险，优先级提升到 P0"
+        },
+        {
+          "timestamp": "2026-04-17T09:52:49.204Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-3",
+      "title": "公众号运营版 · 为什么日式装修在中国家庭容易翻车",
+      "status": "done",
+      "source_line": "official_account",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T10:56:42.297Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T10:56:42.299Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T10:56:45.033Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-4",
+      "title": "言家住宅内容运营版 · 为什么日式装修在中国家庭容易翻车",
+      "status": "done",
+      "source_line": "tech",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T10:56:42.299Z",
+          "action": "priority_up",
+          "reason": "profile_preference_match",
+          "detail": "命中用户习惯时间 09:00，优先级提升到 P0",
+          "memory_hit": "09:00",
+          "profile_rule": "habit_match"
+        },
+        {
+          "timestamp": "2026-04-17T10:56:42.299Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T10:56:48.031Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-5",
+      "title": "公众号运营版 · 小户型做日式收纳前先别急着买柜子",
+      "status": "done",
+      "source_line": "official_account",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T10:57:00.882Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T10:57:00.884Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T10:57:03.346Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-6",
+      "title": "言家住宅内容运营版 · 小户型做日式收纳前先别急着买柜子",
+      "status": "done",
+      "source_line": "housing",
+      "account_line": "",
+      "content_line": "",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T10:57:00.884Z",
+          "action": "priority_up",
+          "reason": "profile_preference_match",
+          "detail": "命中用户习惯时间 09:00，优先级提升到 P0",
+          "memory_hit": "09:00",
+          "profile_rule": "habit_match"
+        },
+        {
+          "timestamp": "2026-04-17T10:57:00.884Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T10:57:06.348Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-7",
+      "title": "南北通透三居户型改造 · 公众号长文版",
+      "status": "done",
+      "source_line": "housing",
+      "account_line": "yanjia_housing",
+      "content_line": "layout_renovation",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:04:23.928Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:23.930Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:23.936Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-8",
+      "title": "厨房橱柜收纳系统 · 公众号长文版",
+      "status": "done",
+      "source_line": "biz_content",
+      "account_line": "yanjia_housing",
+      "content_line": "layout_renovation",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:04:23.936Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:23.939Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:23.944Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-9",
+      "title": "岩板建材品牌案例 · 案例深度长文版",
+      "status": "done",
+      "source_line": "housing",
+      "account_line": "yanjia_housing",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:04:23.945Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:23.947Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:04:25.409Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-10",
+      "title": "厨房高柜橱柜收纳改造 · 公众号长文版",
+      "status": "done",
+      "source_line": "biz_content",
+      "account_line": "yannazhuji",
+      "content_line": "kitchen_storage",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:05:00.279Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:05:00.284Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:05:02.509Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-11",
+      "title": "验收样本A｜为什么日式装修在中国家庭容易翻车 · 官方长文版",
+      "status": "done",
+      "source_line": "yanfami",
+      "account_line": "kotoharo_official",
+      "content_line": "kitchen_storage",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:23:01.274Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:01.278Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:03.754Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-12",
+      "title": "验收样本B｜空间情绪与家庭秩序 · 官方长文版",
+      "status": "done",
+      "source_line": "yanfami",
+      "account_line": "kotoharo_official",
+      "content_line": "kitchen_storage",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:23:16.317Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:16.321Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:18.768Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-13",
+      "title": "验收样本C｜南北通透三居户型动线改造 · 官方长文版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "layout_renovation",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:23:40.532Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:40.535Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:42.801Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-14",
+      "title": "验收样本D｜岩板建材品牌案例拆解 · 官方案例长文版",
+      "status": "done",
+      "source_line": "kotovela_official",
+      "account_line": "kotovela_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:23:52.302Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:52.306Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:23:54.814Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-15",
+      "title": "岩板品牌案例拆解 · 果实团品牌案例版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "guoshituan_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:32:21.940Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:21.944Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:24.903Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-16",
+      "title": "岩板品牌案例拆解 · 言家官方案例长文版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:32:21.939Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:21.944Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:27.906Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-17",
+      "title": "岩板品牌案例拆解 · 果实团品牌案例版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "guoshituan_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:32:45.526Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:45.530Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:45.540Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-18",
+      "title": "岩板品牌案例拆解 · 言家官方案例长文版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:32:45.526Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:45.530Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:32:48.541Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-19",
+      "title": "岩板品牌案例拆解 · 果实团品牌案例版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "guoshituan_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:33:29.886Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:33:29.890Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:33:30.598Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-20",
+      "title": "岩板品牌案例拆解 · 言家官方案例长文版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T11:33:29.886Z",
+          "action": "priority_up",
+          "reason": "profile_bootstrap",
+          "detail": "创建任务时命中画像规则，建议执行时间 20:00，优先级提升",
+          "memory_hit": "20:00",
+          "profile_rule": "晚间学习"
+        },
+        {
+          "timestamp": "2026-04-17T11:33:29.890Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T11:33:33.602Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-21",
+      "title": "地暖采暖系统热源怎么选 · 官方地暖长文版",
+      "status": "queued",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "floor_heating",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T13:00:42.087Z",
+          "action": "warning",
+          "reason": "queue_timeout",
+          "detail": "队列超时，已自动发送 warning 通知"
+        },
+        {
+          "timestamp": "2026-04-17T13:00:42.087Z",
+          "action": "risk_detected",
+          "reason": "predictive_risk",
+          "detail": "预测风险 high，失败率/依赖/时间冲突触发"
+        },
+        {
+          "timestamp": "2026-04-17T13:00:42.087Z",
+          "action": "priority_up",
+          "reason": "predicted_risk_high",
+          "detail": "预测高风险，优先级提升到 P0"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-22",
+      "title": "南北通透三居户型改造 · 官方长文版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "yanfami_official",
+      "content_line": "layout_renovation",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T12:59:03.357Z",
+          "action": "strategy_generate_task",
+          "reason": "structure_variant_applied",
+          "detail": "structure_variant_applied=official"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.357Z",
+          "action": "strategy_generate_task",
+          "reason": "cta_policy_applied",
+          "detail": "cta_policy_applied=default"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.372Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-23",
+      "title": "厨房高柜橱柜收纳改造 · 官方长文版",
+      "status": "done",
+      "source_line": "kotoharo_official",
+      "account_line": "kotoharo_official",
+      "content_line": "kitchen_storage",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T12:59:03.380Z",
+          "action": "strategy_generate_task",
+          "reason": "structure_variant_applied",
+          "detail": "structure_variant_applied=official"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.380Z",
+          "action": "strategy_generate_task",
+          "reason": "cta_policy_applied",
+          "detail": "cta_policy_applied=default"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.398Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    },
+    {
+      "lead_id": "derived-lead-24",
+      "title": "岩板建材品牌案例 · 果实团品牌案例版",
+      "status": "done",
+      "source_line": "yanfami_official",
+      "account_line": "guoshituan_official",
+      "content_line": "material_case",
+      "consultant_id": "",
+      "decision_log": [
+        {
+          "timestamp": "2026-04-17T12:59:03.405Z",
+          "action": "strategy_generate_task",
+          "reason": "structure_variant_applied",
+          "detail": "structure_variant_applied=official"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.405Z",
+          "action": "strategy_generate_task",
+          "reason": "cta_policy_applied",
+          "detail": "cta_policy_applied=default"
+        },
+        {
+          "timestamp": "2026-04-17T12:59:03.421Z",
+          "action": "notify_result",
+          "reason": "task_done",
+          "detail": "任务完成，已按 business 域自动发送结果通知"
+        }
+      ]
+    }
+  ]
+}

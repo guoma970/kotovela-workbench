@@ -18,7 +18,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: '调度系统', to: '/scheduler', step: 6, label: 'Scheduler 调度', note: '执行控制 · 队列调度' },
         { group: '调度系统', to: '/consultants', step: 7, label: 'Consultants 顾问', note: '顾问配置 · 分配规则' },
         { group: '调度系统', to: '/system-control', step: 8, label: 'System Control 系统控制', note: 'system_mode · guardrails' },
-        { group: '执行层', to: '/agents', step: 9, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { group: '调度系统', to: '/evidence-acceptance', step: 9, label: 'Evidence Acceptance 验收', note: '命中率 · 未命中原因 · 回链成功率' },
+        { group: '执行层', to: '/agents', step: 10, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
         { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -29,7 +30,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Scheduling', to: '/scheduler', step: 6, label: 'Scheduler', note: 'Execution control and queue' },
         { group: 'Scheduling', to: '/consultants', step: 7, label: 'Consultants', note: 'Consultant settings and routing' },
         { group: 'Scheduling', to: '/system-control', step: 8, label: 'System Control', note: 'system_mode and guardrails' },
-        { group: 'Execution', to: '/agents', step: 9, label: 'Agents', note: 'Agent activity and routing' },
+        { group: 'Scheduling', to: '/evidence-acceptance', step: 9, label: 'Evidence Acceptance', note: 'Hit rate, misses, and link-back success' },
+        { group: 'Execution', to: '/agents', step: 10, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {

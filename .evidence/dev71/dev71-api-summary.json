@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-04-24T11:00:33.878Z",
+  "source_board_file": ".tmp/stab-1777017356511/tasks-board.json",
+  "tasks_total": 87,
+  "leads_total": 24,
+  "audit_entries": 100,
+  "decision_entries": 60,
+  "system_mode": "test",
+  "publish_mode": "semi_auto",
+  "unresolved_hint_rows": 0
+}
