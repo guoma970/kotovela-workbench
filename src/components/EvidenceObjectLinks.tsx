@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { Agent, Project, Room, Task } from '../types'
+import { inferStructuredSignalBucket } from '../lib/evidenceDriftBucket'
 import { createFocusSearch, type FocusKind } from '../lib/workbenchLinking'
 
 type EvidenceObject =
@@ -289,13 +290,17 @@ export function resolveEvidenceMatch({
     const projectTokens = Object.values(SIGNAL_MAP.project).flat()
     const roomTokens = Object.values(SIGNAL_MAP.room).flat()
     const taskTokens = Object.values(SIGNAL_MAP.task).flat()
+    const inferredBucket = inferStructuredSignalBucket(signalParts.filter((part): part is string => Boolean(part)))
     const accountDrift = includesAnyToken(signals.accountSignals, [...projectTokens, ...roomTokens, ...taskTokens])
     const roomDrift = includesAnyToken(signals.roomSourceSignals, [...roomTokens, ...taskTokens])
     const contentDrift = includesAnyToken(signals.contentSignals, [...projectTokens, ...roomTokens, ...taskTokens])
 
-    if (accountDrift) return 'signal_map_account'
+    if (inferredBucket === 'signal_map_room' && roomDrift) return 'signal_map_room'
+    if (inferredBucket === 'signal_map_content' && contentDrift) return 'signal_map_content'
+    if (inferredBucket === 'signal_map_account' && accountDrift) return 'signal_map_account'
     if (roomDrift) return 'signal_map_room'
     if (contentDrift) return 'signal_map_content'
+    if (accountDrift) return 'signal_map_account'
     return 'signal_map_only'
   })()
   const matchSource: EvidenceMatchSource = resolvedItems.length === 0

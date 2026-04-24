@@ -1,0 +1,232 @@
+{
+  "generated_at": "2026-04-24T16:43:04.133Z",
+  "selection": "milestone_samples_by_bucket_change_or_unresolved_change",
+  "source_files": [
+    {
+      "sampleId": "stab-1776541441327",
+      "sourceFile": ".tmp/stab-1776541441327/tasks-board.json",
+      "timestamp": "2026-04-18T10:04:34.330Z",
+      "unresolved_rows": 120,
+      "bucket_counts": {
+        "signal_map_room": 70,
+        "signal_map_content": 22
+      }
+    },
+    {
+      "sampleId": "stab-1776675485724",
+      "sourceFile": ".tmp/stab-1776675485724/tasks-board.json",
+      "timestamp": "2026-04-20T08:53:42.315Z",
+      "unresolved_rows": 115,
+      "bucket_counts": {
+        "signal_map_room": 66,
+        "signal_map_content": 22
+      }
+    },
+    {
+      "sampleId": "stab-1777043341147",
+      "sourceFile": ".tmp/stab-1777043341147/tasks-board.json",
+      "timestamp": "2026-04-20T08:53:42.315Z",
+      "unresolved_rows": 115,
+      "bucket_counts": {
+        "signal_map_room": 66,
+        "signal_map_content": 22
+      }
+    }
+  ],
+  "threshold": {
+    "count": 2,
+    "ratio": 0.2,
+    "critical_count": 3,
+    "critical_ratio": 0.34
+  },
+  "samples": [
+    {
+      "sampleId": "stab-1776541441327",
+      "label": "round-1",
+      "timestamp": "2026-04-18T10:04:34.330Z",
+      "unresolved": 120,
+      "heuristicHits": 94
+    },
+    {
+      "sampleId": "stab-1776675485724",
+      "label": "round-2",
+      "timestamp": "2026-04-20T08:53:42.315Z",
+      "unresolved": 115,
+      "heuristicHits": 90
+    },
+    {
+      "sampleId": "stab-1777043341147",
+      "label": "round-3",
+      "timestamp": "2026-04-20T08:53:42.315Z",
+      "unresolved": 115,
+      "heuristicHits": 90
+    }
+  ],
+  "buckets": [
+    {
+      "source": "signal_map_account",
+      "counts": [
+        0,
+        0,
+        0
+      ],
+      "ratios": [
+        0,
+        0,
+        0
+      ],
+      "latestCount": 0,
+      "previousCount": 0,
+      "delta": 0,
+      "latestRatio": 0,
+      "previousRatio": 0,
+      "ratioDelta": 0,
+      "thresholdHit": false,
+      "alertLevel": "none"
+    },
+    {
+      "source": "signal_map_room",
+      "counts": [
+        70,
+        66,
+        66
+      ],
+      "ratios": [
+        0.5833,
+        0.5739,
+        0.5739
+      ],
+      "latestCount": 66,
+      "previousCount": 66,
+      "delta": 0,
+      "latestRatio": 0.5739,
+      "previousRatio": 0.5739,
+      "ratioDelta": 0,
+      "thresholdHit": true,
+      "alertLevel": "critical",
+      "driftStartedAt": "round-1"
+    },
+    {
+      "source": "signal_map_content",
+      "counts": [
+        22,
+        22,
+        22
+      ],
+      "ratios": [
+        0.1833,
+        0.1913,
+        0.1913
+      ],
+      "latestCount": 22,
+      "previousCount": 22,
+      "delta": 0,
+      "latestRatio": 0.1913,
+      "previousRatio": 0.1913,
+      "ratioDelta": 0,
+      "thresholdHit": true,
+      "alertLevel": "critical",
+      "driftStartedAt": "round-1"
+    },
+    {
+      "source": "signal_map_only",
+      "counts": [
+        2,
+        2,
+        2
+      ],
+      "ratios": [
+        0.0167,
+        0.0174,
+        0.0174
+      ],
+      "latestCount": 2,
+      "previousCount": 2,
+      "delta": 0,
+      "latestRatio": 0.0174,
+      "previousRatio": 0.0174,
+      "ratioDelta": 0,
+      "thresholdHit": true,
+      "alertLevel": "warning",
+      "driftStartedAt": "round-1"
+    }
+  ],
+  "alerts": [
+    {
+      "source": "signal_map_room",
+      "level": "critical",
+      "latestCount": 66,
+      "delta": 0,
+      "latestRatio": 0.5739,
+      "driftStartedAt": "round-1",
+      "samples": [
+        {
+          "label": "round-1",
+          "count": 70,
+          "ratio": 0.5833
+        },
+        {
+          "label": "round-2",
+          "count": 66,
+          "ratio": 0.5739
+        },
+        {
+          "label": "round-3",
+          "count": 66,
+          "ratio": 0.5739
+        }
+      ]
+    },
+    {
+      "source": "signal_map_content",
+      "level": "critical",
+      "latestCount": 22,
+      "delta": 0,
+      "latestRatio": 0.1913,
+      "driftStartedAt": "round-1",
+      "samples": [
+        {
+          "label": "round-1",
+          "count": 22,
+          "ratio": 0.1833
+        },
+        {
+          "label": "round-2",
+          "count": 22,
+          "ratio": 0.1913
+        },
+        {
+          "label": "round-3",
+          "count": 22,
+          "ratio": 0.1913
+        }
+      ]
+    },
+    {
+      "source": "signal_map_only",
+      "level": "warning",
+      "latestCount": 2,
+      "delta": 0,
+      "latestRatio": 0.0174,
+      "driftStartedAt": "round-1",
+      "samples": [
+        {
+          "label": "round-1",
+          "count": 2,
+          "ratio": 0.0167
+        },
+        {
+          "label": "round-2",
+          "count": 2,
+          "ratio": 0.0174
+        },
+        {
+          "label": "round-3",
+          "count": 2,
+          "ratio": 0.0174
+        }
+      ]
+    }
+  ],
+  "firstDriftSource": "signal_map_room"
+}

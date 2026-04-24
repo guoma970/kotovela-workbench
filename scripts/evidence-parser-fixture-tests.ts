@@ -71,7 +71,7 @@ const tasks: Task[] = [
 ]
 
 const dataset = buildEvidenceParserFixtureDataset({ projects, agents, rooms, tasks })
-assert.equal(dataset.length, 8, 'fixture dataset size should stay stable for regression checks')
+assert.equal(dataset.length, 10, 'fixture dataset size should stay stable for regression checks')
 
 for (const entry of dataset) {
   assert.equal(entry.row.category, entry.fixture.expectation.category, `${entry.fixture.id} category mismatch`)

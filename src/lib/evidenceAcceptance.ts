@@ -1,6 +1,7 @@
 import { evidenceParserFailureFixtures, type EvidenceParserFailureFixture } from '../fixtures/evidenceParserFailureFixtures'
 import type { Agent, Project, Room, Task } from '../types'
 import { resolveEvidenceMatch, type EvidenceMatchConfidence, type EvidenceMatchSource } from '../components/EvidenceObjectLinks'
+import { inferStructuredSignalBucket } from './evidenceDriftBucket'
 
 export type EvidenceRowSource = 'tasks-board' | 'leads' | 'audit-log' | 'fixture'
 
@@ -75,18 +76,8 @@ export function classifyEvidenceRow({
   return { category: 'no_object_match', reason: 'signals_present_but_unmapped', success: false, hitCount, matchSource, matchConfidence }
 }
 
-const normalizeMatchToken = (value?: string) => String(value ?? '').trim().toLowerCase()
-
 export function inferStructuredSplitSource(signalParts: string[]): EvidenceStructuredSplitSource | undefined {
-  const normalized = signalParts.map((part) => normalizeMatchToken(part)).filter(Boolean)
-  const hasAccount = normalized.some((part) => part.startsWith('account_line='))
-  const hasRoom = normalized.some((part) => part.startsWith('source_line='))
-  const hasContent = normalized.some((part) => part.startsWith('content_line='))
-
-  if (hasAccount) return 'signal_map_account'
-  if (hasRoom) return 'signal_map_room'
-  if (hasContent) return 'signal_map_content'
-  return undefined
+  return inferStructuredSignalBucket(signalParts)
 }
 
 export function buildEvidenceRow(
