@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { APP_MODE } from '../config/brand'
 import {
   DEFAULT_SYSTEM_CONTROL_STATE,
@@ -8,6 +9,8 @@ import {
   type SystemControlState,
   type SystemModeValue,
 } from '../config/systemControl'
+import { useOfficeInstances } from '../data/useOfficeInstances'
+import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type AuditEntry = {
   id: string
@@ -19,6 +22,8 @@ type AuditEntry = {
 }
 
 export function SystemControlPage() {
+  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
   const [state, setState] = useState<SystemControlState>({ ...DEFAULT_SYSTEM_CONTROL_STATE, app_mode: APP_MODE })
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
   const [saving, setSaving] = useState(false)
@@ -172,6 +177,14 @@ export function SystemControlPage() {
               <strong>{entry.action}</strong>
               <p>{entry.reason} · {entry.detail}</p>
               <small>{entry.actor || '-'} · {entry.timestamp}</small>
+              <EvidenceObjectLinks
+                textParts={[entry.action, entry.reason, entry.detail, entry.actor]}
+                currentSearch={linking.currentSearch}
+                projects={projects}
+                agents={agents}
+                rooms={rooms}
+                tasks={tasks}
+              />
             </article>
           ))}
           {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry) => (
@@ -179,6 +192,14 @@ export function SystemControlPage() {
               <strong>{entry.action}</strong>
               <p>{entry.target}</p>
               <small>{entry.result} · {entry.time}</small>
+              <EvidenceObjectLinks
+                textParts={[entry.action, entry.target, entry.result]}
+                currentSearch={linking.currentSearch}
+                projects={projects}
+                agents={agents}
+                rooms={rooms}
+                tasks={tasks}
+              />
             </article>
           ))}
           {!state.decision_log.length ? <p className="empty-state">暂无 decision_log 证据。</p> : null}

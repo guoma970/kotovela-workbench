@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
@@ -15,6 +16,7 @@ type TaskListItem = {
   owner: string
   updated_at: string
   source: 'internal' | 'opensource'
+  decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
 }
 
 type BoardPayload = {
@@ -31,6 +33,7 @@ type BoardPayload = {
     updated_at?: string
     timestamp?: string
     need_human?: boolean
+    decision_log?: Array<{ action?: string; reason?: string; detail?: string; timestamp?: string }>
   }>
 }
 
@@ -99,6 +102,12 @@ export function TasksPage() {
           owner: item.owner ?? item.assigned_agent ?? item.agent ?? 'unassigned',
           updated_at: item.updated_at ?? item.timestamp ?? '-',
           source: 'internal' as const,
+          decision_log: (item.decision_log ?? []).map((entry) => ({
+            action: entry.action ?? '-',
+            reason: entry.reason ?? '-',
+            detail: entry.detail ?? '-',
+            timestamp: entry.timestamp ?? '-',
+          })),
         }))
         setInternalTasks(mapped)
       })
@@ -142,6 +151,7 @@ export function TasksPage() {
         owner: task.assignee,
         updated_at: task.updatedAt,
         source: 'opensource',
+        decision_log: [],
       })),
     [tasks],
   )
@@ -319,11 +329,52 @@ export function TasksPage() {
             decision_log 来自 <code>/api/tasks-board</code> 的任务调度结果，audit_log 来自 <code>/api/audit-log</code> 的动作记录，当前任务页只读展示，不改写现有 guardrails。
           </p>
           <div className="consultant-evidence-list">
+            {effectiveTasks
+              .flatMap((task) => task.decision_log.slice(-2).map((entry, index) => ({ key: `${task.task_id}-${index}`, task, entry })))
+              .slice(0, 10)
+              .map(({ key, task, entry }) => {
+                const taskRecord = resolveTaskRecord(task)
+                const project = taskRecord ? projects.find((item) => item.id === taskRecord.projectId) : undefined
+                const agent = taskRecord ? agents.find((item) => item.id === taskRecord.executorAgentId || item.id === taskRecord.assigneeAgentId) : undefined
+                const linkedRoom = taskRecord
+                  ? rooms.find((room) => room.mainProjectId === taskRecord.projectId || room.instanceIds.includes(taskRecord.executorAgentId))
+                  : undefined
+                return (
+                  <article key={key} className="consultant-evidence-card">
+                    <strong>{entry.action}</strong>
+                    <p>{entry.reason} · {entry.detail}</p>
+                    <small>{task.task_id} · {entry.timestamp}</small>
+                    <EvidenceObjectLinks
+                      textParts={[task.title, task.task_id, entry.reason, entry.detail]}
+                      currentSearch={linking.currentSearch}
+                      projects={projects}
+                      agents={agents}
+                      rooms={rooms}
+                      tasks={tasks}
+                      projectId={project?.id}
+                      agentId={agent?.id}
+                      roomId={linkedRoom?.id}
+                      taskId={taskRecord?.id}
+                    />
+                  </article>
+                )
+              })}
+            {!effectiveTasks.some((task) => task.decision_log.length > 0) ? <p className="empty-state">暂无 decision_log 证据。</p> : null}
+          </div>
+          <div className="consultant-evidence-list" style={{ marginTop: 12 }}>
             {auditEntries.map((entry) => (
               <article key={entry.id} className="consultant-evidence-card">
                 <strong>{entry.action}</strong>
                 <p>{entry.target}</p>
                 <small>{entry.result} · {entry.time}</small>
+                <EvidenceObjectLinks
+                  textParts={[entry.action, entry.target, entry.result]}
+                  currentSearch={linking.currentSearch}
+                  projects={projects}
+                  agents={agents}
+                  rooms={rooms}
+                  tasks={tasks}
+                />
               </article>
             ))}
             {!auditEntries.length ? <p className="empty-state">暂无 audit_log 证据。</p> : null}

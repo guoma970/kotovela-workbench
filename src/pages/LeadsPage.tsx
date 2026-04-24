@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { mockLeads } from '../data/mockLeads'
@@ -304,13 +305,37 @@ export function LeadsPage() {
             {effectiveLeads
               .flatMap((lead) => lead.decision_log.slice(-2).map((entry, index) => ({ key: `${lead.lead_id}-${index}`, lead: lead.lead_id, ...entry })))
               .slice(0, 10)
-              .map((entry) => (
-                <article key={entry.key} className="consultant-evidence-card">
-                  <strong>{entry.action}</strong>
-                  <p>{entry.reason} · {entry.detail}</p>
-                  <small>{entry.lead} · {entry.timestamp}</small>
-                </article>
-              ))}
+              .map((entry) => {
+                const relations = resolveLeadRelations(effectiveLeads.find((lead) => lead.lead_id === entry.lead) ?? {
+                  lead_id: entry.lead,
+                  name: entry.detail,
+                  source: entry.detail,
+                  status: 'queue',
+                  owner: entry.detail,
+                  updated_at: entry.timestamp,
+                  source_mode: 'internal',
+                  decision_log: [],
+                })
+                return (
+                  <article key={entry.key} className="consultant-evidence-card">
+                    <strong>{entry.action}</strong>
+                    <p>{entry.reason} · {entry.detail}</p>
+                    <small>{entry.lead} · {entry.timestamp}</small>
+                    <EvidenceObjectLinks
+                      textParts={[entry.lead, entry.reason, entry.detail]}
+                      currentSearch={linking.currentSearch}
+                      projects={projects}
+                      agents={agents}
+                      rooms={rooms}
+                      tasks={tasks}
+                      projectId={relations.relatedProject?.id}
+                      agentId={relations.relatedAgent?.id}
+                      taskId={relations.relatedTask?.id}
+                      roomId={relations.relatedRooms[0]?.id}
+                    />
+                  </article>
+                )
+              })}
             {!effectiveLeads.some((lead) => lead.decision_log.length > 0) ? <p className="empty-state">暂无 decision_log 证据。</p> : null}
           </div>
           <div className="consultant-evidence-list" style={{ marginTop: 12 }}>
@@ -319,6 +344,14 @@ export function LeadsPage() {
                 <strong>{entry.action}</strong>
                 <p>{entry.target}</p>
                 <small>{entry.result} · {entry.time}</small>
+                <EvidenceObjectLinks
+                  textParts={[entry.action, entry.target, entry.result]}
+                  currentSearch={linking.currentSearch}
+                  projects={projects}
+                  agents={agents}
+                  rooms={rooms}
+                  tasks={tasks}
+                />
               </article>
             ))}
             {!auditEntries.length ? <p className="empty-state">暂无 audit_log 证据。</p> : null}
