@@ -1,6 +1,118 @@
 {
   "entries": [
     {
+      "id": "audit-1777016330075-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.075Z",
+      "target": "yanfami_floor_heating_stab-1777016329590-地暖热系统材料案例-官方地暖长文版_1777016330075",
+      "result": "assigned to consultant_kotovela_floor_heating"
+    },
+    {
+      "id": "audit-1777016330075-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.075Z",
+      "target": "yanfami_floor_heating_stab-1777016329590-地暖热系统材料案例-官方地暖长文版_1777016330075",
+      "result": "lead created for stab-1777016329590 地暖热系统材料案例 · 官方地暖长文版"
+    },
+    {
+      "id": "audit-1777016330033-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.033Z",
+      "target": "yanfami_material_case_stab-1777016329590-岩板建材品牌案例-言家官方案例长文版_1777016330033",
+      "result": "assigned to consultant_kotoharo_material"
+    },
+    {
+      "id": "audit-1777016330033-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.033Z",
+      "target": "yanfami_material_case_stab-1777016329590-岩板建材品牌案例-言家官方案例长文版_1777016330033",
+      "result": "lead created for stab-1777016329590 岩板建材品牌案例 · 言家官方案例长文版"
+    },
+    {
+      "id": "audit-1777016330033-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.033Z",
+      "target": "yanfami_material_case_stab-1777016329590-岩板建材品牌案例-果实团品牌案例版_1777016330033",
+      "result": "assigned to consultant_kotoharo_material"
+    },
+    {
+      "id": "audit-1777016330033-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:50.033Z",
+      "target": "yanfami_material_case_stab-1777016329590-岩板建材品牌案例-果实团品牌案例版_1777016330033",
+      "result": "lead created for stab-1777016329590 岩板建材品牌案例 · 果实团品牌案例版"
+    },
+    {
+      "id": "audit-1777016329996-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.996Z",
+      "target": "kotoharo_kitchen_storage_stab-1777016329590-厨房收纳橱柜整理-官方长文版_1777016329996",
+      "result": "assigned to consultant_kotoharo_material"
+    },
+    {
+      "id": "audit-1777016329996-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.996Z",
+      "target": "kotoharo_kitchen_storage_stab-1777016329590-厨房收纳橱柜整理-官方长文版_1777016329996",
+      "result": "lead created for stab-1777016329590 厨房收纳橱柜整理 · 官方长文版"
+    },
+    {
+      "id": "audit-1777016329958-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.958Z",
+      "target": "yanfami_layout_renovation_stab-1777016329590-户型改造动线案例-官方长文版_1777016329958",
+      "result": "assigned to consultant_yanfami_residential"
+    },
+    {
+      "id": "audit-1777016329958-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.958Z",
+      "target": "yanfami_layout_renovation_stab-1777016329590-户型改造动线案例-官方长文版_1777016329958",
+      "result": "lead created for stab-1777016329590 户型改造动线案例 · 官方长文版"
+    },
+    {
+      "id": "audit-1777016329932-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.932Z",
+      "target": "lead_task_media-publish-with-distribution-15-38-分发计划-整理平台投放节奏与商务分发清单_1777016329932",
+      "result": "assigned to consultant_business_default"
+    },
+    {
+      "id": "audit-1777016329932-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.932Z",
+      "target": "lead_task_media-publish-with-distribution-15-38-分发计划-整理平台投放节奏与商务分发清单_1777016329932",
+      "result": "lead created for media_publish_with_distribution-15:38 · 分发计划：整理平台投放节奏与商务分发清单"
+    },
+    {
+      "id": "audit-1777016329734-101",
+      "action": "consultant_assigned",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.734Z",
+      "target": "guoshituan_customer_followup_stab-1777016329590-客户报价跟进-客户跟进业务链_1777016329734",
+      "result": "assigned to consultant_guoshituan_main"
+    },
+    {
+      "id": "audit-1777016329734-101",
+      "action": "lead_created",
+      "user": "system",
+      "time": "2026-04-24T07:38:49.734Z",
+      "target": "guoshituan_customer_followup_stab-1777016329590-客户报价跟进-客户跟进业务链_1777016329734",
+      "result": "lead created for stab-1777016329590 客户报价跟进 · 客户跟进业务链"
+    },
+    {
       "id": "audit-1777015843375-101",
       "action": "consultant_assigned",
       "user": "system",
@@ -686,118 +798,6 @@
       "user": "system",
       "time": "2026-04-20T11:20:03.884Z",
       "target": "yanfami_floor_heating_stab-1776684003422-地暖热系统材料案例-官方地暖长文版_1776684003884",
-      "result": "assigned to consultant_kotovela_floor_heating"
-    },
-    {
-      "id": "audit-1776684003884-99",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.884Z",
-      "target": "yanfami_floor_heating_stab-1776684003422-地暖热系统材料案例-官方地暖长文版_1776684003884",
-      "result": "lead created for stab-1776684003422 地暖热系统材料案例 · 官方地暖长文版"
-    },
-    {
-      "id": "audit-1776684003845-98",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.845Z",
-      "target": "yanfami_material_case_stab-1776684003422-岩板建材品牌案例-言家官方案例长文版_1776684003845",
-      "result": "assigned to consultant_kotoharo_material"
-    },
-    {
-      "id": "audit-1776684003845-97",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.845Z",
-      "target": "yanfami_material_case_stab-1776684003422-岩板建材品牌案例-言家官方案例长文版_1776684003845",
-      "result": "lead created for stab-1776684003422 岩板建材品牌案例 · 言家官方案例长文版"
-    },
-    {
-      "id": "audit-1776684003845-96",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.845Z",
-      "target": "yanfami_material_case_stab-1776684003422-岩板建材品牌案例-果实团品牌案例版_1776684003845",
-      "result": "assigned to consultant_kotoharo_material"
-    },
-    {
-      "id": "audit-1776684003845-95",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.845Z",
-      "target": "yanfami_material_case_stab-1776684003422-岩板建材品牌案例-果实团品牌案例版_1776684003845",
-      "result": "lead created for stab-1776684003422 岩板建材品牌案例 · 果实团品牌案例版"
-    },
-    {
-      "id": "audit-1776684003808-94",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.808Z",
-      "target": "kotoharo_kitchen_storage_stab-1776684003422-厨房收纳橱柜整理-官方长文版_1776684003808",
-      "result": "assigned to consultant_kotoharo_material"
-    },
-    {
-      "id": "audit-1776684003808-93",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.808Z",
-      "target": "kotoharo_kitchen_storage_stab-1776684003422-厨房收纳橱柜整理-官方长文版_1776684003808",
-      "result": "lead created for stab-1776684003422 厨房收纳橱柜整理 · 官方长文版"
-    },
-    {
-      "id": "audit-1776684003770-92",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.770Z",
-      "target": "yanfami_layout_renovation_stab-1776684003422-户型改造动线案例-官方长文版_1776684003770",
-      "result": "assigned to consultant_yanfami_residential"
-    },
-    {
-      "id": "audit-1776684003770-91",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.770Z",
-      "target": "yanfami_layout_renovation_stab-1776684003422-户型改造动线案例-官方长文版_1776684003770",
-      "result": "lead created for stab-1776684003422 户型改造动线案例 · 官方长文版"
-    },
-    {
-      "id": "audit-1776684003743-90",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.743Z",
-      "target": "lead_task_media-publish-with-distribution-19-20-分发计划-整理平台投放节奏与商务分发清单_1776684003743",
-      "result": "assigned to consultant_business_default"
-    },
-    {
-      "id": "audit-1776684003743-89",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.743Z",
-      "target": "lead_task_media-publish-with-distribution-19-20-分发计划-整理平台投放节奏与商务分发清单_1776684003743",
-      "result": "lead created for media_publish_with_distribution-19:20 · 分发计划：整理平台投放节奏与商务分发清单"
-    },
-    {
-      "id": "audit-1776684003555-88",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.555Z",
-      "target": "guoshituan_customer_followup_stab-1776684003422-客户报价跟进-客户跟进业务链_1776684003555",
-      "result": "assigned to consultant_guoshituan_main"
-    },
-    {
-      "id": "audit-1776684003555-87",
-      "action": "lead_created",
-      "user": "system",
-      "time": "2026-04-20T11:20:03.555Z",
-      "target": "guoshituan_customer_followup_stab-1776684003422-客户报价跟进-客户跟进业务链_1776684003555",
-      "result": "lead created for stab-1776684003422 客户报价跟进 · 客户跟进业务链"
-    },
-    {
-      "id": "audit-1776675486188-86",
-      "action": "consultant_assigned",
-      "user": "system",
-      "time": "2026-04-20T08:58:06.188Z",
-      "target": "yanfami_floor_heating_stab-1776675485724-地暖热系统材料案例-官方地暖长文版_1776675486188",
       "result": "assigned to consultant_kotovela_floor_heating"
     }
   ]

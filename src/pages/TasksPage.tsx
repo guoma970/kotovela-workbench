@@ -16,6 +16,12 @@ type TaskListItem = {
   owner: string
   updated_at: string
   source: 'internal' | 'opensource'
+  project_line?: string
+  source_line?: string
+  account_line?: string
+  content_line?: string
+  consultant_id?: string
+  attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
   decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
 }
 
@@ -33,6 +39,12 @@ type BoardPayload = {
     updated_at?: string
     timestamp?: string
     need_human?: boolean
+    project_line?: string
+    source_line?: string
+    account_line?: string
+    content_line?: string
+    consultant_id?: string
+    attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
     decision_log?: Array<{ action?: string; reason?: string; detail?: string; timestamp?: string }>
   }>
 }
@@ -43,6 +55,7 @@ type AuditEntry = {
   target: string
   result: string
   time: string
+  actor?: string
 }
 
 const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string }> = [
@@ -102,6 +115,12 @@ export function TasksPage() {
           owner: item.owner ?? item.assigned_agent ?? item.agent ?? 'unassigned',
           updated_at: item.updated_at ?? item.timestamp ?? '-',
           source: 'internal' as const,
+          project_line: item.project_line,
+          source_line: item.source_line,
+          account_line: item.account_line,
+          content_line: item.content_line,
+          consultant_id: item.consultant_id,
+          attribution: item.attribution,
           decision_log: (item.decision_log ?? []).map((entry) => ({
             action: entry.action ?? '-',
             reason: entry.reason ?? '-',
@@ -346,6 +365,15 @@ export function TasksPage() {
                     <small>{task.task_id} · {entry.timestamp}</small>
                     <EvidenceObjectLinks
                       textParts={[task.title, task.task_id, entry.reason, entry.detail]}
+                      signalParts={[
+                        task.project_line,
+                        task.source_line,
+                        task.account_line,
+                        task.content_line,
+                        task.consultant_id,
+                        task.attribution ? `attribution=${task.attribution.source}/${task.attribution.medium}/${task.attribution.campaign}` : undefined,
+                        task.attribution?.content,
+                      ]}
                       currentSearch={linking.currentSearch}
                       projects={projects}
                       agents={agents}
@@ -369,6 +397,7 @@ export function TasksPage() {
                 <small>{entry.result} · {entry.time}</small>
                 <EvidenceObjectLinks
                   textParts={[entry.action, entry.target, entry.result]}
+                  signalParts={[entry.actor, entry.target, entry.result]}
                   currentSearch={linking.currentSearch}
                   projects={projects}
                   agents={agents}

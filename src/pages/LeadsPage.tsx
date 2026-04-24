@@ -14,7 +14,7 @@ type InternalLeadPayloadItem = {
   name?: string
   task_name?: string
   source?: string
-  attribution?: { source?: string }
+  attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
   status?: string
   assignment_status?: string
   owner?: string
@@ -33,6 +33,8 @@ type LeadListItem = {
   owner: string
   updated_at: string
   source_mode: 'internal' | 'opensource'
+  consultant_id?: string
+  attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
   decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
 }
 
@@ -42,6 +44,7 @@ type AuditEntry = {
   target: string
   result: string
   time: string
+  actor?: string
 }
 
 const STATUS_COLUMNS: Array<{ key: LeadStatus; label: string; labelZh: string }> = [
@@ -91,6 +94,8 @@ export function LeadsPage() {
           owner: item.owner ?? item.consultant_owner ?? item.consultant_id ?? 'unassigned',
           updated_at: item.updated_at ?? item.reassigned_at ?? '-',
           source_mode: 'internal' as const,
+          consultant_id: item.consultant_id,
+          attribution: item.attribution,
           decision_log: (item.decision_log ?? []).map((entry) => ({
             action: entry.action ?? '-',
             reason: entry.reason ?? '-',
@@ -303,11 +308,11 @@ export function LeadsPage() {
           </p>
           <div className="consultant-evidence-list">
             {effectiveLeads
-              .flatMap((lead) => lead.decision_log.slice(-2).map((entry, index) => ({ key: `${lead.lead_id}-${index}`, lead: lead.lead_id, ...entry })))
+              .flatMap((lead) => lead.decision_log.slice(-2).map((entry, index) => ({ key: `${lead.lead_id}-${index}`, leadId: lead.lead_id, lead, ...entry })))
               .slice(0, 10)
               .map((entry) => {
-                const relations = resolveLeadRelations(effectiveLeads.find((lead) => lead.lead_id === entry.lead) ?? {
-                  lead_id: entry.lead,
+                const leadRecord = entry.lead ?? effectiveLeads.find((lead) => lead.lead_id === entry.leadId) ?? {
+                  lead_id: entry.leadId,
                   name: entry.detail,
                   source: entry.detail,
                   status: 'queue',
@@ -315,14 +320,22 @@ export function LeadsPage() {
                   updated_at: entry.timestamp,
                   source_mode: 'internal',
                   decision_log: [],
-                })
+                }
+                const relations = resolveLeadRelations(leadRecord)
                 return (
                   <article key={entry.key} className="consultant-evidence-card">
                     <strong>{entry.action}</strong>
                     <p>{entry.reason} · {entry.detail}</p>
-                    <small>{entry.lead} · {entry.timestamp}</small>
+                    <small>{entry.leadId} · {entry.timestamp}</small>
                     <EvidenceObjectLinks
-                      textParts={[entry.lead, entry.reason, entry.detail]}
+                      textParts={[entry.leadId, entry.reason, entry.detail]}
+                      signalParts={[
+                        leadRecord.source,
+                        leadRecord.owner,
+                        leadRecord.consultant_id,
+                        leadRecord.attribution ? `attribution=${leadRecord.attribution.source}/${leadRecord.attribution.medium}/${leadRecord.attribution.campaign}` : undefined,
+                        leadRecord.attribution?.content,
+                      ]}
                       currentSearch={linking.currentSearch}
                       projects={projects}
                       agents={agents}
@@ -346,6 +359,7 @@ export function LeadsPage() {
                 <small>{entry.result} · {entry.time}</small>
                 <EvidenceObjectLinks
                   textParts={[entry.action, entry.target, entry.result]}
+                  signalParts={[entry.actor, entry.target, entry.result]}
                   currentSearch={linking.currentSearch}
                   projects={projects}
                   agents={agents}

@@ -83,6 +83,7 @@ const matchesSignalMap = (kind: FocusKind, id: string, signals: string[]) => {
 
 export function resolveEvidenceObjects({
   textParts,
+  signalParts = [],
   projects,
   agents,
   rooms,
@@ -93,6 +94,7 @@ export function resolveEvidenceObjects({
   taskId,
 }: {
   textParts: Array<string | undefined>
+  signalParts?: Array<string | undefined>
   projects: Project[]
   agents: Agent[]
   rooms: Room[]
@@ -102,8 +104,9 @@ export function resolveEvidenceObjects({
   roomId?: string
   taskId?: string
 }): EvidenceObject[] {
-  const text = normalize(textParts.filter(Boolean).join(' | '))
-  const signals = parseStructuredSignals(textParts)
+  const allTextParts = [...textParts, ...signalParts]
+  const text = normalize(allTextParts.filter(Boolean).join(' | '))
+  const signals = parseStructuredSignals(allTextParts)
   const items: EvidenceObject[] = []
   const seen = new Set<string>()
 
@@ -151,6 +154,7 @@ export function resolveEvidenceObjects({
 
 export function EvidenceObjectLinks({
   textParts,
+  signalParts = [],
   currentSearch,
   projects,
   agents,
@@ -162,6 +166,7 @@ export function EvidenceObjectLinks({
   taskId,
 }: {
   textParts: Array<string | undefined>
+  signalParts?: Array<string | undefined>
   currentSearch?: string
   projects: Project[]
   agents: Agent[]
@@ -174,8 +179,8 @@ export function EvidenceObjectLinks({
 }) {
   const items = useMemo(
     () =>
-      resolveEvidenceObjects({ textParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId }),
-    [textParts, currentSearch, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId],
+      resolveEvidenceObjects({ textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId }),
+    [textParts, signalParts, currentSearch, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId],
   )
 
   if (!items.length) return null

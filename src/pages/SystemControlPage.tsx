@@ -19,6 +19,7 @@ type AuditEntry = {
   time: string
   target: string
   result: string
+  actor?: string
 }
 
 export function SystemControlPage() {
@@ -179,6 +180,7 @@ export function SystemControlPage() {
               <small>{entry.actor || '-'} · {entry.timestamp}</small>
               <EvidenceObjectLinks
                 textParts={[entry.action, entry.reason, entry.detail, entry.actor]}
+                signalParts={[entry.detail, entry.actor]}
                 currentSearch={linking.currentSearch}
                 projects={projects}
                 agents={agents}
@@ -194,6 +196,7 @@ export function SystemControlPage() {
               <small>{entry.result} · {entry.time}</small>
               <EvidenceObjectLinks
                 textParts={[entry.action, entry.target, entry.result]}
+                signalParts={[entry.actor, entry.target, entry.result]}
                 currentSearch={linking.currentSearch}
                 projects={projects}
                 agents={agents}
