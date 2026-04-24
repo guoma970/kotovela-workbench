@@ -9,6 +9,15 @@ type EvidenceObject =
   | { kind: 'room'; id: string; code: string; name: string }
   | { kind: 'task'; id: string; code: string; name: string }
 
+export type EvidenceMatchSource = 'none' | 'direct_id' | 'direct_name' | 'signal_map_only'
+export type EvidenceMatchConfidence = 'none' | 'low' | 'medium' | 'high'
+
+export interface EvidenceResolutionResult {
+  items: EvidenceObject[]
+  matchSource: EvidenceMatchSource
+  matchConfidence: EvidenceMatchConfidence
+}
+
 interface EvidenceSignals {
   projectSignals: string[]
   roomSignals: string[]
@@ -119,6 +128,34 @@ export function resolveEvidenceObjects({
   taskId?: string
   routingHints?: EvidenceRoutingHints
 }): EvidenceObject[] {
+  return resolveEvidenceMatch({ textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints }).items
+}
+
+export function resolveEvidenceMatch({
+  textParts,
+  signalParts = [],
+  projects,
+  agents,
+  rooms,
+  tasks,
+  projectId,
+  agentId,
+  roomId,
+  taskId,
+  routingHints,
+}: {
+  textParts: Array<string | undefined>
+  signalParts?: Array<string | undefined>
+  projects: Project[]
+  agents: Agent[]
+  rooms: Room[]
+  tasks: Task[]
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: EvidenceRoutingHints
+}): EvidenceResolutionResult {
   const allTextParts = [...textParts, ...signalParts]
   const text = normalize(allTextParts.filter(Boolean).join(' | '))
   const signals = parseStructuredSignals(allTextParts)
@@ -128,6 +165,50 @@ export function resolveEvidenceObjects({
   const taskHints = new Set(normalizeList([taskId, ...(routingHints?.taskIds ?? []), ...(routingHints?.taskSignals ?? [])]))
   const items: EvidenceObject[] = []
   const seen = new Set<string>()
+  let hasDirectIdMatch = false
+  let hasDirectNameMatch = false
+
+  const directIdTokens = new Set([
+    ...projects.flatMap((item) => [item.id, item.code]),
+    ...agents.flatMap((item) => [item.id, item.code]),
+    ...rooms.flatMap((item) => [item.id, item.code]),
+    ...tasks.flatMap((item) => [item.id, item.code]),
+    projectId,
+    agentId,
+    roomId,
+    taskId,
+    ...(routingHints?.projectIds ?? []),
+    ...(routingHints?.agentIds ?? []),
+    ...(routingHints?.roomIds ?? []),
+    ...(routingHints?.taskIds ?? []),
+  ].map((item) => normalize(item)).filter(Boolean))
+
+  const directNameTokens = new Set([
+    ...projects.map((item) => item.name),
+    ...agents.flatMap((item) => [item.name, item.instanceKey]),
+    ...rooms.map((item) => item.name),
+    ...tasks.map((item) => item.title),
+    ...(routingHints?.projectSignals ?? []),
+    ...(routingHints?.agentSignals ?? []),
+    ...(routingHints?.roomSignals ?? []),
+    ...(routingHints?.taskSignals ?? []),
+  ].map((item) => normalize(item)).filter(Boolean))
+
+  for (const token of directIdTokens) {
+    if (includesToken(text, token) || includesToken(token, text)) {
+      hasDirectIdMatch = true
+      break
+    }
+  }
+
+  if (!hasDirectIdMatch) {
+    for (const token of directNameTokens) {
+      if (includesToken(text, token) || includesToken(token, text)) {
+        hasDirectNameMatch = true
+        break
+      }
+    }
+  }
 
   const push = (item?: EvidenceObject) => {
     if (!item) return
@@ -177,7 +258,23 @@ export function resolveEvidenceObjects({
   rooms.filter(matchRoom).slice(0, 2).forEach((room) => push({ kind: 'room', id: room.id, code: room.code, name: room.name }))
   tasks.filter(matchTask).slice(0, 2).forEach((task) => push({ kind: 'task', id: task.id, code: task.code, name: task.title }))
 
-  return items.slice(0, 4)
+  const resolvedItems = items.slice(0, 4)
+  const matchSource: EvidenceMatchSource = resolvedItems.length === 0
+    ? 'none'
+    : hasDirectIdMatch
+      ? 'direct_id'
+      : hasDirectNameMatch
+        ? 'direct_name'
+        : 'signal_map_only'
+  const matchConfidence: EvidenceMatchConfidence = matchSource === 'direct_id'
+    ? 'high'
+    : matchSource === 'direct_name'
+      ? 'medium'
+      : matchSource === 'signal_map_only'
+        ? 'low'
+        : 'none'
+
+  return { items: resolvedItems, matchSource, matchConfidence }
 }
 
 export function EvidenceObjectLinks({

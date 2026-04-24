@@ -238,8 +238,14 @@ export function EvidenceAcceptancePage() {
               <span className="badge-count">{fixtureDataset.length}</span>
             </div>
             <div className="evidence-source-stats">
-              {Object.entries(fixtureSummary).map(([reason, count]) => (
+              {Object.entries(fixtureSummary.byCategory ?? {}).map(([reason, count]) => (
                 <span key={reason} className="inline-link-chip">{reason} · {count}</span>
+              ))}
+              {Object.entries(fixtureSummary.byMatchSource ?? {}).map(([source, count]) => (
+                <span key={source} className="inline-link-chip">source {source} · {count}</span>
+              ))}
+              {Object.entries(fixtureSummary.byMatchConfidence ?? {}).map(([confidence, count]) => (
+                <span key={confidence} className="inline-link-chip">confidence {confidence} · {count}</span>
               ))}
             </div>
             <div className="consultant-evidence-list top-gap">
@@ -254,6 +260,8 @@ export function EvidenceAcceptancePage() {
                   <p>{fixture.detail}</p>
                   <small>expected {fixture.expectation.category} / {fixture.expectation.reason}</small>
                   <div className="cross-link-row top-gap">
+                    <span className="inline-link-chip">match_source {row.matchSource}</span>
+                    <span className="inline-link-chip">match_confidence {row.matchConfidence}</span>
                     {fixture.signalParts.map((item) => (
                       <span key={`${fixture.id}-${item}`} className="inline-link-chip">{item}</span>
                     ))}
@@ -278,6 +286,8 @@ export function EvidenceAcceptancePage() {
                   <p>{row.detail}</p>
                   <small>{row.reason} · {row.timestamp}</small>
                   <div className="cross-link-row top-gap">
+                    <span className="inline-link-chip">match_source {row.matchSource}</span>
+                    <span className="inline-link-chip">match_confidence {row.matchConfidence}</span>
                     {row.signalParts.map((item) => (
                       <span key={`${row.id}-${item}`} className="inline-link-chip">{item}</span>
                     ))}
@@ -304,6 +314,10 @@ export function EvidenceAcceptancePage() {
                   </div>
                   <p>{row.detail}</p>
                   <small>{row.source} · {row.timestamp}</small>
+                  <div className="cross-link-row top-gap">
+                    <span className="inline-link-chip">match_source {row.matchSource}</span>
+                    <span className="inline-link-chip">match_confidence {row.matchConfidence}</span>
+                  </div>
                   <EvidenceObjectLinks
                     textParts={row.textParts}
                     signalParts={row.signalParts}

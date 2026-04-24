@@ -2,6 +2,8 @@ export type EvidenceFixtureExpectation = {
   category: string
   success: boolean
   reason: string
+  match_source: 'none' | 'direct_id' | 'direct_name' | 'signal_map_only'
+  match_confidence: 'none' | 'low' | 'medium' | 'high'
 }
 
 export type EvidenceParserFailureFixture = {
@@ -22,7 +24,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['回执', 'notify_result', '规则命中但未写结构化字段'],
     signalParts: [],
-    expectation: { category: 'missing_signals', success: false, reason: 'signal_parts_empty' },
+    expectation: { category: 'missing_signals', success: false, reason: 'signal_parts_empty', match_source: 'none', match_confidence: 'none' },
   },
   {
     id: 'fixture-thin-title-only',
@@ -31,7 +33,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['ok'],
     signalParts: ['manual'],
-    expectation: { category: 'text_too_thin', success: false, reason: 'text_under_min_length' },
+    expectation: { category: 'text_too_thin', success: false, reason: 'text_under_min_length', match_source: 'none', match_confidence: 'none' },
   },
   {
     id: 'fixture-thin-signal-only',
@@ -40,7 +42,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['hi'],
     signalParts: ['manual_shadow'],
-    expectation: { category: 'text_too_thin', success: false, reason: 'text_under_min_length' },
+    expectation: { category: 'text_too_thin', success: false, reason: 'text_under_min_length', match_source: 'signal_map_only', match_confidence: 'low' },
   },
   {
     id: 'fixture-orphan-consultant',
@@ -49,7 +51,7 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['咨询顾问回执', 'consultant assigned', 'waiting followup shadow'],
     signalParts: ['consultant_id=consultant_shadow', 'source_line=unknown_channel'],
-    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped' },
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
   },
   {
     id: 'fixture-unknown-account-line',
@@ -58,7 +60,16 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['物料案例', 'route decision', 'account selected'],
     signalParts: ['account_line=ghost_official', 'source_line=ghost_room', 'content_line=material_case'],
-    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped' },
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
+  },
+  {
+    id: 'fixture-signal-map-only-hit',
+    title: 'signal map only hit',
+    detail: 'known signal map can produce object links without any direct id or name in text',
+    source: 'fixture',
+    textParts: ['route decision', 'auto handoff', 'parser fallback'],
+    signalParts: ['account_line=yanfami_official', 'source_line=yanfami_official', 'content_line=material_case'],
+    expectation: { category: 'no_object_match', success: false, reason: 'signals_present_but_unmapped', match_source: 'signal_map_only', match_confidence: 'low' },
   },
   {
     id: 'fixture-route-hit-success',
@@ -67,6 +78,6 @@ export const evidenceParserFailureFixtures: EvidenceParserFailureFixture[] = [
     source: 'fixture',
     textParts: ['言町科技工作台', '岩板建材品牌案例', 'route decision'],
     signalParts: ['account_line=yanfami_official', 'source_line=yanfami_official', 'content_line=material_case'],
-    expectation: { category: 'resolved', success: true, reason: 'resolved' },
+    expectation: { category: 'resolved', success: true, reason: 'resolved', match_source: 'direct_name', match_confidence: 'medium' },
   },
 ]

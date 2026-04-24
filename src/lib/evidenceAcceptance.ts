@@ -1,6 +1,6 @@
 import { evidenceParserFailureFixtures, type EvidenceParserFailureFixture } from '../fixtures/evidenceParserFailureFixtures'
 import type { Agent, Project, Room, Task } from '../types'
-import { resolveEvidenceObjects } from '../components/EvidenceObjectLinks'
+import { resolveEvidenceMatch, type EvidenceMatchConfidence, type EvidenceMatchSource } from '../components/EvidenceObjectLinks'
 
 export type EvidenceRowSource = 'tasks-board' | 'leads' | 'audit-log' | 'fixture'
 
@@ -16,6 +16,8 @@ export type EvidenceClassification = {
   reason: EvidenceClassificationReason
   success: boolean
   hitCount: number
+  matchSource: EvidenceMatchSource
+  matchConfidence: EvidenceMatchConfidence
 }
 
 export type EvidenceRowInput = {
@@ -39,47 +41,28 @@ export function classifyEvidenceRow({
   textParts,
   signalParts,
   hitCount,
-  hasDirectMatch = hitCount > 0,
+  matchSource = hitCount > 0 ? 'signal_map_only' : 'none',
+  matchConfidence = matchSource === 'direct_id' ? 'high' : matchSource === 'direct_name' ? 'medium' : matchSource === 'signal_map_only' ? 'low' : 'none',
 }: {
   textParts: string[]
   signalParts: string[]
   hitCount: number
-  hasDirectMatch?: boolean
+  matchSource?: EvidenceMatchSource
+  matchConfidence?: EvidenceMatchConfidence
 }): EvidenceClassification {
-  if (hitCount > 0 && hasDirectMatch) {
-    return { category: 'resolved', reason: 'resolved', success: true, hitCount }
+  if (hitCount > 0 && (matchSource === 'direct_id' || matchSource === 'direct_name')) {
+    return { category: 'resolved', reason: 'resolved', success: true, hitCount, matchSource, matchConfidence }
   }
 
-
   if (signalParts.length === 0) {
-    return { category: 'missing_signals', reason: 'signal_parts_empty', success: false, hitCount }
+    return { category: 'missing_signals', reason: 'signal_parts_empty', success: false, hitCount, matchSource, matchConfidence }
   }
 
   if (textParts.join(' ').length < EVIDENCE_TEXT_MIN_LENGTH) {
-    return { category: 'text_too_thin', reason: 'text_under_min_length', success: false, hitCount }
+    return { category: 'text_too_thin', reason: 'text_under_min_length', success: false, hitCount, matchSource, matchConfidence }
   }
 
-  return { category: 'no_object_match', reason: 'signals_present_but_unmapped', success: false, hitCount }
-}
-
-const normalizedIncludes = (haystack: string, needle: string) => haystack.includes(needle)
-
-function hasDirectEvidenceMatch(
-  textParts: string[],
-  signalParts: string[],
-  data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] },
-) {
-  const all = [...textParts, ...signalParts].map((item) => normalize(item).toLowerCase()).filter(Boolean)
-  const candidates = [
-    ...data.projects.flatMap((item) => [item.id, item.code, item.name]),
-    ...data.agents.flatMap((item) => [item.id, item.code, item.name, item.instanceKey ?? '']),
-    ...data.rooms.flatMap((item) => [item.id, item.code, item.name]),
-    ...data.tasks.flatMap((item) => [item.id, item.code, item.title]),
-  ]
-    .map((item) => normalize(item).toLowerCase())
-    .filter(Boolean)
-
-  return all.some((part) => candidates.some((candidate) => normalizedIncludes(part, candidate) || normalizedIncludes(candidate, part)))
+  return { category: 'no_object_match', reason: 'signals_present_but_unmapped', success: false, hitCount, matchSource, matchConfidence }
 }
 
 export function buildEvidenceRow(
@@ -88,15 +71,16 @@ export function buildEvidenceRow(
 ): EvidenceRow {
   const textParts = input.textParts.filter(hasValue)
   const signalParts = input.signalParts.filter(hasValue)
-  const hitCount = resolveEvidenceObjects({
+  const resolution = resolveEvidenceMatch({
     textParts,
     signalParts,
     projects: data.projects,
     agents: data.agents,
     rooms: data.rooms,
     tasks: data.tasks,
-  }).length
-  const classification = classifyEvidenceRow({ textParts, signalParts, hitCount, hasDirectMatch: hasDirectEvidenceMatch(textParts, signalParts, data) })
+  })
+  const hitCount = resolution.items.length
+  const classification = classifyEvidenceRow({ textParts, signalParts, hitCount, matchSource: resolution.matchSource, matchConfidence: resolution.matchConfidence })
   return { ...input, textParts, signalParts, ...classification }
 }
 
@@ -119,9 +103,13 @@ export function buildEvidenceParserFixtureDataset(data: { projects: Project[]; a
 }
 
 export function summarizeFixtureDataset(dataset: Array<{ fixture: EvidenceParserFailureFixture; row: EvidenceRow }>) {
-  return dataset.reduce<Record<string, number>>((acc, entry) => {
-    const key = entry.row.category
-    acc[key] = (acc[key] ?? 0) + 1
+  return dataset.reduce<{ byCategory: Record<string, number>; byMatchSource: Record<string, number>; byMatchConfidence: Record<string, number> }>((acc, entry) => {
+    const categoryKey = entry.row.category
+    const sourceKey = entry.row.matchSource
+    const confidenceKey = entry.row.matchConfidence
+    acc.byCategory[categoryKey] = (acc.byCategory[categoryKey] ?? 0) + 1
+    acc.byMatchSource[sourceKey] = (acc.byMatchSource[sourceKey] ?? 0) + 1
+    acc.byMatchConfidence[confidenceKey] = (acc.byMatchConfidence[confidenceKey] ?? 0) + 1
     return acc
-  }, {})
+  }, { byCategory: {}, byMatchSource: {}, byMatchConfidence: {} })
 }

@@ -71,12 +71,14 @@ const tasks: Task[] = [
 ]
 
 const dataset = buildEvidenceParserFixtureDataset({ projects, agents, rooms, tasks })
-assert.equal(dataset.length, 6, 'fixture dataset size should stay stable for regression checks')
+assert.equal(dataset.length, 7, 'fixture dataset size should stay stable for regression checks')
 
 for (const entry of dataset) {
   assert.equal(entry.row.category, entry.fixture.expectation.category, `${entry.fixture.id} category mismatch`)
   assert.equal(entry.row.reason, entry.fixture.expectation.reason, `${entry.fixture.id} reason mismatch`)
   assert.equal(entry.row.success, entry.fixture.expectation.success, `${entry.fixture.id} success mismatch`)
+  assert.equal(entry.row.matchSource, entry.fixture.expectation.match_source, `${entry.fixture.id} match_source mismatch`)
+  assert.equal(entry.row.matchConfidence, entry.fixture.expectation.match_confidence, `${entry.fixture.id} match_confidence mismatch`)
 }
 
 const shortTextClassification = classifyEvidenceRow({
@@ -84,6 +86,8 @@ const shortTextClassification = classifyEvidenceRow({
   signalParts: ['builder'],
   hitCount: 0,
 })
+ assert.equal(shortTextClassification.matchSource, 'none')
+ assert.equal(shortTextClassification.matchConfidence, 'none')
 assert.equal(shortTextClassification.category, 'text_too_thin')
 assert.equal(shortTextClassification.reason, 'text_under_min_length')
 
@@ -95,7 +99,17 @@ const noSignalClassification = classifyEvidenceRow({
 assert.equal(noSignalClassification.category, 'missing_signals')
 assert.equal(noSignalClassification.reason, 'signal_parts_empty')
 
+const signalMapOnlyClassification = classifyEvidenceRow({
+  textParts: ['route decision', 'auto handoff'],
+  signalParts: ['account_line=yanfami_official'],
+  hitCount: 2,
+  matchSource: 'signal_map_only',
+  matchConfidence: 'low',
+})
+assert.equal(signalMapOnlyClassification.category, 'no_object_match')
+assert.equal(signalMapOnlyClassification.success, false)
+
 console.log(JSON.stringify({
   total: dataset.length,
-  categories: dataset.map((entry) => ({ id: entry.fixture.id, category: entry.row.category, reason: entry.row.reason })),
+  categories: dataset.map((entry) => ({ id: entry.fixture.id, category: entry.row.category, reason: entry.row.reason, match_source: entry.row.matchSource, match_confidence: entry.row.matchConfidence })),
 }, null, 2))
