@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { resolveBaseUrl } from './shared/base-url.mjs'
 
 const repoRoot = '/Users/ztl/.openclaw/workspace-builder/kotovela-workbench'
 const runnerDir = '/Users/ztl/OpenClaw-Runner'
@@ -10,7 +11,7 @@ const memoryFile = path.join(repoRoot, 'data/scheduler-memory.json')
 const templateFile = path.join(repoRoot, 'data/scheduler-template-pool.json')
 const outputJson = path.join(repoRoot, 'public/system-test-results.json')
 const outputMd = path.join(repoRoot, 'docs/task-log/DEV-20260416-43-stabilization.md')
-const baseUrl = process.env.STAB_BASE_URL || 'http://127.0.0.1:5173'
+const baseUrl = resolveBaseUrl({ envNames: ['WORKBENCH_BASE_URL', 'STAB_BASE_URL', 'CAPTURE_BASE_URL'] })
 const runId = `stab-${Date.now()}`
 
 const backupDir = path.join(repoRoot, '.tmp', runId)

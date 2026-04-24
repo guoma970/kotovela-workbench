@@ -1,0 +1,14 @@
+{
+  "app_mode": "opensource",
+  "system_mode": "dev",
+  "publish_mode": "manual_only",
+  "force_stop": false,
+  "warning": false,
+  "overload": false,
+  "live_guardrails": {
+    "enabled": false,
+    "message": "Non-live environment, safe for demo and validation."
+  },
+  "decision_log": [],
+  "updated_at": "2026-04-21T04:54:49.722Z"
+}

@@ -17,7 +17,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: '驾驶舱层', to: '/leads', step: 5, label: 'Leads 线索', note: '线索列表 · 状态归一' },
         { group: '调度系统', to: '/scheduler', step: 6, label: 'Scheduler 调度', note: '执行控制 · 队列调度' },
         { group: '调度系统', to: '/consultants', step: 7, label: 'Consultants 顾问', note: '顾问配置 · 分配规则' },
-        { group: '执行层', to: '/agents', step: 8, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { group: '调度系统', to: '/system-control', step: 8, label: 'System Control 系统控制', note: 'system_mode · guardrails' },
+        { group: '执行层', to: '/agents', step: 9, label: 'Agents 实例', note: '实例状态 · 路由分派' },
       ]
     : [
         { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -27,7 +28,8 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Cockpit', to: '/leads', step: 5, label: 'Leads', note: 'Lead list and normalized status' },
         { group: 'Scheduling', to: '/scheduler', step: 6, label: 'Scheduler', note: 'Execution control and queue' },
         { group: 'Scheduling', to: '/consultants', step: 7, label: 'Consultants', note: 'Consultant settings and routing' },
-        { group: 'Execution', to: '/agents', step: 8, label: 'Agents', note: 'Agent activity and routing' },
+        { group: 'Scheduling', to: '/system-control', step: 8, label: 'System Control', note: 'system_mode and guardrails' },
+        { group: 'Execution', to: '/agents', step: 9, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {

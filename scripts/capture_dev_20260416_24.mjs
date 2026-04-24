@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
+import { resolveBaseUrl } from './shared/base-url.mjs'
 
-const base = 'http://127.0.0.1:5173/scheduler'
+const base = resolveBaseUrl({ envNames: ['WORKBENCH_BASE_URL', 'CAPTURE_BASE_URL', 'STAB_BASE_URL'], path: '/scheduler' })
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1600, height: 2200 } })
 await page.goto(base, { waitUntil: 'networkidle' })

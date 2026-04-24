@@ -5,7 +5,7 @@
       "memory_type": "habit",
       "key": "study_time_preference",
       "value": "20:00",
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "guoguo",
@@ -19,7 +19,7 @@
       "memory_type": "habit",
       "key": "publish_time_preference",
       "value": "09:00",
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "client_followup",
@@ -33,28 +33,28 @@
       "memory_type": "constraint",
       "key": "need_human_builder",
       "value": true,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "default_user",
       "memory_type": "history",
       "key": "task_success_builder",
-      "value": 476,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 914,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "client_followup",
       "memory_type": "history",
       "key": "task_success_builder",
-      "value": 68,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 1026,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "content_ops",
       "memory_type": "history",
       "key": "task_success_media",
-      "value": 476,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 11392,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "default_user",
@@ -74,22 +74,64 @@
       "user_id": "client_followup",
       "memory_type": "history",
       "key": "task_success_business",
-      "value": 204,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 4480,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "default_user",
       "memory_type": "history",
       "key": "task_success_business",
-      "value": 68,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 27750,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     },
     {
       "user_id": "guoguo",
       "memory_type": "history",
       "key": "task_success_family",
-      "value": 26,
-      "updated_at": "2026-04-17T09:42:21.149Z"
+      "value": 984,
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "guoguo",
+      "memory_type": "habit",
+      "key": "publish_time_preference",
+      "value": "09:00",
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "guoguo",
+      "memory_type": "history",
+      "key": "task_success_media",
+      "value": 958,
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "habit",
+      "key": "publish_time_preference",
+      "value": "09:00",
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "default_user",
+      "memory_type": "history",
+      "key": "task_success_media",
+      "value": 17221,
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "content_ops",
+      "memory_type": "history",
+      "key": "task_success_business",
+      "value": 1916,
+      "updated_at": "2026-04-24T03:40:06.249Z"
+    },
+    {
+      "user_id": "client_followup",
+      "memory_type": "constraint",
+      "key": "need_human_business",
+      "value": true,
+      "updated_at": "2026-04-24T03:40:06.249Z"
     }
   ]
 }

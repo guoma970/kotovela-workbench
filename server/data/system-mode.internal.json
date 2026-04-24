@@ -1,0 +1,22 @@
+{
+  "app_mode": "internal",
+  "system_mode": "test",
+  "publish_mode": "semi_auto",
+  "force_stop": false,
+  "warning": true,
+  "overload": false,
+  "live_guardrails": {
+    "enabled": false,
+    "message": "Non-live environment, safe for demo and validation."
+  },
+  "decision_log": [
+    {
+      "timestamp": "2026-04-21T05:54:59.265Z",
+      "action": "system_mode_updated",
+      "reason": "manual_change",
+      "detail": "system_mode=test publish_mode=semi_auto force_stop=false warning=true overload=false",
+      "actor": "builder-dev62"
+    }
+  ],
+  "updated_at": "2026-04-21T05:54:59.265Z"
+}

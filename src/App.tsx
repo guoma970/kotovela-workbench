@@ -10,6 +10,7 @@ import { TasksPage } from './pages/TasksPage'
 import { AutoTasksPage } from './pages/AutoTasksPage'
 import { ConsultantsPage } from './pages/ConsultantsPage'
 import { LeadsPage } from './pages/LeadsPage'
+import { SystemControlPage } from './pages/SystemControlPage'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="scheduler" element={<AutoTasksPage />} />
           <Route path="consultants" element={<ConsultantsPage />} />
+          <Route path="system-control" element={<SystemControlPage />} />
           <Route path="auto-tasks" element={<Navigate to="/scheduler" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

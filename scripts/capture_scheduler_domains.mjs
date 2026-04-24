@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
+import { resolveBaseUrl } from './shared/base-url.mjs'
 
-const base = 'http://127.0.0.1:5173/scheduler'
+const base = resolveBaseUrl({ envNames: ['WORKBENCH_BASE_URL', 'CAPTURE_BASE_URL', 'STAB_BASE_URL'], path: '/scheduler' })
 const shots = [
   { name: 'dev-20260416-12-family.png', label: 'Family' },
   { name: 'dev-20260416-12-media.png', label: 'Media' },

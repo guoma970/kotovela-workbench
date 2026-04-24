@@ -1,7 +1,8 @@
 import { chromium } from 'playwright';
 import path from 'path';
+import { resolveBaseUrl } from './shared/base-url.mjs';
 
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = resolveBaseUrl({ envNames: ['WORKBENCH_BASE_URL', 'CAPTURE_BASE_URL', 'STAB_BASE_URL'] });
 const OUTPUT_DIR = path.join(process.cwd(), 'public/screenshots');
 
 async function captureScreenshots() {
