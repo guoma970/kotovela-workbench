@@ -125,7 +125,14 @@ export function ObjectBadge({
 
   if (clickable) {
     return (
-      <button type="button" className={className} onClick={onClick}>
+      <button
+        type="button"
+        className={className}
+        onClick={(event) => {
+          event.stopPropagation()
+          onClick?.()
+        }}
+      >
         {content}
       </button>
     )

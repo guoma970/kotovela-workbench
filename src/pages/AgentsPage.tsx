@@ -1,5 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { ObjectBadge } from '../components/ObjectBadge'
@@ -9,10 +8,19 @@ import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 export function AgentsPage() {
   const { agents, projects, rooms, tasks, mode } = useOfficeInstances()
   const isInternal = mode === 'internal'
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const statusFilter = searchParams.get('status')
+
+  const goFocus = (
+    pathname: string,
+    kind: 'project' | 'agent' | 'room' | 'task',
+    id: string,
+  ) => {
+    navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
+  }
 
   const activeAgents = agents.filter((agent) => agent.status === 'active')
   const idleAgents = agents.filter((agent) => agent.status === 'idle')
@@ -103,9 +111,35 @@ export function AgentsPage() {
 
               {project && (
                 <div className="object-row" style={{ marginTop: '8px' }}>
-                  <ObjectBadge kind="project" code={project.code} name={project.name} hideCode={isInternal} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />
+                  <ObjectBadge
+                    kind="project"
+                    code={project.code}
+                    name={project.name}
+                    hideCode={isInternal}
+                    compact
+                    clickable
+                    onClick={() => goFocus('/projects', 'project', project.id)}
+                    {...linking.getState('project', project.id)}
+                  />
                 </div>
               )}
+
+              {linkedRooms.length > 0 ? (
+                <div className="object-row" style={{ marginTop: '8px' }}>
+                  {linkedRooms.map((room) => (
+                    <ObjectBadge
+                      key={room.id}
+                      kind="room"
+                      code={room.code}
+                      name={room.name}
+                      compact
+                      clickable
+                      onClick={() => goFocus('/rooms', 'room', room.id)}
+                      {...linking.getState('room', room.id)}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
               <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
                 <span className="soft-tag">{isInternal ? '更新：' : 'Updated: '}{agent.updatedAt}</span>
@@ -120,6 +154,12 @@ export function AgentsPage() {
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
                   {isInternal ? '查看关联任务' : 'View related tasks'}
+                </NavLink>
+                <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                  {isInternal ? '查看关联房间' : 'View related rooms'}
+                </NavLink>
+                <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                  {isInternal ? '查看关联项目' : 'View related project'}
                 </NavLink>
               </div>
             </article>

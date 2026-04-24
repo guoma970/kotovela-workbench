@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
@@ -8,9 +8,18 @@ import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 export function RoomsPage() {
   const { rooms, projects, agents, tasks, mode } = useOfficeInstances()
   const isInternal = mode === 'internal'
+  const navigate = useNavigate()
   const pageData = { projects, agents, rooms, tasks }
   const linking = useWorkbenchLinking(pageData)
   const pendingCount = rooms.reduce((sum, room) => sum + room.pending, 0)
+
+  const goFocus = (
+    pathname: string,
+    kind: 'project' | 'agent' | 'room' | 'task',
+    id: string,
+  ) => {
+    navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
+  }
 
   const cardClass = (id: string) => {
     const state = linking.getState('room', id)
@@ -97,7 +106,18 @@ export function RoomsPage() {
                 <div>
                   <span className="section-label">{isInternal ? '项目' : 'Project'}</span>
                   <div className="object-row top-gap">
-                    {project && <ObjectBadge kind="project" code={project.code} name={project.name} hideCode={isInternal} compact clickable onClick={() => linking.select('project', project.id)} {...linking.getState('project', project.id)} />}
+                    {project && (
+                      <ObjectBadge
+                        kind="project"
+                        code={project.code}
+                        name={project.name}
+                        hideCode={isInternal}
+                        compact
+                        clickable
+                        onClick={() => goFocus('/projects', 'project', project.id)}
+                        {...linking.getState('project', project.id)}
+                      />
+                    )}
                   </div>
                 </div>
                 <div>
@@ -113,7 +133,7 @@ export function RoomsPage() {
                         agentId={agent.id}
                         compact
                         clickable
-                        onClick={() => linking.select('agent', agent.id)}
+                        onClick={() => goFocus('/agents', 'agent', agent.id)}
                         {...linking.getState('agent', agent.id)}
                       />
                     ))}
@@ -123,6 +143,12 @@ export function RoomsPage() {
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
                   {isInternal ? '关联任务' : 'Related tasks'}
+                </NavLink>
+                <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                  {isInternal ? '关联项目' : 'Related project'}
+                </NavLink>
+                <NavLink className="inline-link-chip" to={{ pathname: '/agents', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
+                  {isInternal ? '关联实例' : 'Related agents'}
                 </NavLink>
               </div>
             </article>
