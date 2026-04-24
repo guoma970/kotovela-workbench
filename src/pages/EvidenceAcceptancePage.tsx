@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
-import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceRow } from '../lib/evidenceAcceptance'
+import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceDriftSummary, type EvidenceRow } from '../lib/evidenceAcceptance'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type BoardEntry = {
@@ -49,6 +49,7 @@ export function EvidenceAcceptancePage() {
   const [board, setBoard] = useState<BoardEntry[]>([])
   const [leads, setLeads] = useState<LeadEntry[]>([])
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
+  const [driftSummary, setDriftSummary] = useState<EvidenceDriftSummary | null>(null)
 
   useEffect(() => {
     if (!isInternal) {
@@ -75,6 +76,29 @@ export function EvidenceAcceptancePage() {
         setBoard([])
         setLeads([])
         setAuditEntries([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isInternal])
+
+  useEffect(() => {
+    if (!isInternal) {
+      setDriftSummary(null)
+      return
+    }
+
+    let cancelled = false
+    fetch('/evidence/dev75/drift-trend.json', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (cancelled) return
+        setDriftSummary(payload)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setDriftSummary(null)
       })
 
     return () => {
@@ -165,7 +189,7 @@ export function EvidenceAcceptancePage() {
     <section className="page evidence-acceptance-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">DEV-74 Evidence Acceptance</p>
+          <p className="eyebrow">DEV-75 Evidence Acceptance</p>
           <h2>{isInternal ? 'evidence 命中率验收页' : 'Evidence acceptance'}</h2>
         </div>
         <p className="page-note">
@@ -239,6 +263,46 @@ export function EvidenceAcceptancePage() {
                 <span key={source} className="inline-link-chip">heuristic {source} · {count}</span>
               ))}
               {Object.keys(summary.heuristicDriftCounts).length === 0 ? <span className="inline-link-chip">heuristic clean</span> : null}
+            </div>
+          </section>
+
+          <section className="panel strong-card">
+            <div className="panel-header">
+              <h3>heuristic drift alert</h3>
+              <span className="badge-count">{driftSummary?.alerts.length ?? 0}</span>
+            </div>
+            <div className="evidence-source-stats">
+              {driftSummary?.samples.map((sample) => (
+                <span key={sample.sampleId} className="inline-link-chip">{sample.label} · unresolved {sample.unresolved} · heuristic {sample.heuristicHits}</span>
+              ))}
+              {!driftSummary?.samples.length ? <span className="inline-link-chip">trend snapshot unavailable</span> : null}
+            </div>
+            <div className="evidence-source-stats top-gap">
+              {driftSummary?.alerts.map((alert) => (
+                <span key={alert.source} className="inline-link-chip">{alert.level} · {alert.source} · latest {alert.latestCount} · Δ {alert.delta >= 0 ? `+${alert.delta}` : alert.delta} {alert.driftStartedAt ? `· first ${alert.driftStartedAt}` : ''}</span>
+              ))}
+              {driftSummary && !driftSummary.alerts.length ? <span className="inline-link-chip">no threshold breach</span> : null}
+            </div>
+            <div className="consultant-evidence-list top-gap">
+              {driftSummary?.buckets.map((bucket) => (
+                <article key={bucket.source} className="consultant-evidence-card">
+                  <div className="audit-log-item-top">
+                    <strong>{bucket.source}</strong>
+                    <span className={bucket.alertLevel === 'critical' || bucket.alertLevel === 'warning' ? 'evidence-state-miss' : 'evidence-state-hit'}>
+                      {bucket.alertLevel} · latest {bucket.latestCount}
+                    </span>
+                  </div>
+                  <p>
+                    previous {bucket.previousCount} → latest {bucket.latestCount}，Δ {bucket.delta >= 0 ? `+${bucket.delta}` : bucket.delta}，ratio {(bucket.latestRatio * 100).toFixed(0)}%
+                  </p>
+                  <small>{bucket.driftStartedAt ? `first drift ${bucket.driftStartedAt}` : 'no early drift trigger'}</small>
+                  <div className="cross-link-row top-gap">
+                    {driftSummary.samples.map((sample, index) => (
+                      <span key={`${bucket.source}-${sample.sampleId}`} className="inline-link-chip">{sample.label} · {bucket.counts[index] ?? 0}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
 

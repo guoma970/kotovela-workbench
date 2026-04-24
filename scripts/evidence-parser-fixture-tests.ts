@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvidenceParserFixtureDataset, classifyEvidenceRow, EVIDENCE_TEXT_MIN_LENGTH } from '../src/lib/evidenceAcceptance'
+import { buildEvidenceDriftSummary, buildEvidenceParserFixtureDataset, classifyEvidenceRow, EVIDENCE_TEXT_MIN_LENGTH } from '../src/lib/evidenceAcceptance'
 import type { Agent, Project, Room, Task } from '../src/types'
 
 const projects: Project[] = [
@@ -109,6 +109,27 @@ const signalMapOnlyClassification = classifyEvidenceRow({
 assert.equal(signalMapOnlyClassification.category, 'no_object_match')
 assert.equal(signalMapOnlyClassification.success, false)
 assert.equal(signalMapOnlyClassification.matchSource, 'signal_map_account')
+
+const driftSummary = buildEvidenceDriftSummary([
+  {
+    sampleId: 'round-1',
+    label: 'round-1',
+    rows: [
+      { ...dataset[0].row, id: 'drift-row-1', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low' },
+    ],
+  },
+  {
+    sampleId: 'round-2',
+    label: 'round-2',
+    rows: [
+      { ...dataset[0].row, id: 'drift-row-2', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low' },
+      { ...dataset[1].row, id: 'drift-row-3', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_account', matchConfidence: 'low' },
+      { ...dataset[2].row, id: 'drift-row-4', success: false, category: 'no_object_match', reason: 'signals_present_but_unmapped', matchSource: 'signal_map_room', matchConfidence: 'low' },
+    ],
+  },
+])
+assert.equal(driftSummary.buckets.find((bucket) => bucket.source === 'signal_map_account')?.alertLevel, 'critical')
+assert.equal(driftSummary.firstDriftSource, 'signal_map_account')
 
 console.log(JSON.stringify({
   total: dataset.length,
