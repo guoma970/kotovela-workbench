@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { mockLeads } from '../data/mockLeads'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type LeadStatus = 'queue' | 'running' | 'done' | 'lost' | 'need_human'
 
@@ -61,8 +64,10 @@ const normalizeLeadStatus = (status?: string, assignmentStatus?: string): LeadSt
 }
 
 export function LeadsPage() {
-  const { mode } = useOfficeInstances()
+  const { mode, tasks, projects, rooms, agents } = useOfficeInstances()
   const isInternal = mode === 'internal'
+  const navigate = useNavigate()
+  const linking = useWorkbenchLinking({ tasks, projects, rooms, agents })
   const [internalLeads, setInternalLeads] = useState<LeadListItem[]>([])
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
 
@@ -141,6 +146,29 @@ export function LeadsPage() {
 
   const effectiveLeads = isInternal && internalLeads.length > 0 ? internalLeads : openSourceLeads
 
+  const goFocus = (pathname: string, kind: 'project' | 'agent' | 'room' | 'task', id: string) => {
+    navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
+  }
+
+  const resolveLeadRelations = (lead: LeadListItem) => {
+    const relatedTask =
+      tasks.find((task) => task.title === lead.name || task.code === lead.lead_id) ??
+      tasks.find((task) => task.title.includes(lead.name) || lead.name.includes(task.title))
+    const relatedAgent =
+      agents.find((agent) => agent.name === lead.owner || agent.id === lead.owner) ??
+      (relatedTask ? agents.find((agent) => agent.id === relatedTask.executorAgentId || agent.id === relatedTask.assigneeAgentId) : undefined)
+    const relatedProject =
+      (relatedTask ? projects.find((project) => project.id === relatedTask.projectId) : undefined) ??
+      projects.find((project) => project.name.includes(lead.source) || lead.source.includes(project.code.toLowerCase()))
+    const relatedRooms = rooms.filter(
+      (room) =>
+        (relatedProject && room.mainProjectId === relatedProject.id) ||
+        (relatedAgent && room.instanceIds.includes(relatedAgent.id)),
+    )
+
+    return { relatedTask, relatedAgent, relatedProject, relatedRooms }
+  }
+
   return (
     <section className="page">
       <div className="page-header">
@@ -176,22 +204,89 @@ export function LeadsPage() {
           <span className="badge-count">{effectiveLeads.length}</span>
         </div>
         <div className="queue-list">
-          {effectiveLeads.map((lead) => (
-            <article key={lead.lead_id} className="queue-card panel-surface">
-              <div className="item-head">
-                <h4>{lead.name}</h4>
-                <span className={`priority-badge priority-${lead.status === 'done' ? 'low' : lead.status === 'running' ? 'medium' : 'high'}`}>
-                  {lead.status}
-                </span>
-              </div>
-              <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>lead_id: {lead.lead_id}</span></div>
-              <div className="queue-meta dense-meta"><span>source: {lead.source}</span></div>
-              <div className="queue-meta dense-meta"><span>status: {lead.status}</span></div>
-              <div className="queue-meta dense-meta"><span>owner: {lead.owner}</span></div>
-              <div className="queue-meta dense-meta"><span>updated_at: {lead.updated_at}</span></div>
-              <div className="queue-meta dense-meta"><span>mode: {lead.source_mode}</span></div>
-            </article>
-          ))}
+          {effectiveLeads.map((lead) => {
+            const { relatedTask, relatedAgent, relatedProject, relatedRooms } = resolveLeadRelations(lead)
+            return (
+              <article
+                key={lead.lead_id}
+                className={[
+                  'queue-card panel-surface',
+                  relatedTask ? (linking.getState('task', relatedTask.id).isSelected ? 'surface-selected' : '') : '',
+                  relatedTask && !linking.getState('task', relatedTask.id).isSelected && linking.getState('task', relatedTask.id).isRelated ? 'surface-related' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                <div className="item-head">
+                  <h4>{lead.name}</h4>
+                  <span className={`priority-badge priority-${lead.status === 'done' ? 'low' : lead.status === 'running' ? 'medium' : 'high'}`}>
+                    {lead.status}
+                  </span>
+                </div>
+                <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>lead_id: {lead.lead_id}</span></div>
+                <div className="queue-meta dense-meta"><span>source: {lead.source}</span></div>
+                <div className="queue-meta dense-meta"><span>status: {lead.status}</span></div>
+                <div className="queue-meta dense-meta"><span>owner: {lead.owner}</span></div>
+                <div className="queue-meta dense-meta"><span>updated_at: {lead.updated_at}</span></div>
+                <div className="queue-meta dense-meta"><span>mode: {lead.source_mode}</span></div>
+                {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
+                  <div className="relation-stack" style={{ marginTop: 12 }}>
+                    <div>
+                      <span className="section-label">{isInternal ? '回链项目' : 'Linked project'}</span>
+                      <div className="object-row top-gap">
+                        {relatedProject ? (
+                          <ObjectBadge
+                            kind="project"
+                            code={relatedProject.code}
+                            name={relatedProject.name}
+                            hideCode={isInternal}
+                            compact
+                            clickable
+                            onClick={() => goFocus('/projects', 'project', relatedProject.id)}
+                            {...linking.getState('project', relatedProject.id)}
+                          />
+                        ) : <span className="soft-tag">—</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="section-label">{isInternal ? '回链房间' : 'Linked rooms'}</span>
+                      <div className="object-row top-gap">
+                        {relatedRooms.length > 0 ? relatedRooms.slice(0, 2).map((room) => (
+                          <ObjectBadge
+                            key={room.id}
+                            kind="room"
+                            code={room.code}
+                            name={room.name}
+                            compact
+                            clickable
+                            onClick={() => goFocus('/rooms', 'room', room.id)}
+                            {...linking.getState('room', room.id)}
+                          />
+                        )) : <span className="soft-tag">—</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="section-label">{isInternal ? '回链实例' : 'Linked agent'}</span>
+                      <div className="object-row top-gap">
+                        {relatedAgent ? (
+                          <ObjectBadge
+                            kind="agent"
+                            code={relatedAgent.code}
+                            name={relatedAgent.name}
+                            hideCode={isInternal}
+                            compact
+                            clickable
+                            instanceKey={relatedAgent.instanceKey}
+                            agentId={relatedAgent.id}
+                            onClick={() => goFocus('/agents', 'agent', relatedAgent.id)}
+                            {...linking.getState('agent', relatedAgent.id)}
+                          />
+                        ) : <span className="soft-tag">—</span>}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            )
+          })}
           {effectiveLeads.length === 0 ? <p className="empty-state empty-compact">{isInternal ? '暂无线索' : 'No leads'}</p> : null}
         </div>
       </section>

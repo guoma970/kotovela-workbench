@@ -1,0 +1,18 @@
+{
+  "screenshots": [
+    "screenshots/DEV-64-internal-tasks-focus-loop.png",
+    "screenshots/DEV-64-internal-leads-focus-loop.png",
+    "screenshots/DEV-64-opensource-tasks-focus-loop.png",
+    "screenshots/DEV-64-opensource-leads-focus-loop.png"
+  ],
+  "modeIsolation": {
+    "internalBuildLog": ".evidence/dev64-build-internal.log",
+    "opensourceBuildLog": ".evidence/dev64-build-opensource.log"
+  },
+  "apiEvidence": [
+    ".evidence/dev64-tasks-board-api.json",
+    ".evidence/dev64-leads-api.json",
+    ".evidence/dev64-audit-log-api.json",
+    ".evidence/dev64-api-summary.json"
+  ]
+}
