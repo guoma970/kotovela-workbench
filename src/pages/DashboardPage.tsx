@@ -88,7 +88,8 @@ function useSystemMode() {
 
 function AuditLogPanel() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([])
-  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const { mode, projects, agents, rooms, tasks } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
 
   useEffect(() => {
@@ -133,15 +134,17 @@ function AuditLogPanel() {
               </div>
               <p>{entry.target}</p>
               <small>{entry.user} · {entry.result}</small>
-              <EvidenceObjectLinks
-                textParts={[entry.action, entry.target, entry.result]}
-                signalParts={[entry.user, entry.target, entry.result]}
-                currentSearch={linking.currentSearch}
-                projects={projects}
-                agents={agents}
-                rooms={rooms}
-                tasks={tasks}
-              />
+              {isInternal ? (
+                <EvidenceObjectLinks
+                  textParts={[entry.action, entry.target, entry.result]}
+                  signalParts={[entry.user, entry.target, entry.result]}
+                  currentSearch={linking.currentSearch}
+                  projects={projects}
+                  agents={agents}
+                  rooms={rooms}
+                  tasks={tasks}
+                />
+              ) : null}
             </article>
           ))}
         </div>
@@ -155,7 +158,8 @@ function AuditLogPanel() {
 function ConsultantConfigSummaryCard() {
   const consultants = consultantSettingsConfig.consultants
   const activeCount = consultants.filter((item) => item.status !== 'offline').length
-  const { projects, agents, rooms, tasks } = useOfficeInstances()
+  const { mode, projects, agents, rooms, tasks } = useOfficeInstances()
+  const isInternal = mode === 'internal'
   const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
 
   return (
@@ -173,15 +177,17 @@ function ConsultantConfigSummaryCard() {
             </div>
             <p>{item.role} · {item.account_type} · {item.domain}</p>
             <small>{item.consultant_id} · active_load {item.active_load}</small>
-            <EvidenceObjectLinks
-              textParts={[item.name, item.role, item.domain]}
-              signalParts={[item.consultant_id, item.account_type, item.domain]}
-              currentSearch={linking.currentSearch}
-              projects={projects}
-              agents={agents}
-              rooms={rooms}
-              tasks={tasks}
-            />
+            {isInternal ? (
+              <EvidenceObjectLinks
+                textParts={[item.name, item.role, item.domain]}
+                signalParts={[item.consultant_id, item.account_type, item.domain]}
+                currentSearch={linking.currentSearch}
+                projects={projects}
+                agents={agents}
+                rooms={rooms}
+                tasks={tasks}
+              />
+            ) : null}
           </article>
         ))}
       </div>
