@@ -1,0 +1,26 @@
+meta:
+  task_id: GH-20260417-05
+  batch_id: example
+  owner: public-example
+  description: Example payload only. Public repo does not allow real execution.
+
+settings:
+  real_run: false
+  timeout_seconds: 30
+  token_env: EXAMPLE_TOKEN_ONLY
+  default_headers:
+    Content-Type: application/json; charset=utf-8
+
+requests:
+  - id: example-request
+    name: Preview-only example
+    method: POST
+    url: https://example.invalid/open-apis/wiki/v2/spaces/{space_id}/nodes
+    headers:
+      Authorization: Bearer ${EXAMPLE_TOKEN_ONLY}
+    body:
+      parent_node_token: wiki_example_parent
+      node_type: origin
+      obj_type: docx
+      origin_content:
+        title: Example knowledge-base page

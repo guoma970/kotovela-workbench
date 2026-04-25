@@ -150,3 +150,10 @@ Demo and fallbacks use in-repo TypeScript mock modules (e.g. `src/data/mockData.
 ## License
 
 MIT
+## Public Kotovela Hub assets
+
+Public repo keeps example-only Feishu knowledge-base assets under `marketing/feishu/knowledge-base`.
+
+- Real-run repo: `https://github.com/guoma970/kotovela-hub`
+- Public payload: `marketing/feishu/knowledge-base/payload.example.yaml`
+- Public runner: forced dry-run only; CI blocks non-example payloads, `real_run=true`, and token-like content.
