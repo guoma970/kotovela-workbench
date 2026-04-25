@@ -6,6 +6,7 @@ import { PageLeadPanel } from '../components/PageLeadPanel'
 import { mockLeads } from '../data/mockLeads'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
+import type { StableEvidenceRoutingHints } from '../lib/evidenceContext'
 
 type LeadStatus = 'queue' | 'running' | 'done' | 'lost' | 'need_human'
 
@@ -26,6 +27,11 @@ type InternalLeadPayloadItem = {
   updated_at?: string
   reassigned_at?: string
   decision_log?: Array<{ action?: string; reason?: string; detail?: string; timestamp?: string }>
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: StableEvidenceRoutingHints
 }
 
 type LeadListItem = {
@@ -41,6 +47,11 @@ type LeadListItem = {
   content_line?: string
   consultant_id?: string
   attribution?: { source?: string; medium?: string; campaign?: string; content?: string }
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: StableEvidenceRoutingHints
   decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
 }
 
@@ -79,13 +90,10 @@ export function LeadsPage() {
   const navigate = useNavigate()
   const linking = useWorkbenchLinking({ tasks, projects, rooms, agents })
   const [internalLeads, setInternalLeads] = useState<LeadListItem[]>([])
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
+  const [internalAuditEntries, setInternalAuditEntries] = useState<AuditEntry[]>([])
 
   useEffect(() => {
-    if (!isInternal) {
-      setInternalLeads([])
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
     fetch('/api/leads', { cache: 'no-store' })
@@ -105,6 +113,11 @@ export function LeadsPage() {
           content_line: item.content_line,
           consultant_id: item.consultant_id,
           attribution: item.attribution,
+          projectId: item.projectId,
+          agentId: item.agentId,
+          roomId: item.roomId,
+          taskId: item.taskId,
+          routingHints: item.routingHints,
           decision_log: (item.decision_log ?? []).map((entry) => ({
             action: entry.action ?? '-',
             reason: entry.reason ?? '-',
@@ -124,25 +137,24 @@ export function LeadsPage() {
   }, [isInternal])
 
   useEffect(() => {
-    if (!isInternal) {
-      setAuditEntries([])
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
     fetch('/api/audit-log', { cache: 'no-store' })
       .then((res) => (res.ok ? (res.json() as Promise<{ entries?: AuditEntry[] }>) : null))
       .then((payload) => {
-        if (!cancelled) setAuditEntries(Array.isArray(payload?.entries) ? payload.entries.slice(0, 8) : [])
+        if (!cancelled) setInternalAuditEntries(Array.isArray(payload?.entries) ? payload.entries.slice(0, 8) : [])
       })
       .catch(() => {
-        if (!cancelled) setAuditEntries([])
+        if (!cancelled) setInternalAuditEntries([])
       })
 
     return () => {
       cancelled = true
     }
   }, [isInternal])
+
+  const auditEntries = isInternal ? internalAuditEntries : []
 
   const openSourceLeads = useMemo<LeadListItem[]>(
     () =>
@@ -167,12 +179,15 @@ export function LeadsPage() {
 
   const resolveLeadRelations = (lead: LeadListItem) => {
     const relatedTask =
+      (lead.taskId ? tasks.find((task) => task.id === lead.taskId || task.code === lead.taskId) : undefined) ??
       tasks.find((task) => task.title === lead.name || task.code === lead.lead_id) ??
       tasks.find((task) => task.title.includes(lead.name) || lead.name.includes(task.title))
     const relatedAgent =
+      (lead.agentId ? agents.find((agent) => agent.id === lead.agentId || agent.code === lead.agentId) : undefined) ??
       agents.find((agent) => agent.name === lead.owner || agent.id === lead.owner) ??
       (relatedTask ? agents.find((agent) => agent.id === relatedTask.executorAgentId || agent.id === relatedTask.assigneeAgentId) : undefined)
     const relatedProject =
+      (lead.projectId ? projects.find((project) => project.id === lead.projectId || project.code === lead.projectId) : undefined) ??
       (relatedTask ? projects.find((project) => project.id === relatedTask.projectId) : undefined) ??
       projects.find((project) => project.name.includes(lead.source) || lead.source.includes(project.code.toLowerCase()))
     const relatedRooms = rooms.filter(
@@ -332,14 +347,27 @@ export function LeadsPage() {
                 }
                 const relations = resolveLeadRelations(leadRecord)
                 const routingHints = {
-                  projectIds: relations.relatedProject ? [relations.relatedProject.id, relations.relatedProject.code, relations.relatedProject.name] : [],
-                  agentIds: (relations.relatedAgent ? [relations.relatedAgent.id, relations.relatedAgent.code, relations.relatedAgent.name, relations.relatedAgent.instanceKey] : []).filter((value): value is string => Boolean(value)),
-                  roomIds: relations.relatedRooms[0] ? [relations.relatedRooms[0].id, relations.relatedRooms[0].code, relations.relatedRooms[0].name] : [],
-                  taskIds: relations.relatedTask ? [relations.relatedTask.id, relations.relatedTask.code, relations.relatedTask.title] : [leadRecord.lead_id, leadRecord.name],
-                  projectSignals: [leadRecord.source, leadRecord.account_line].filter((value): value is string => Boolean(value)),
-                  roomSignals: [leadRecord.source_line, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
-                  taskSignals: [leadRecord.content_line, leadRecord.attribution?.content].filter((value): value is string => Boolean(value)),
-                  agentSignals: [leadRecord.owner, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
+                  ...(leadRecord.routingHints ?? {}),
+                  projectIds: [
+                    ...(leadRecord.routingHints?.projectIds ?? []),
+                    ...(relations.relatedProject ? [relations.relatedProject.id, relations.relatedProject.code, relations.relatedProject.name] : []),
+                  ].filter((value): value is string => Boolean(value)),
+                  agentIds: [
+                    ...(leadRecord.routingHints?.agentIds ?? []),
+                    ...(relations.relatedAgent ? [relations.relatedAgent.id, relations.relatedAgent.code, relations.relatedAgent.name, relations.relatedAgent.instanceKey] : []),
+                  ].filter((value): value is string => Boolean(value)),
+                  roomIds: [
+                    ...(leadRecord.routingHints?.roomIds ?? []),
+                    ...(relations.relatedRooms[0] ? [relations.relatedRooms[0].id, relations.relatedRooms[0].code, relations.relatedRooms[0].name] : []),
+                  ].filter((value): value is string => Boolean(value)),
+                  taskIds: [
+                    ...(leadRecord.routingHints?.taskIds ?? []),
+                    ...(relations.relatedTask ? [relations.relatedTask.id, relations.relatedTask.code, relations.relatedTask.title] : [leadRecord.lead_id, leadRecord.name]),
+                  ].filter((value): value is string => Boolean(value)),
+                  projectSignals: [...(leadRecord.routingHints?.projectSignals ?? []), leadRecord.source, leadRecord.account_line].filter((value): value is string => Boolean(value)),
+                  roomSignals: [...(leadRecord.routingHints?.roomSignals ?? []), leadRecord.source_line, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
+                  taskSignals: [...(leadRecord.routingHints?.taskSignals ?? []), leadRecord.content_line, leadRecord.attribution?.content].filter((value): value is string => Boolean(value)),
+                  agentSignals: [...(leadRecord.routingHints?.agentSignals ?? []), leadRecord.owner, leadRecord.consultant_id].filter((value): value is string => Boolean(value)),
                 }
                 return (
                   <article key={entry.key} className="consultant-evidence-card">

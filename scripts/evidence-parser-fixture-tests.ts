@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvidenceDriftSummary, buildEvidenceParserFixtureDataset, classifyEvidenceRow, EVIDENCE_TEXT_MIN_LENGTH } from '../src/lib/evidenceAcceptance'
+import { buildEvidenceDriftSummary, buildEvidenceParserFixtureDataset, classifyEvidenceRow, EVIDENCE_TEXT_MIN_LENGTH, listTopUnresolvedExamplesByBucket } from '../src/lib/evidenceAcceptance'
 import type { Agent, Project, Room, Task } from '../src/types'
 
 const projects: Project[] = [
@@ -130,6 +130,18 @@ const driftSummary = buildEvidenceDriftSummary([
 ])
 assert.equal(driftSummary.buckets.find((bucket) => bucket.source === 'signal_map_account')?.alertLevel, 'critical')
 assert.equal(driftSummary.firstDriftSource, 'signal_map_room')
+
+const topExamples = listTopUnresolvedExamplesByBucket(driftSummary.samples[1]
+  ? [
+      { ...dataset[0].row, id: 'bucket-row-1', success: false, structuredSplitSource: 'signal_map_room' },
+      { ...dataset[1].row, id: 'bucket-row-2', success: false, structuredSplitSource: 'signal_map_room' },
+      { ...dataset[2].row, id: 'bucket-row-3', success: false, structuredSplitSource: 'signal_map_content' },
+    ]
+  : [], { topN: 1 })
+assert.equal(topExamples.signal_map_room.length, 1)
+assert.equal(topExamples.signal_map_room[0]?.rowId, 'bucket-row-1')
+assert.equal(topExamples.signal_map_content.length, 1)
+assert.equal(topExamples.signal_map_content[0]?.rowId, 'bucket-row-3')
 
 console.log(JSON.stringify({
   total: dataset.length,

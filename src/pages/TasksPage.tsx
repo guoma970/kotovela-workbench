@@ -94,13 +94,10 @@ export function TasksPage() {
   const navigate = useNavigate()
   const linking = useWorkbenchLinking({ tasks, projects, rooms, agents })
   const [internalTasks, setInternalTasks] = useState<TaskListItem[]>([])
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
+  const [internalAuditEntries, setInternalAuditEntries] = useState<AuditEntry[]>([])
 
   useEffect(() => {
-    if (!isInternal) {
-      setInternalTasks([])
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
     fetch('/api/tasks-board', { cache: 'no-store' })
@@ -140,25 +137,24 @@ export function TasksPage() {
   }, [isInternal])
 
   useEffect(() => {
-    if (!isInternal) {
-      setAuditEntries([])
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
     fetch('/api/audit-log', { cache: 'no-store' })
       .then((res) => (res.ok ? (res.json() as Promise<{ entries?: AuditEntry[] }>) : null))
       .then((payload) => {
-        if (!cancelled) setAuditEntries(Array.isArray(payload?.entries) ? payload.entries.slice(0, 6) : [])
+        if (!cancelled) setInternalAuditEntries(Array.isArray(payload?.entries) ? payload.entries.slice(0, 6) : [])
       })
       .catch(() => {
-        if (!cancelled) setAuditEntries([])
+        if (!cancelled) setInternalAuditEntries([])
       })
 
     return () => {
       cancelled = true
     }
   }, [isInternal])
+
+  const auditEntries = isInternal ? internalAuditEntries : []
 
   const openSourceTasks = useMemo<TaskListItem[]>(
     () =>

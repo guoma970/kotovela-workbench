@@ -1,6 +1,6 @@
 import { evidenceParserFailureFixtures, type EvidenceParserFailureFixture } from '../fixtures/evidenceParserFailureFixtures'
 import type { Agent, Project, Room, Task } from '../types'
-import { resolveEvidenceMatch, type EvidenceMatchConfidence, type EvidenceMatchSource } from '../components/EvidenceObjectLinks'
+import { resolveEvidenceMatch, type EvidenceMatchConfidence, type EvidenceMatchSource, type EvidenceRoutingHints } from '../components/EvidenceObjectLinks'
 import { inferStructuredSignalBucket } from './evidenceDriftBucket'
 
 export type EvidenceRowSource = 'tasks-board' | 'leads' | 'audit-log' | 'fixture'
@@ -29,6 +29,11 @@ export type EvidenceRowInput = {
   timestamp: string
   textParts: string[]
   signalParts: string[]
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: EvidenceRoutingHints
 }
 
 export type EvidenceStructuredSplitSource = Exclude<HeuristicDriftSource, 'signal_map_only'>
@@ -93,11 +98,30 @@ export function buildEvidenceRow(
     agents: data.agents,
     rooms: data.rooms,
     tasks: data.tasks,
+    projectId: input.projectId,
+    agentId: input.agentId,
+    roomId: input.roomId,
+    taskId: input.taskId,
+    routingHints: input.routingHints,
   })
   const hitCount = resolution.items.length
   const classification = classifyEvidenceRow({ textParts, signalParts, hitCount, matchSource: resolution.matchSource, matchConfidence: resolution.matchConfidence })
   const structuredSplitSource = inferStructuredSplitSource(signalParts)
-  return { ...input, textParts, signalParts, ...classification, structuredSplitSource }
+  const matchedProjectId = resolution.items.find((item) => item.kind === 'project')?.id
+  const matchedAgentId = resolution.items.find((item) => item.kind === 'agent')?.id
+  const matchedRoomId = resolution.items.find((item) => item.kind === 'room')?.id
+  const matchedTaskId = resolution.items.find((item) => item.kind === 'task')?.id
+  return {
+    ...input,
+    textParts,
+    signalParts,
+    projectId: input.projectId ?? matchedProjectId,
+    agentId: input.agentId ?? matchedAgentId,
+    roomId: input.roomId ?? matchedRoomId,
+    taskId: input.taskId ?? matchedTaskId,
+    ...classification,
+    structuredSplitSource,
+  }
 }
 
 export function buildEvidenceParserFixtureDataset(data: { projects: Project[]; agents: Agent[]; rooms: Room[]; tasks: Task[] }) {
@@ -166,10 +190,27 @@ export type EvidenceDriftAlert = {
   samples: Array<{ label: string; count: number; ratio: number }>
 }
 
+export type EvidenceBucketExample = {
+  rowId: string
+  source: EvidenceRowSource
+  title: string
+  detail: string
+  timestamp: string
+  matchSource: EvidenceMatchSource
+  structuredSplitSource?: EvidenceStructuredSplitSource
+  signalParts: string[]
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: EvidenceRoutingHints
+}
+
 export type EvidenceDriftSummary = {
   samples: Array<{ sampleId: string; label: string; timestamp?: string; unresolved: number; heuristicHits: number }>
   buckets: EvidenceDriftBucketSummary[]
   alerts: EvidenceDriftAlert[]
+  bucket_top_examples?: Record<HeuristicDriftSource, EvidenceBucketExample[]>
   firstDriftSource?: HeuristicDriftSource
 }
 
@@ -191,6 +232,44 @@ export function summarizeHeuristicDrift(rows: EvidenceRow[]) {
   })
   const total = Object.values(counts).reduce((sum, value) => sum + value, 0)
   return { unresolvedCount: unresolved.length, heuristicHits: total, counts }
+}
+
+export function listTopUnresolvedExamplesByBucket(
+  rows: EvidenceRow[],
+  options?: { topN?: number },
+): Record<HeuristicDriftSource, EvidenceBucketExample[]> {
+  const topN = options?.topN ?? 5
+  return HEURISTIC_DRIFT_SOURCES.reduce<Record<HeuristicDriftSource, EvidenceBucketExample[]>>((acc, source) => {
+    const filtered = rows
+      .filter((row) => !row.success)
+      .filter((row) => {
+        if (source === 'signal_map_only') return row.matchSource === source
+        return row.structuredSplitSource === source
+      })
+      .slice(0, topN)
+      .map((row) => ({
+        rowId: row.id,
+        source: row.source,
+        title: row.title,
+        detail: row.detail,
+        timestamp: row.timestamp,
+        matchSource: row.matchSource,
+        structuredSplitSource: row.structuredSplitSource,
+        signalParts: row.signalParts,
+        projectId: row.projectId,
+        agentId: row.agentId,
+        roomId: row.roomId,
+        taskId: row.taskId,
+        routingHints: row.routingHints,
+      }))
+    acc[source] = filtered
+    return acc
+  }, {
+    signal_map_account: [],
+    signal_map_room: [],
+    signal_map_content: [],
+    signal_map_only: [],
+  })
 }
 
 export function buildEvidenceDriftSummary(

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+/* eslint-disable react-refresh/only-export-components */
 import { Link } from 'react-router-dom'
 import type { Agent, Project, Room, Task } from '../types'
 import { inferStructuredSignalBucket } from '../lib/evidenceDriftBucket'
@@ -351,7 +352,7 @@ export function EvidenceObjectLinks({
   const items = useMemo(
     () =>
       resolveEvidenceObjects({ textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints }),
-    [textParts, signalParts, currentSearch, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints],
+    [textParts, signalParts, projects, agents, rooms, tasks, projectId, agentId, roomId, taskId, routingHints],
   )
 
   if (!items.length) return null

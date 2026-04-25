@@ -106,4 +106,6 @@
 - 当前 `signal_map_account=0`，说明 DEV-76 口径里被 account bucket 吸走的样本，已经按更具体的 split 重新归位
 
 ## DEV-78 checkpoint
-- 下一轮应补“按 bucket 回采具体 unresolved row 列表”的导出，直接列出每个 `signal_map_room / signal_map_content` 的 top examples，减少只看总量仍需二次排查的成本
+- 已由 `docs/task-log/DEV-78-evidence.md` 闭环“按 bucket 回采具体 unresolved row 列表”的导出
+- 最新产物：`public/evidence/dev78/drift-trend.json` / `.evidence/dev78/dev78-drift-trend.json`
+- `signal_map_room / signal_map_content` 现在除了总量，还能直接看到各自 top unresolved examples

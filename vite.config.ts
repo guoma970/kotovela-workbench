@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fetchOfficeInstancesPayload } from './server/officeInstances'
+import { inferTaskBoardEvidenceContext, type StableEvidenceRoutingHints } from './src/lib/evidenceContext'
 
 type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
 
@@ -375,6 +376,11 @@ type TaskBoardItem = {
     campaign?: string
     content?: string
   }
+  projectId?: string
+  agentId?: string
+  roomId?: string
+  taskId?: string
+  routingHints?: StableEvidenceRoutingHints
 }
 
 type ConsultantRecord = {
@@ -2668,6 +2674,15 @@ async function readTaskBoard(filePath: string) {
 
 function summarizeTaskBoard(payload: TaskBoardPayload) {
   payload.board = payload.board.map((item) => {
+    const evidenceContext = inferTaskBoardEvidenceContext(item)
+    item.projectId = item.projectId ?? evidenceContext.projectId
+    item.agentId = item.agentId ?? evidenceContext.agentId
+    item.roomId = item.roomId ?? evidenceContext.roomId
+    item.taskId = item.taskId ?? evidenceContext.taskId
+    item.routingHints = {
+      ...evidenceContext.routingHints,
+      ...(item.routingHints ?? {}),
+    }
     if (!item.result) return item
     const assetType = item.result.asset_type
       ?? (item.domain === 'media' ? 'media' : item.domain === 'business' ? 'business' : item.domain === 'family' ? 'family' : 'generic')
@@ -3664,6 +3679,9 @@ export default defineConfig(({ mode }) => {
                   .map((item) => ({
                     lead_id: item.lead_id,
                     task_name: item.task_name,
+                    source_line: item.source_line,
+                    account_line: item.account_line,
+                    content_line: item.content_line,
                     consultant_id: item.consultant_id,
                     consultant_owner: item.consultant_owner,
                     assignment_mode: item.assignment_mode,
@@ -3676,6 +3694,13 @@ export default defineConfig(({ mode }) => {
                     attribution: item.attribution ?? null,
                     status: item.status,
                     domain: item.domain,
+                    updated_at: item.updated_at,
+                    decision_log: item.decision_log ?? [],
+                    projectId: item.projectId,
+                    agentId: item.agentId,
+                    roomId: item.roomId,
+                    taskId: item.taskId,
+                    routingHints: item.routingHints,
                   }))
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')

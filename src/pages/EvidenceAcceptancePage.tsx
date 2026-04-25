@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
-import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceDriftSummary, type EvidenceRow } from '../lib/evidenceAcceptance'
+import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceBucketExample, type EvidenceDriftSummary, type EvidenceRow } from '../lib/evidenceAcceptance'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type BoardEntry = {
@@ -42,22 +42,26 @@ type AuditEntry = {
 
 const normalize = (value?: string) => String(value ?? '').trim()
 
+const DRIFT_BUCKET_DISPLAY = [
+  { key: 'signal_map_room', label: 'signal_map_room', description: 'Top unresolved examples where room/source split still dominates.' },
+  { key: 'signal_map_content', label: 'signal_map_content', description: 'Top unresolved examples where content split still dominates.' },
+] as const
+
+function renderBucketExampleMeta(example: EvidenceBucketExample) {
+  return `${example.source} · ${example.timestamp}`
+}
+
 export function EvidenceAcceptancePage() {
   const { projects, agents, rooms, tasks, mode } = useOfficeInstances()
   const isInternal = mode === 'internal'
   const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
-  const [board, setBoard] = useState<BoardEntry[]>([])
-  const [leads, setLeads] = useState<LeadEntry[]>([])
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
-  const [driftSummary, setDriftSummary] = useState<EvidenceDriftSummary | null>(null)
+  const [internalBoard, setInternalBoard] = useState<BoardEntry[]>([])
+  const [internalLeads, setInternalLeads] = useState<LeadEntry[]>([])
+  const [internalAuditEntries, setInternalAuditEntries] = useState<AuditEntry[]>([])
+  const [internalDriftSummary, setInternalDriftSummary] = useState<EvidenceDriftSummary | null>(null)
 
   useEffect(() => {
-    if (!isInternal) {
-      setBoard([])
-      setLeads([])
-      setAuditEntries([])
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
     Promise.all([
@@ -67,15 +71,15 @@ export function EvidenceAcceptancePage() {
     ])
       .then(([boardPayload, leadsPayload, auditPayload]) => {
         if (cancelled) return
-        setBoard(Array.isArray(boardPayload?.board) ? boardPayload.board : [])
-        setLeads(Array.isArray(leadsPayload?.leads) ? leadsPayload.leads : [])
-        setAuditEntries(Array.isArray(auditPayload?.entries) ? auditPayload.entries : [])
+        setInternalBoard(Array.isArray(boardPayload?.board) ? boardPayload.board : [])
+        setInternalLeads(Array.isArray(leadsPayload?.leads) ? leadsPayload.leads : [])
+        setInternalAuditEntries(Array.isArray(auditPayload?.entries) ? auditPayload.entries : [])
       })
       .catch(() => {
         if (cancelled) return
-        setBoard([])
-        setLeads([])
-        setAuditEntries([])
+        setInternalBoard([])
+        setInternalLeads([])
+        setInternalAuditEntries([])
       })
 
     return () => {
@@ -84,27 +88,29 @@ export function EvidenceAcceptancePage() {
   }, [isInternal])
 
   useEffect(() => {
-    if (!isInternal) {
-      setDriftSummary(null)
-      return
-    }
+    if (!isInternal) return
 
     let cancelled = false
-    fetch('/evidence/dev75/drift-trend.json', { cache: 'no-store' })
+    fetch('/evidence/dev78/drift-trend.json', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload) => {
         if (cancelled) return
-        setDriftSummary(payload)
+        setInternalDriftSummary(payload)
       })
       .catch(() => {
         if (cancelled) return
-        setDriftSummary(null)
+        setInternalDriftSummary(null)
       })
 
     return () => {
       cancelled = true
     }
   }, [isInternal])
+
+  const board = useMemo(() => (isInternal ? internalBoard : []), [isInternal, internalBoard])
+  const leads = useMemo(() => (isInternal ? internalLeads : []), [isInternal, internalLeads])
+  const auditEntries = useMemo(() => (isInternal ? internalAuditEntries : []), [isInternal, internalAuditEntries])
+  const driftSummary = isInternal ? internalDriftSummary : null
 
   const rows = useMemo<EvidenceRow[]>(() => {
     if (!isInternal) return []
@@ -180,6 +186,8 @@ export function EvidenceAcceptancePage() {
 
   const fixtureSummary = useMemo(() => summarizeFixtureDataset(fixtureDataset), [fixtureDataset])
 
+  const rowById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows])
+
   const summary = useMemo(() => {
     const bySource = {
       'tasks-board': rows.filter((row) => row.source === 'tasks-board'),
@@ -205,7 +213,7 @@ export function EvidenceAcceptancePage() {
     <section className="page evidence-acceptance-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">DEV-75 Evidence Acceptance</p>
+          <p className="eyebrow">DEV-78 Evidence Acceptance</p>
           <h2>{isInternal ? 'evidence 命中率验收页' : 'Evidence acceptance'}</h2>
         </div>
         <p className="page-note">
@@ -319,6 +327,64 @@ export function EvidenceAcceptancePage() {
                   </div>
                 </article>
               ))}
+            </div>
+            <div className="consultant-evidence-list top-gap">
+              {DRIFT_BUCKET_DISPLAY.map(({ key, label, description }) => {
+                const examples = driftSummary?.bucket_top_examples?.[key] ?? []
+                return (
+                  <article key={key} className="consultant-evidence-card">
+                    <div className="audit-log-item-top">
+                      <strong>{label} top unresolved examples</strong>
+                      <span className={examples.length > 0 ? 'evidence-state-miss' : 'evidence-state-hit'}>{examples.length}</span>
+                    </div>
+                    <p>{description}</p>
+                    <div className="consultant-evidence-list top-gap">
+                      {examples.map((example) => {
+                        const linkedRow = rowById.get(example.rowId)
+                        const linkedTextParts = linkedRow?.textParts ?? [example.title, example.detail]
+                        const linkedSignalParts = linkedRow?.signalParts ?? example.signalParts
+                        const linkedProjectId = linkedRow?.projectId ?? example.projectId
+                        const linkedAgentId = linkedRow?.agentId ?? example.agentId
+                        const linkedRoomId = linkedRow?.roomId ?? example.roomId
+                        const linkedTaskId = linkedRow?.taskId ?? example.taskId
+                        const linkedRoutingHints = linkedRow?.routingHints ?? example.routingHints
+                        const hasLinkedRow = Boolean(linkedRow)
+
+                        return (
+                          <article key={`${key}-${example.rowId}`} className="consultant-evidence-card">
+                            <div className="audit-log-item-top">
+                              <strong>{example.title}</strong>
+                              <span>{example.matchSource}</span>
+                            </div>
+                            <p>{example.detail}</p>
+                            <small>{renderBucketExampleMeta(example)} · {hasLinkedRow ? 'linked via current evidence row' : linkedProjectId || linkedAgentId || linkedRoomId || linkedTaskId ? 'linked via exported object-level routing hints' : 'degraded to signal-only matching, missing row-level routing hints'}</small>
+                            <div className="cross-link-row top-gap">
+                              {example.signalParts.map((item) => (
+                                <span key={`${example.rowId}-${item}`} className="inline-link-chip">{item}</span>
+                              ))}
+                            </div>
+                            <EvidenceObjectLinks
+                              textParts={linkedTextParts}
+                              signalParts={linkedSignalParts}
+                              currentSearch={linking.currentSearch}
+                              projects={projects}
+                              agents={agents}
+                              rooms={rooms}
+                              tasks={tasks}
+                              projectId={linkedProjectId}
+                              agentId={linkedAgentId}
+                              roomId={linkedRoomId}
+                              taskId={linkedTaskId}
+                              routingHints={linkedRoutingHints}
+                            />
+                          </article>
+                        )
+                      })}
+                      {examples.length === 0 ? <p className="empty-state">暂无 bucket_top_examples。</p> : null}
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           </section>
 
