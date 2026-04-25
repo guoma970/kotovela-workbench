@@ -4,9 +4,7 @@ A visual cockpit for multi-agent collaboration.
 
 Track agent status, blockers, tasks, and collaboration flows in one place.
 
-> Supports both demo (mock) and internal (real data) runtime modes.
-
-> **Deploy product names**: **OpenClaw × KOTOVELA** → [openclaw-kotovela.vercel.app](https://openclaw-kotovela.vercel.app/) (public demo) · **KOTOVELA HUB** → [kotovelahub.vercel.app](https://kotovelahub.vercel.app) (internal cockpit).
+> Public repo scope: this repository intentionally stays on the original open-source showcase baseline. Later internal cockpit enhancements belong in the private `kotovela-hub` codebase, not here.
 
 ---
 
@@ -107,33 +105,19 @@ Follow collaboration channels and active contexts
 git clone https://github.com/yourname/kotovela-workbench.git
 cd kotovela-workbench
 npm install
+npm run dev
 ```
-
-**Demo vs Internal** — same codebase; Vite loads `.env.demo` or `.env.internal` via `--mode` (see `VITE_MODE`, `VITE_DATA_SOURCE`, etc.).
-
-| Environment | npm scripts | Notes |
-|-------------|-------------|--------|
-| Demo (mock, public-facing) | `npm run dev:demo` · `npm run build:demo` | **OpenClaw × KOTOVELA** · [openclaw-kotovela.vercel.app](https://openclaw-kotovela.vercel.app/) |
-| Internal (OpenClaw data) | `npm run dev:internal` · `npm run build:internal` | **KOTOVELA HUB** · [kotovelahub.vercel.app](https://kotovelahub.vercel.app) · 默认 **5s** 轮询（`VITE_POLLING_INTERVAL_MS`），中控与侧栏显示 **上次同步时间** |
-
-### Public demo vs internal cockpit
-
-| | **Public demo** (`build:demo`) | **Internal cockpit** (`build:internal`) |
-| --- | --- | --- |
-| **Goal** | **Open-source** reference for people who run **OpenClaw**; **KOTOVELA** marketing and a shareable product story; usable as a **public artifact** when applying for programs (e.g. **ChatGPT / OpenAI Pro**-style trials where a live OSS demo helps). | **Your** operational dashboard: see **your** instances’ work status, blockers, and project pulse in daily use. |
-| **Online data** | **No API required** for visitors — the deployed site uses **in-repo mock** only. Others **clone** the repo and run `npm run dev:demo` / `build:demo` locally. **Build fails** if `VITE_DATA_SOURCE=openclaw` or `VITE_MODE=internal` is set during `build:demo` (guards against shipping real-data mode). | **OpenClaw-oriented** data: your **Mac mini API** (HTTPS tunnel), same-origin `/api/office-instances` + snapshot on Vercel, or mock fallback. |
-| **Vercel** | `VERCEL_BUILD_MODE=demo` or unset. **Do not** need `VITE_OFFICE_INSTANCES_API_PATH` for the public site to work. | `VERCEL_BUILD_MODE=internal`. Set `VITE_OFFICE_INSTANCES_API_PATH` when the UI should call **your** remote API. |
-
-**Vercel 逐步操作：** [docs/vercel-setup.md](./docs/vercel-setup.md)（双项目：公开演示 + 内部驾驶舱）。
-
-- **Dev server:** `http://localhost:5173` (strict port; only one of Demo/Internal dev at a time unless you change the port).
-- **Preview (static dist):** `http://localhost:4173` — run `npm run build:demo` or `npm run build:internal` first, then `npm run preview`. For Internal local verification, **4173 is the preferred preview port** (aligned with earlier milestone evidence); avoid running Demo preview on 4173 at the same time.
-
-**Builder workspace path (local):** `/Users/ztl/.openclaw/workspace-builder/kotovela-workbench` — adjust if your clone lives elsewhere.
 
 **Mock Data**
 
-Demo and fallbacks use in-repo TypeScript mock modules (e.g. `src/data/mockData.ts`) and the office-instances adapter (`src/data/officeInstancesAdapter.ts`). Replace or extend via `VITE_DATA_SOURCE` and API paths in `.env.*`.
+This project uses mock data for demonstration:
+
+- `data/agents.json` — agent definitions
+- `data/projects.json` — project definitions
+- `data/rooms.json` — room definitions
+- `data/tasks.json` — task definitions
+
+You can replace them with your own data sources.
 
 ---
 
@@ -150,10 +134,3 @@ Demo and fallbacks use in-repo TypeScript mock modules (e.g. `src/data/mockData.
 ## License
 
 MIT
-## Public Kotovela Hub assets
-
-Public repo keeps example-only Feishu knowledge-base assets under `marketing/feishu/knowledge-base`.
-
-- Real-run repo: `https://github.com/guoma970/kotovela-hub`
-- Public payload: `marketing/feishu/knowledge-base/payload.example.yaml`
-- Public runner: forced dry-run only; CI blocks non-example payloads, `real_run=true`, and token-like content.

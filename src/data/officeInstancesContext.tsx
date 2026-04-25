@@ -10,8 +10,9 @@ import {
 import { updates as fallbackUpdates } from './mockData'
 import { OfficeInstancesContext, type DataSource } from './officeInstancesStore'
 import { deriveWorkbenchUpdates, diffWorkbenchUpdates, mergeWorkbenchUpdates } from './workbenchUpdates'
-import { runtimeConfig, type PreferredDataSource, type WorkbenchMode } from '../config/runtime'
 import type { Agent, Project, Room, Task } from '../types'
+
+const STALE_MS = 30_000 // Consider data stale after 30 seconds; triggers auto-refresh on visibility
 
 export function OfficeInstancesProvider({
   children,
@@ -28,51 +29,21 @@ export function OfficeInstancesProvider({
 }) {
   const [instances, setInstances] = useState<OfficeInstanceItem[]>([])
   const [updates, setUpdates] = useState(fallbackUpdates)
-  const [activeDataSource, setActiveDataSource] = useState<DataSource>(
-    runtimeConfig.preferredDataSource === 'openclaw' ? 'openclaw' : 'mock',
-  )
-  const [isFallback, setIsFallback] = useState(false)
+  const [dataSource, setDataSource] = useState<DataSource>('mock')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [lastSyncedAtMs, setLastSyncedAtMs] = useState<number | null>(null)
-  const [hasBootstrapped, setHasBootstrapped] = useState(runtimeConfig.preferredDataSource === 'mock')
 
+  // Track last successful fetch time for stale-while-revalidate
   const lastFetchMsRef = useRef(0)
   const liveInstancesRef = useRef<OfficeInstanceItem[]>([])
   const liveUpdatesRef = useRef(fallbackUpdates)
 
-  const mode: WorkbenchMode = runtimeConfig.mode
-  const preferredDataSource: PreferredDataSource = runtimeConfig.preferredDataSource
-  const pollingEnabled = runtimeConfig.pollingEnabled
-  const pollingIntervalMs = runtimeConfig.pollingIntervalMs
-  const visibilityRefreshEnabled = runtimeConfig.visibilityRefreshEnabled
-
-  const applyMockSnapshot = useCallback(
-    (nextError = '') => {
-      setInstances([])
-      setUpdates(fallbackUpdates)
-      setActiveDataSource('mock')
-      setIsFallback(preferredDataSource === 'openclaw')
-      liveInstancesRef.current = []
-      liveUpdatesRef.current = fallbackUpdates
-      setError(nextError)
-    },
-    [preferredDataSource],
-  )
-
   const fetchData = useCallback(async () => {
-    if (preferredDataSource === 'mock') {
-      setLastSyncedAtMs(null)
-      applyMockSnapshot('')
-      setHasBootstrapped(true)
-      return
-    }
-
     setIsLoading(true)
     setError('')
 
     try {
-      const raw = await loadOfficeInstances(runtimeConfig.officeInstancesApiPath)
+      const raw = await loadOfficeInstances()
       if (raw.length === 0) {
         throw new Error('Office instances payload was empty')
       }
@@ -97,7 +68,7 @@ export function OfficeInstancesProvider({
               liveUpdatesRef.current,
             )
           : deriveWorkbenchUpdates({
-              dataSource: 'openclaw',
+              dataSource: 'real',
               instances: raw,
               agents: nextAgents,
               projects: nextProjects,
@@ -109,62 +80,41 @@ export function OfficeInstancesProvider({
 
       setInstances(raw)
       setUpdates(nextUpdates)
-      setActiveDataSource('openclaw')
-      setIsFallback(false)
+      setDataSource('real')
       liveInstancesRef.current = raw
       liveUpdatesRef.current = nextUpdates
-      const now = Date.now()
-      lastFetchMsRef.current = now
-      setLastSyncedAtMs(now)
-    } catch (fetchError) {
-      if (runtimeConfig.fallbackToMock) {
-        applyMockSnapshot('OpenClaw 接口不可用，已自动回退到 Mock 数据')
-      } else {
-        setError(fetchError instanceof Error ? fetchError.message : String(fetchError))
-      }
+      lastFetchMsRef.current = Date.now()
+    } catch {
+      setDataSource('mock')
+      setUpdates(fallbackUpdates)
+      liveUpdatesRef.current = fallbackUpdates
+      setError('实时接口不可用，已回退至本地快照')
     } finally {
       setIsLoading(false)
-      setHasBootstrapped(true)
     }
-  }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks, preferredDataSource, applyMockSnapshot])
+  }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks])
 
+  // Initial fetch
   useEffect(() => {
     void fetchData()
   }, [fetchData])
 
+  // Auto-refresh triggers:
+  // 1. Visibility change — user returns to tab after data may have changed
+  // 2. Network comes back online
   useEffect(() => {
-    if (!pollingEnabled || preferredDataSource !== 'openclaw') {
-      return
-    }
-
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') {
-        return
-      }
-      void fetchData()
-    }, pollingIntervalMs)
-
-    return () => window.clearInterval(timer)
-  }, [fetchData, pollingEnabled, pollingIntervalMs, preferredDataSource])
-
-  useEffect(() => {
-    if (!visibilityRefreshEnabled || preferredDataSource !== 'openclaw') {
-      return
-    }
-
-    const shouldRefresh = () => {
-      const elapsed = Date.now() - lastFetchMsRef.current
-      return elapsed > runtimeConfig.staleMs
-    }
-
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && shouldRefresh()) {
-        void fetchData()
+      if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastFetchMsRef.current
+        if (elapsed > STALE_MS) {
+          void fetchData()
+        }
       }
     }
 
     const handleOnline = () => {
-      if (shouldRefresh()) {
+      const elapsed = Date.now() - lastFetchMsRef.current
+      if (elapsed > STALE_MS) {
         void fetchData()
       }
     }
@@ -176,45 +126,57 @@ export function OfficeInstancesProvider({
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [fetchData, preferredDataSource, visibilityRefreshEnabled])
+  }, [fetchData])
 
   const refresh = useCallback(() => {
     void fetchData()
   }, [fetchData])
 
-  const isInternalOpenclawBootstrap =
-    mode === 'internal' && preferredDataSource === 'openclaw' && !hasBootstrapped && !isFallback
+  // Fall back to local mock data when API is unavailable
+  const effectiveAgents = dataSource === 'mock' ? fallbackAgents : null
+  const effectiveProjects = dataSource === 'mock' ? fallbackProjects : null
+  const effectiveRooms = dataSource === 'mock' ? fallbackRooms : null
+  const effectiveTasks = dataSource === 'mock' ? fallbackTasks : null
 
-  const effectiveAgents = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackAgents : null
-  const effectiveProjects = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackProjects : null
-  const effectiveRooms = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackRooms : null
-  const effectiveTasks = isInternalOpenclawBootstrap ? [] : activeDataSource === 'mock' ? fallbackTasks : null
+  const syncAgents = (() => {
+    if (effectiveAgents) return effectiveAgents
+    const result = syncOfficeInstancesToAgents(instances, fallbackAgents)
+    return result.agents
+  })()
 
-  const syncAgents = effectiveAgents ?? syncOfficeInstancesToAgents(instances, fallbackAgents).agents
-  const syncProjects = effectiveProjects ?? syncProjectsFromInstances(instances, fallbackProjects).projects
-  const syncRooms = effectiveRooms ?? syncRoomsFromInstances(instances, fallbackRooms).rooms
-  const syncTasks = effectiveTasks ?? syncTasksFromInstances(instances, fallbackTasks).tasks
+  const syncProjects = (() => {
+    if (effectiveProjects) return effectiveProjects
+    const result = syncProjectsFromInstances(instances, fallbackProjects)
+    return result.projects
+  })()
+
+  const syncRooms = (() => {
+    if (effectiveRooms) return effectiveRooms
+    const result = syncRoomsFromInstances(instances, fallbackRooms)
+    return result.rooms
+  })()
+
+  const syncTasks = (() => {
+    if (effectiveTasks) return effectiveTasks
+    const result = syncTasksFromInstances(instances, fallbackTasks)
+    return result.tasks
+  })()
 
   return (
     <OfficeInstancesContext.Provider
       value={{
+        // Flat surface — matches pages' current destructuring
         agents: syncAgents,
         projects: syncProjects,
         rooms: syncRooms,
         tasks: syncTasks,
-        updates: isInternalOpenclawBootstrap ? [] : updates,
-        mode,
-        preferredDataSource,
-        activeDataSource,
-        isFallback,
-        pollingEnabled,
-        pollingIntervalMs,
-        visibilityRefreshEnabled,
+        updates,
+        dataSource,
         isLoading,
         error,
         refresh,
+        // Raw data
         instances,
-        lastSyncedAtMs,
       }}
     >
       {children}

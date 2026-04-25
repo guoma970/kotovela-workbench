@@ -14,8 +14,6 @@ export interface Agent {
   project: string
   projectId: string
   updatedAt: string
-  /** OpenClaw office instance key (e.g. main, builder) when synced from live payload */
-  instanceKey?: string
 }
 
 export interface Project {
@@ -32,8 +30,6 @@ export interface Project {
   nextStep: string
   taskCount: number
   roomIds: string[]
-  /** When multiple office instances map to the same project id */
-  instanceCount?: number
 }
 
 export interface Task {

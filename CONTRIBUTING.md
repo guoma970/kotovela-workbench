@@ -1,4 +1,6 @@
-# Contributing to OpenClaw × KOTOVELA
+# Contributing to KOTOVELA Workbench
+
+> 公开仓库只保留初始开源展示版。内部驾驶舱 / 后续增强功能请仅在 private `kotovela-hub` 演进，不回流到本仓库。
 
 ## 开发流程（建议）
 

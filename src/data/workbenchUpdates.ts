@@ -265,7 +265,7 @@ export function deriveWorkbenchUpdates({
   fallbackAgents: Agent[]
   fallbackUpdates: UpdateItem[]
 }): UpdateItem[] {
-  if (dataSource !== 'openclaw' || instances.length === 0) {
+  if (dataSource !== 'real' || instances.length === 0) {
     return fallbackUpdates
   }
 

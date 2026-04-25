@@ -1,389 +1,144 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
+import { PageLeadPanel } from '../components/PageLeadPanel'
+import { ObjectBadge } from '../components/ObjectBadge'
+import { decisions } from '../data/mockData'
+import type { OfficeInstanceItem } from '../data/officeInstancesAdapter'
 import { useOfficeInstances } from '../data/useOfficeInstances'
-import { formatLastSyncedAt } from '../lib/formatSyncTime'
-import { createFocusSearch } from '../lib/workbenchLinking'
-import type { Agent, Project, Room, Task, UpdateItem } from '../types'
+import { createFocusSearch, getFocusTarget, parseFocusFromSearchParams, useWorkbenchLinking } from '../lib/workbenchLinking'
+import type { Agent, Project, Task } from '../types'
 
-/** 内部版中控：一页看清数据源、健康度、实例与项目概况（不重复堆叠条带）。 */
-function InternalControlSummary({
-  livePayload,
-  isLoading,
-  activeDataSource,
-  isFallback,
-  agents,
-  projects,
-  onOpenProject,
-  onOpenAgentsIdle,
-  lastSyncedAtMs,
-  pollingIntervalMs,
-}: {
-  livePayload: boolean
-  isLoading: boolean
-  activeDataSource: 'mock' | 'openclaw'
-  isFallback: boolean
-  agents: Agent[]
-  projects: Project[]
-  onOpenProject: (projectId: string) => void
-  onOpenAgentsIdle: () => void
-  lastSyncedAtMs: number | null
-  pollingIntervalMs: number
-}) {
-  const blocked = agents.filter((a) => a.status === 'blocked').length
-  const active = agents.filter((a) => a.status === 'active').length
-  const idle = agents.filter((a) => a.status === 'idle').length
-  const projectsWithBlockers = projects.filter((p) => p.blockers > 0).length
-  const topProjects = [...projects]
-    .sort((a, b) => {
-      if (b.blockers !== a.blockers) return b.blockers - a.blockers
-      return b.progress - a.progress
-    })
-    .slice(0, 6)
-
-  const sourceLine =
-    activeDataSource === 'openclaw'
-      ? isFallback
-        ? '数据源 OpenClaw 不可用，已回退 Mock'
-        : livePayload
-          ? '数据源 OpenClaw · 实例 payload 已接入'
-          : '数据源 OpenClaw（当前无实例行，展示同步口径）'
-      : '数据源 Mock · 演示口径'
-
-  const healthLine =
-    blocked > 0
-      ? `需关注：${blocked} 个实例阻塞`
-      : active > 0
-        ? `进行中：${active} 个实例 · 整体在推进`
-        : idle === agents.length && agents.length > 0
-          ? '当前无进行中任务，实例待命'
-          : '暂无实例数据'
-
-  const pollSec = Math.max(1, Math.round(pollingIntervalMs / 1000))
-  const syncStatusLine = isLoading
-    ? '正在拉取 OpenClaw…'
-    : activeDataSource === 'openclaw' && !isFallback
-      ? `上次同步 ${formatLastSyncedAt(lastSyncedAtMs)} · 每 ${pollSec} 秒轮询`
-      : isFallback
-        ? `上次成功同步 ${formatLastSyncedAt(lastSyncedAtMs)} · 已回退 Mock · 每 ${pollSec} 秒重试`
-        : `当前为 Mock 数据 · 未轮询 OpenClaw`
-
-  return (
-    <section className="control-summary panel strong-card">
-      <div className="control-summary-top">
-        <div className="control-summary-title-block">
-          <h2 className="control-summary-heading">中控总览</h2>
-          <p className="control-summary-health">{healthLine}</p>
-          <p className="control-summary-sub">
-            上方：各项目整体进度（阻塞多的优先）；下方：按实例看谁在做，并汇总该实例名下的任务完成情况。
-          </p>
-        </div>
-        <div className="control-summary-meta">
-          <span className={`control-summary-pill ${activeDataSource === 'openclaw' && !isFallback ? 'is-live' : ''}`}>
-            {sourceLine}
-          </span>
-          <span className="control-summary-pill control-summary-pill-wide">{syncStatusLine}</span>
-        </div>
-      </div>
-
-      <div className="control-summary-metrics" role="list">
-        <div className="control-metric" role="listitem">
-          <span className="control-metric-label">实例</span>
-          <strong className="control-metric-value">{agents.length}</strong>
-        </div>
-        <div className="control-metric is-blocked" role="listitem">
-          <span className="control-metric-label">阻塞</span>
-          <strong className="control-metric-value">{blocked}</strong>
-        </div>
-        <div className="control-metric is-active" role="listitem">
-          <span className="control-metric-label">进行中</span>
-          <strong className="control-metric-value">{active}</strong>
-        </div>
-        <div className="control-metric is-idle" role="listitem">
-          <span className="control-metric-label">待命</span>
-          <strong className="control-metric-value">{idle}</strong>
-        </div>
-        <div className="control-metric" role="listitem">
-          <span className="control-metric-label">项目</span>
-          <strong className="control-metric-value">{projects.length}</strong>
-        </div>
-        <div className={`control-metric ${projectsWithBlockers > 0 ? 'is-blocked' : ''}`} role="listitem">
-          <span className="control-metric-label">项目阻塞</span>
-          <strong className="control-metric-value">{projectsWithBlockers}</strong>
-        </div>
-      </div>
-
-      {topProjects.length > 0 ? (
-        <div className="control-project-snapshot">
-          <div className="control-project-snapshot-head">
-            <span className="control-project-snapshot-title">项目进度快照</span>
-            <span className="control-project-snapshot-hint">阻塞优先排序 · 点击进项目板</span>
-          </div>
-          <ul className="control-project-snapshot-list">
-            {topProjects.map((project) => (
-              <li key={project.id}>
-                <button type="button" className="control-project-line" onClick={() => onOpenProject(project.id)}>
-                  <span className="control-project-line-name">{project.name}</span>
-                  <span className="control-project-line-track" aria-hidden>
-                    <span
-                      className="control-project-line-fill"
-                      style={{ width: `${Math.min(100, Math.max(0, project.progress))}%` }}
-                    />
-                  </span>
-                  <span className="control-project-line-pct">{project.progress}%</span>
-                  {project.blockers > 0 ? (
-                    <span className="control-project-line-badge">{project.blockers} 阻塞</span>
-                  ) : (
-                    <span className="control-project-line-ok">—</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {idle > 0 ? (
-        <div className="control-summary-footer">
-          <button type="button" className="control-idle-link" onClick={onOpenAgentsIdle}>
-            待命实例 {idle} 个 — 在 Agents 页查看全部
-          </button>
-        </div>
-      ) : null}
-    </section>
-  )
+const updateTypeLabel = {
+  task: '任务更新',
+  project: '项目更新',
+  agent: '实例状态更新',
+  room: '群动态',
 }
 
-type HomeStatus = 'blocker' | 'active' | 'idle'
+type OperationStatus = 'doing' | 'done' | 'blocker'
+type FilterMode = 'all' | 'doing' | 'blocker'
 
-type HomeItem = {
+type OfficeInstance = {
   id: string
+  key: string
   name: string
-  status: HomeStatus
-  sentence: string
+  role: string
+  status: OperationStatus
+  task: string
   updatedAt: string
-  taskId?: string
-  roomId?: string
-  projectId?: string
+  ageMs: number
+  note: string
+  projectRelated: string
   agentId: string
-  instanceKey?: string
-  /** Internal cockpit: compact task counts for this executor instance */
-  taskLine?: string
 }
 
-/** Per-instance task rollup (tasks where executor = agent). */
-function formatAgentTaskLine(tasks: Task[], agentId: string): string | undefined {
-  const mine = tasks.filter((t) => t.executorAgentId === agentId)
-  if (mine.length === 0) return undefined
-  let doing = 0
-  let blocked = 0
-  let done = 0
-  let todo = 0
-  for (const t of mine) {
-    if (t.status === 'doing') doing++
-    else if (t.status === 'blocked') blocked++
-    else if (t.status === 'done') done++
-    else if (t.status === 'todo') todo++
+type OfficeSeat = {
+  id: string
+  key: string
+  name: string
+  role: string
+  agentId: string
+}
+
+const OFFICE_SEAT_MAP: OfficeSeat[] = [
+  { id: 'seat-main', key: 'main', name: '小树', role: '中枢调度', agentId: 'agent-1' },
+  { id: 'seat-zhu', key: 'builder', name: '小筑', role: '研发执行', agentId: 'agent-2' },
+  { id: 'seat-guo', key: 'media', name: '小果', role: '内容助手', agentId: 'agent-3' },
+  { id: 'seat-xi', key: 'family', name: '小羲', role: '家庭助手', agentId: 'agent-4' },
+  { id: 'seat-yan', key: 'business', name: '小言', role: '业务助手', agentId: 'agent-5' },
+  { id: 'seat-qi', key: 'ztl970', name: '小柒', role: '个人助手', agentId: 'agent-6' },
+]
+
+const officeBlueprint: OfficeSeat[] = OFFICE_SEAT_MAP
+
+const REFRESH_INTERVAL_SECONDS = 20
+
+const statusSentence: Record<OperationStatus, string> = {
+  doing: '推进中',
+  blocker: '阻塞',
+  done: '平稳',
+}
+
+const operationStatusTone: Record<OperationStatus, 'doing' | 'done' | 'blocker'> = {
+  doing: 'doing',
+  blocker: 'blocker',
+  done: 'done',
+}
+
+const normalizeStatus = (value?: string): OperationStatus => {
+  if (value === 'blocker' || value === 'doing' || value === 'done') {
+    return value
   }
-  const parts = [`进行中 ${doing}`, `阻塞 ${blocked}`, `已完成 ${done}`]
-  if (todo > 0) parts.push(`待办 ${todo}`)
-  return `任务 ${mine.length} 条 · ${parts.join(' · ')}`
+
+  if (value === 'blocked' || value === 'active' || value === 'idle') {
+    return value === 'blocked' ? 'blocker' : value === 'active' ? 'doing' : 'done'
+  }
+
+  return 'done'
 }
 
-const normalizeSentence = (value?: string) => value?.trim() || '暂无明确任务'
+const normalizeApiInstances = (
+  apiInstances: OfficeInstanceItem[],
+  syncedAgents: Agent[],
+  syncedProjects: Project[],
+): OfficeInstance[] => {
+  return officeBlueprint.map((seat) => {
+    const raw = apiInstances.find((item) => item.key === seat.key)
+    const agent = syncedAgents.find((item) => item.id === seat.agentId)
+    const relatedProject = agent
+      ? (syncedProjects.find((project) => project.id === agent.projectId)?.name ?? '未绑定项目')
+      : '待启用席位'
 
-const shortText = (value: string, max = 56): string => {
-  const text = value.trim()
-  if (text.length <= max) return text
-  return `${text.slice(0, max - 1)}…`
-}
-
-const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tasks: Task[]): HomeItem[] => {
-  return agents.map((agent) => {
-    const relatedTasks = tasks.filter((task) => task.executorAgentId === agent.id)
-    const blockerTask = relatedTasks.find((task) => task.status === 'blocked')
-    const doingTask = relatedTasks.find((task) => task.status === 'doing')
-    const relatedRoom = rooms.find((room) => room.instanceIds.includes(agent.id))
-    const relatedProject = projects.find((project) => project.id === agent.projectId)
-    const projectName = relatedProject?.name || agent.project
-    const projectProgress = Number.isFinite(relatedProject?.progress) ? relatedProject!.progress : 0
-    const roomName = relatedRoom?.name || '未绑定房间'
-    const blockedText = shortText(blockerTask?.title || agent.currentTask || '阻塞事项待处理')
-    const doingText = shortText(doingTask?.title || agent.currentTask || '执行事项待补充')
-    const idleText = shortText(agent.currentTask || '等待任务分派')
-
-    if (agent.status === 'blocked' || blockerTask) {
-      return {
-        id: agent.id,
-        name: agent.name,
-        status: 'blocker',
-        sentence: normalizeSentence(
-          `在 ${roomName} 阻塞：${blockedText} · 项目 ${projectName}（${projectProgress}%）`,
-        ),
-        updatedAt: agent.updatedAt,
-        taskId: blockerTask?.id,
-        roomId: relatedRoom?.id,
-        projectId: agent.projectId,
-        agentId: agent.id,
-        instanceKey: agent.instanceKey,
-      }
-    }
-
-    if (agent.status === 'active' || doingTask) {
-      return {
-        id: agent.id,
-        name: agent.name,
-        status: 'active',
-        sentence: normalizeSentence(
-          `在 ${roomName} 推进：${doingText} · 项目 ${projectName}（${projectProgress}%）`,
-        ),
-        updatedAt: agent.updatedAt,
-        taskId: doingTask?.id,
-        roomId: relatedRoom?.id,
-        projectId: agent.projectId,
-        agentId: agent.id,
-        instanceKey: agent.instanceKey,
-      }
-    }
+    const status = normalizeStatus(raw?.status)
 
     return {
-      id: agent.id,
-      name: agent.name,
-      status: 'idle',
-      sentence: normalizeSentence(
-        `待命于 ${roomName} · 当前关注：${idleText} · 项目 ${projectName}（${projectProgress}%）`,
-      ),
-      updatedAt: agent.updatedAt,
-      roomId: relatedRoom?.id,
-      projectId: agent.projectId,
-      agentId: agent.id,
-      instanceKey: agent.instanceKey,
+      id: seat.id,
+      key: seat.key,
+      name: seat.name,
+      role: raw?.role || seat.role,
+      status,
+      task: raw?.task || raw?.currentTask || agent?.currentTask || '暂无任务',
+      updatedAt: raw?.ageText || raw?.updatedAt || agent?.updatedAt || '刚刚',
+      ageMs: typeof raw?.ageMs === 'number' ? Math.max(0, raw.ageMs) : 0,
+      note: raw?.note || statusSentence[status],
+      projectRelated: raw?.projectRelated || relatedProject,
+      agentId: seat.agentId,
     }
   })
 }
 
-const badgeLabel: Record<HomeStatus, string> = {
-  blocker: 'BLOCKER',
-  active: 'ACTIVE',
-  idle: 'IDLE',
-}
+const buildOfficeFallback = (agents: Agent[], projects: Project[], tasks: Task[]): OfficeInstance[] => {
+  return officeBlueprint.map((seat) => {
+    const agent = agents.find((item) => item.id === seat.agentId)
+    const relatedTasks = agent ? tasks.filter((task) => task.executorAgentId === agent.id) : []
+    const projectRelated = agent ? (projects.find((project) => project.id === agent.projectId)?.name ?? '未绑定项目') : '待启用席位'
+    const taskSource =
+      relatedTasks.find((task) => task.status === 'doing') ||
+      relatedTasks.find((task) => task.status === 'blocked') ||
+      relatedTasks[0] ||
+      { title: agent?.currentTask || '暂无任务' }
 
-type ActionItem = {
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  quiet?: boolean
-}
+    const status: OperationStatus =
+      relatedTasks.some((task) => task.status === 'blocked') || agent?.status === 'blocked'
+        ? 'blocker'
+        : relatedTasks.some((task) => task.status === 'doing') || agent?.status === 'active'
+          ? 'doing'
+          : 'done'
 
-function ActionRow({ actions }: { actions: ActionItem[] }) {
-  if (actions.length === 0) {
-    return null
-  }
-
-  return (
-    <div className="home-actions">
-      {actions.map((action) => (
-        <button
-          key={action.label}
-          type="button"
-          className={action.quiet ? 'home-action home-action-quiet' : 'home-action'}
-          onClick={action.onClick}
-          disabled={action.disabled}
-        >
-          {action.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function SectionList({
-  title,
-  items,
-  emptyText,
-  getActions,
-  statusLabels,
-  updatedLabel = 'Updated',
-}: {
-  title: string
-  items: HomeItem[]
-  emptyText: string
-  getActions: (item: HomeItem) => ActionItem[]
-  statusLabels?: Record<HomeStatus, string>
-  updatedLabel?: string
-}) {
-  const labels = statusLabels ?? badgeLabel
-  return (
-    <section className="home-section panel strong-card">
-      <div className="home-section-head">
-        <h3>{title}</h3>
-        <span className="home-count">{items.length}</span>
-      </div>
-
-      {items.length > 0 ? (
-        <div className="home-list">
-          {items.map((item) => (
-            <article key={item.id} className={`home-item home-item-${item.status}`}>
-              <div className="home-item-top">
-                <strong>{item.name}</strong>
-                <span className={`home-badge home-badge-${item.status}`}>{labels[item.status]}</span>
-              </div>
-              <p>{item.sentence}</p>
-              {item.taskLine ? <p className="home-item-taskline">{item.taskLine}</p> : null}
-              <div className="home-item-meta">
-                {item.instanceKey ? <span className="home-item-key">{item.instanceKey}</span> : null}
-                <span>
-                  {updatedLabel} {item.updatedAt}
-                </span>
-              </div>
-              <ActionRow actions={getActions(item)} />
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className="empty-state">{emptyText}</p>
-      )}
-    </section>
-  )
-}
-
-function RecentUpdates({
-  updates,
-  onViewDetail,
-  title = 'Recent Updates',
-  emptyText = 'No recent updates.',
-  detailLabel = '查看详情',
-}: {
-  updates: UpdateItem[]
-  onViewDetail: (update: UpdateItem) => void
-  title?: string
-  emptyText?: string
-  detailLabel?: string
-}) {
-  return (
-    <section className="home-section panel strong-card">
-      <div className="home-section-head">
-        <h3>{title}</h3>
-        <span className="home-count">{updates.length}</span>
-      </div>
-
-      {updates.length > 0 ? (
-        <div className="home-list">
-          {updates.map((update) => (
-            <article key={update.id} className="home-item home-item-update">
-              <div className="home-item-top">
-                <strong>{update.source}</strong>
-                <span className="home-time">{update.time}</span>
-              </div>
-              <p>{update.title}</p>
-              <ActionRow actions={[{ label: detailLabel, onClick: () => onViewDetail(update) }]} />
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className="empty-state">{emptyText}</p>
-      )}
-    </section>
-  )
+    return {
+      id: seat.id,
+      key: seat.key,
+      name: seat.name,
+      role: seat.role,
+      status,
+      task: taskSource.title,
+      updatedAt: agent?.updatedAt || '刚刚',
+      ageMs: 0,
+      note: statusSentence[status],
+      projectRelated,
+      agentId: seat.agentId,
+    }
+  })
 }
 
 export function DashboardPage() {
@@ -393,224 +148,529 @@ export function DashboardPage() {
     rooms,
     tasks,
     updates,
+    dataSource,
     isLoading,
-    activeDataSource,
-    isFallback,
-    mode,
-    instances,
-    lastSyncedAtMs,
-    pollingIntervalMs,
+    error,
+    refresh,
+    instances: rawInstances,
   } = useOfficeInstances()
   const navigate = useNavigate()
-  const [actionMessage, setActionMessage] = useState<string>('')
+  const [searchParams] = useSearchParams()
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
+  const [filter, setFilter] = useState<FilterMode>('all')
+  const [pulseIds, setPulseIds] = useState<string[]>([])
+  const previousInstancesRef = useRef<OfficeInstance[]>([])
 
-  const items = useMemo(() => {
-    const base = buildHomeItems(agents, projects, rooms, tasks)
-    if (mode !== 'internal') return base
-    return base.map((item) => ({
-      ...item,
-      taskLine: formatAgentTaskLine(tasks, item.agentId),
-    }))
-  }, [agents, projects, rooms, tasks, mode])
-  const blockers = items.filter((item) => item.status === 'blocker')
-  const actives = items.filter((item) => item.status === 'active')
-  const idles = items.filter((item) => item.status === 'idle')
-  const recentUpdates = updates.slice(0, 4)
-  const showInternalCockpit = mode === 'internal'
-  const liveOpenClaw = activeDataSource === 'openclaw' && !isFallback && instances.length > 0
+  const activeAgents = agents.filter((item) => item.status === 'active')
+  const doingTasks = tasks.filter((item) => item.status === 'doing')
+  const blockedTasks = tasks.filter((item) => item.status === 'blocked')
+  const doneTasks = tasks.filter((item) => item.status === 'done')
 
-  const openProject = (projectId: string) => {
-    navigate({ pathname: '/projects', search: createFocusSearch('', 'project', projectId) })
-  }
+  const topProject = projects.find((item) => item.id === 'project-1')
+  const criticalUpdates = updates.slice(0, 3)
+  const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
+  const hasFocusOverlay = Boolean(getFocusTarget(parseFocusFromSearchParams(searchParams)))
+  const keyTask = blockedTasks[0] ?? doingTasks[0]
+  const keyFocusSearch = keyTask
+    ? createFocusSearch(linking.currentSearch, 'task', keyTask.id)
+    : createFocusSearch(linking.currentSearch, 'project', topProject?.id)
+  const keyProjectSearch = topProject ? createFocusSearch(linking.currentSearch, 'project', topProject.id) : createFocusSearch(linking.currentSearch)
 
-  const goFocus = (pathname: string, focusType: 'project' | 'agent' | 'room' | 'task', focusId?: string) => {
-    if (!focusId) return
-    navigate({ pathname, search: createFocusSearch('', focusType, focusId) })
-  }
+  const officeInstances = useMemo(
+    () =>
+      dataSource === 'real'
+        ? normalizeApiInstances(rawInstances, agents, projects)
+        : buildOfficeFallback(agents, projects, tasks),
+    [agents, dataSource, projects, rawInstances, tasks],
+  )
 
-  const blockerActions = (item: HomeItem): ActionItem[] => [
-    {
-      label: '去处理',
-      onClick: () => goFocus('/tasks', 'task', item.taskId || item.agentId),
-      disabled: !item.taskId,
-    },
-    {
-      label: '去房间',
-      onClick: () => goFocus('/rooms', 'room', item.roomId),
-      disabled: !item.roomId,
-      quiet: true,
-    },
-    ...(showInternalCockpit
-      ? []
-      : [
-          {
-            label: '标记完成',
-            onClick: () => setActionMessage(`${item.name} 的“标记完成”已预留，当前先做触发占位。`),
-            quiet: true,
-          } satisfies ActionItem,
-        ]),
-  ]
+  const filteredInstances = useMemo(() => {
+    if (filter === 'all') {
+      return officeInstances
+    }
+    return officeInstances.filter((instance) => instance.status === filter)
+  }, [officeInstances, filter])
 
-  const activeActions = (item: HomeItem): ActionItem[] =>
-    showInternalCockpit
-      ? [
-          {
-            label: '查看任务',
-            onClick: () => goFocus('/tasks', 'task', item.taskId),
-            disabled: !item.taskId,
-          },
-          {
-            label: '实例详情',
-            onClick: () => goFocus('/agents', 'agent', item.agentId),
-            quiet: true,
-          },
-        ]
-      : [
-          {
-            label: '查看任务',
-            onClick: () => goFocus('/tasks', 'task', item.taskId),
-            disabled: !item.taskId,
-          },
-          {
-            label: '介入',
-            onClick: () => goFocus('/agents', 'agent', item.agentId),
-            quiet: true,
-          },
-          {
-            label: '暂停',
-            onClick: () => setActionMessage(`${item.name} 的“暂停”已预留，当前未接 workflow。`),
-            quiet: true,
-          },
-        ]
+  useEffect(() => {
+    const previous = previousInstancesRef.current
+    if (previous.length > 0) {
+      const changed = officeInstances
+        .filter((item) => {
+          const current = previous.find((previousItem) => previousItem.id === item.id)
+          return !current || current.status !== item.status || current.task !== item.task || current.updatedAt !== item.updatedAt
+        })
+        .map((item) => item.id)
 
-  const idleActions = (item: HomeItem): ActionItem[] =>
-    showInternalCockpit
-      ? [
-          {
-            label: '打开实例',
-            onClick: () => goFocus('/agents', 'agent', item.agentId),
-          },
-        ]
-      : [
-          {
-            label: '分配任务',
-            onClick: () => goFocus('/agents', 'agent', item.agentId),
-          },
-          {
-            label: '拉入项目',
-            onClick: () => goFocus('/projects', 'project', item.projectId),
-            quiet: true,
-            disabled: !item.projectId,
-          },
-        ]
+      if (changed.length > 0) {
+        setPulseIds(changed)
+      }
+    }
 
-  const viewUpdateDetail = (update: UpdateItem) => {
-    if (update.taskId) {
-      goFocus('/tasks', 'task', update.taskId)
+    previousInstancesRef.current = officeInstances
+    setCountdown(REFRESH_INTERVAL_SECONDS)
+  }, [officeInstances])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (hasFocusOverlay) {
+        return
+      }
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          refresh()
+          return REFRESH_INTERVAL_SECONDS
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [hasFocusOverlay, refresh])
+
+  useEffect(() => {
+    if (!pulseIds.length) {
       return
     }
-    if (update.roomId) {
-      goFocus('/rooms', 'room', update.roomId)
-      return
-    }
-    if (update.agentId) {
-      goFocus('/agents', 'agent', update.agentId)
-      return
-    }
-    if (update.projectId) {
-      goFocus('/projects', 'project', update.projectId)
-      return
-    }
-    setActionMessage(`更新 ${update.id} 暂无详情目标。`)
-  }
 
-  if (showInternalCockpit) {
-    return (
-      <section className="page home-page-v1 home-page--internal-control">
-        <div className="page-header home-header home-header--compact home-header--internal-dash">
-          <div>
-            <p className="eyebrow">KOTOVELA HUB</p>
-            <h2>驾驶舱总览</h2>
-          </div>
-          <p className="page-note home-internal-page-note">
-            核心两件事：各实例在你名下的任务完成情况；各「项目」维度的整体进度（开发、自媒体、家庭事务等可都建成项目，用进度条与阻塞数管控）。
-          </p>
-        </div>
+    const t = setTimeout(() => setPulseIds([]), 1100)
+    return () => clearTimeout(t)
+  }, [pulseIds])
 
-        {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}
-
-        <InternalControlSummary
-          livePayload={liveOpenClaw}
-          isLoading={isLoading}
-          activeDataSource={activeDataSource}
-          isFallback={isFallback}
-          agents={agents}
-          projects={projects}
-          onOpenProject={openProject}
-          onOpenAgentsIdle={() => navigate('/agents')}
-          lastSyncedAtMs={lastSyncedAtMs}
-          pollingIntervalMs={pollingIntervalMs}
-        />
-
-        <div className="home-v1-grid home-v1-grid--internal">
-          <div className="home-internal-main-col">
-            <SectionList
-              title="需处理"
-              items={blockers}
-              emptyText="当前没有阻塞实例。"
-              getActions={blockerActions}
-              statusLabels={{ blocker: '阻塞', active: '进行中', idle: '待命' }}
-              updatedLabel="更新于"
-            />
-            <SectionList
-              title="进行中"
-              items={actives}
-              emptyText="当前没有进行中的实例。"
-              getActions={activeActions}
-              statusLabels={{ blocker: '阻塞', active: '进行中', idle: '待命' }}
-              updatedLabel="更新于"
-            />
-          </div>
-          <RecentUpdates
-            updates={recentUpdates}
-            onViewDetail={viewUpdateDetail}
-            title="最近动态"
-            emptyText="暂无动态。"
-            detailLabel="查看"
-          />
-        </div>
-      </section>
-    )
+  const cardClass = (kind: 'project' | 'agent' | 'room' | 'task', id: string, base: string) => {
+    const state = linking.getState(kind, id)
+    return [
+      base,
+      state.isSelected ? 'surface-selected' : '',
+      !state.isSelected && state.isRelated ? 'surface-related' : '',
+      state.isDimmed ? 'surface-dimmed' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
   }
 
   return (
-    <section className="page home-page-v1">
-      <div className="page-header home-header">
+    <section className="page">
+      <div className="page-header">
         <div>
-          <p className="eyebrow">开源演示</p>
-          <h2>OpenClaw × KOTOVELA</h2>
+          <p className="eyebrow">Dashboard</p>
+          <h2>中枢总览</h2>
         </div>
-        <p className="page-note">
-          线上公开站为仓库内置 <strong>Mock</strong>，不依赖实机 API。克隆仓库后可在本地以 Demo / Internal 模式连接 OpenClaw。
-        </p>
+        <p className="page-note">先看 blocker / 活跃实例 / 关键更新，再查项目、群、任务的承接关系。</p>
       </div>
 
-      <div className="home-runtime-strip">
-        <span className={`home-runtime-pill ${activeDataSource === 'openclaw' ? 'is-live' : ''}`}>
-          数据源：{activeDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-        </span>
-        <span className="home-runtime-pill">刷新状态：{isLoading ? '更新中' : '已展示最新状态'}</span>
-        <span className="home-runtime-pill">模式：公开演示</span>
-        {isFallback ? <span className="home-runtime-pill">当前 fallback 到 Mock</span> : null}
-      </div>
+      <PageLeadPanel
+        heading="Dashboard"
+        intro="先看全局态势（阻塞与节奏），再点进对应对象确认交付路径。"
+        metrics={[
+          { label: '活跃实例', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: '进行中任务', value: doingTasks.length, to: { pathname: '/tasks', search: '?status=doing' } },
+          { label: '阻塞项', value: blockedTasks.length, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: '已完成任务', value: doneTasks.length, to: { pathname: '/tasks', search: '?status=done' } },
+          { label: '待拍板', value: decisions.length },
+          { label: '项目总数', value: projects.length, to: { pathname: '/projects' } },
+        ]}
+        actions={
+          topProject
+            ? [
+                {
+                  label: '先看主项目 · Projects',
+                  to: { pathname: '/projects', search: keyProjectSearch },
+                },
+                {
+                  label: '先看阻塞任务 · Tasks',
+                  to: { pathname: '/tasks', search: keyFocusSearch },
+                },
+                {
+                  label: '回看主线脉络 · Rooms',
+                  to: { pathname: '/rooms', search: keyProjectSearch },
+                },
+              ]
+            : []
+        }
+      />
 
-      {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}
 
-      <div className="home-v1-grid">
-        <SectionList title="Blocker" items={blockers} emptyText="No blockers right now." getActions={blockerActions} />
-        <SectionList title="Active" items={actives} emptyText="No active items right now." getActions={activeActions} />
-        <SectionList title="Idle" items={idles} emptyText="No idle items right now." getActions={idleActions} />
-        <RecentUpdates updates={recentUpdates} onViewDetail={viewUpdateDetail} />
+      <section className="office-shell">
+        <div className="panel strong-card office-board">
+          <div className="page-header">
+            <div>
+              <p className="eyebrow">Office Board</p>
+              <h2>实例工位图</h2>
+            </div>
+            <p className="page-note">共 {officeBlueprint.length} 个席位 · {dataSource === 'real' ? '实时数据' : '本地快照'}{isLoading ? ' · 刷新中' : ''}</p>
+          </div>
+
+          <div className="office-controls">
+            <div className="office-refresh-meta">
+              <span className="status-pill status-blue">{countdown}s 后刷新</span>
+              <span className="soft-tag">{filteredInstances.length}/{officeInstances.length}</span>
+              {error ? <span className="soft-tag error-tag">{error}</span> : null}
+            </div>
+            <div className="office-filters">
+              <button
+                className={`ghost-button ${filter === 'all' ? 'is-active-filter' : ''}`}
+                type="button"
+                onClick={() => setFilter('all')}
+              >
+                全部
+              </button>
+              <button
+                className={`ghost-button ${filter === 'doing' ? 'is-active-filter' : ''}`}
+                type="button"
+                onClick={() => setFilter('doing')}
+              >
+                Doing
+              </button>
+              <button
+                className={`ghost-button ${filter === 'blocker' ? 'is-active-filter' : ''}`}
+                type="button"
+                onClick={() => setFilter('blocker')}
+              >
+                Blocker
+              </button>
+            </div>
+          </div>
+
+          <div className="office-floor">
+            {filteredInstances.length > 0 ? (
+              filteredInstances.map((instance) => {
+                const linkedAgent = agents.find((agent) => agent.id === instance.agentId)
+                const linkedProject = linkedAgent
+                  ? projects.find((project) => project.id === linkedAgent.projectId)
+                  : undefined
+                const linkedTask = tasks.find((task) => task.executorAgentId === instance.agentId && task.title === instance.task)
+                  ?? tasks.find((task) => task.executorAgentId === instance.agentId)
+
+                return (
+                  <article
+                    key={instance.id}
+                    className={`office-seat ${pulseIds.includes(instance.id) ? 'office-seat-flash' : ''} ${instance.agentId ? 'office-seat-clickable' : ''}`}
+                    onClick={() => {
+                      if (instance.agentId) {
+                        linking.select('agent', instance.agentId)
+                      }
+                    }}
+                  >
+                    <div className="office-head">
+                      {instance.agentId ? (
+                        <button
+                          className="office-title-link"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            navigate({ pathname: '/agents', search: createFocusSearch(linking.currentSearch, 'agent', instance.agentId) })
+                          }}
+                        >
+                          <h3>{instance.name}</h3>
+                        </button>
+                      ) : (
+                        <h3>{instance.name}</h3>
+                      )}
+                      <button
+                        className={`status-pill status-${operationStatusTone[instance.status]} office-status-button`}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setFilter(instance.status === 'done' ? 'all' : instance.status)
+                        }}
+                      >
+                        {instance.status}
+                      </button>
+                    </div>
+                    <div className="office-meta-row office-meta-row-primary">
+                      <span>当前任务</span>
+                      <strong className={linkedTask ? 'office-metric-value' : ''}>
+                        {linkedTask ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, 'task', linkedTask.id) })
+                            }}
+                          >
+                            {instance.task}
+                          </button>
+                        ) : (
+                          instance.task
+                        )}
+                      </strong>
+                    </div>
+                    <div className="office-meta-row office-meta-row-project">
+                      <span>关联项目</span>
+                      <strong className={linkedProject ? 'office-metric-value' : ''}>
+                        {linkedProject ? (
+                          <button
+                            className="office-metric-link office-metric-link-block"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate({ pathname: '/projects', search: createFocusSearch(linking.currentSearch, 'project', linkedProject.id) })
+                            }}
+                          >
+                            {instance.projectRelated}
+                          </button>
+                        ) : (
+                          instance.projectRelated
+                        )}
+                      </strong>
+                    </div>
+                    <p className="office-note">{instance.note}</p>
+                  </article>
+                )
+              })
+            ) : (
+              <p className="empty-state">当前筛选无实例，切换为"全部"后可恢复显示。</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {topProject && (
+        <section className={cardClass('project', topProject.id, 'panel hero-panel strong-card')}>
+          <div className="hero-main">
+            <div>
+              <p className="hero-kicker">当前主航道</p>
+              <h3>{topProject.name}</h3>
+              <p className="hero-copy">{topProject.focus}</p>
+              <p className="hero-copy" style={{ marginTop: '4px' }}>下一步：{topProject.nextStep}</p>
+            </div>
+            <div className="hero-badges">
+              <ObjectBadge
+                kind="project"
+                code={topProject.code}
+                name={topProject.name}
+                clickable
+                onClick={() => linking.select('project', topProject.id)}
+                {...linking.getState('project', topProject.id)}
+              />
+              {agents
+                .filter((agent) => agent.projectId === topProject.id)
+                .map((agent) => (
+                  <ObjectBadge
+                    key={agent.id}
+                    kind="agent"
+                    code={agent.code}
+                    name={agent.name}
+                    compact
+                    clickable
+                   
+                    onClick={() => linking.select('agent', agent.id)}
+                    {...linking.getState('agent', agent.id)}
+                  />
+                ))}
+              {rooms
+                .filter((room) => room.mainProjectId === topProject.id)
+                .map((room) => (
+                  <ObjectBadge
+                    key={room.id}
+                    kind="room"
+                    code={room.code}
+                    name={room.name}
+                    compact
+                    clickable
+                    onClick={() => linking.select('room', room.id)}
+                    {...linking.getState('room', room.id)}
+                  />
+                ))}
+            </div>
+          </div>
+          <div className="hero-meta">
+            <div>
+              <span>阶段</span>
+              <strong>{topProject.stage}</strong>
+            </div>
+            <div>
+              <span>待拍板</span>
+              <strong>{decisions.length}</strong>
+            </div>
+            <div>
+              <span>Blocker</span>
+              <strong className="text-red">{blockedTasks.length}</strong>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="dashboard-grid dashboard-priority-grid">
+        <div className="panel panel-alert blocker-panel strong-card">
+          <div className="panel-header">
+            <h3>Blocker</h3>
+            <span className="badge-count">{blockedTasks.length}</span>
+          </div>
+          {blockedTasks.length > 0 ? (
+            <div className="alert-list">
+              {blockedTasks.map((task) => {
+                const project = projects.find((item) => item.id === task.projectId)
+                const agent = agents.find((item) => item.id === task.executorAgentId)
+                return (
+                  <article key={task.id} className={cardClass('task', task.id, 'alert-item priority-surface')}>
+                    <div className="item-head">
+                      <h4>{task.title}</h4>
+                      <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                    </div>
+                    <div className="object-row top-gap">
+                      {project && (
+                        <ObjectBadge
+                          kind="project"
+                          code={project.code}
+                          name={project.name}
+                          compact
+                          clickable
+                          onClick={() => linking.select('project', project.id)}
+                          {...linking.getState('project', project.id)}
+                        />
+                      )}
+                      {agent && (
+                        <ObjectBadge
+                          kind="agent"
+                          code={agent.code}
+                          name={agent.name}
+                          compact
+                          clickable
+                         
+                          onClick={() => linking.select('agent', agent.id)}
+                          {...linking.getState('agent', agent.id)}
+                        />
+                      )}
+                    </div>
+                    <div className="cross-link-row">
+                      <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: createFocusSearch(linking.currentSearch, 'task', task.id) }}>
+                        查看详情
+                      </NavLink>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="empty-state">暂无 blocker。</p>
+          )}
+        </div>
+
+        <div className="stack-column">
+          <div className="panel strong-card">
+            <div className="panel-header">
+              <h3>最近更新</h3>
+              <span className="badge-count">{criticalUpdates.length}</span>
+            </div>
+            <div className="update-list">
+              {criticalUpdates.map((item) => {
+                const project = item.projectId
+                  ? projects.find((project) => project.id === item.projectId)
+                  : undefined
+                const agent = item.agentId ? agents.find((agent) => agent.id === item.agentId) : undefined
+                const task = item.taskId ? tasks.find((task) => task.id === item.taskId) : undefined
+                const focusKind = item.taskId
+                  ? 'task'
+                  : item.agentId
+                    ? 'agent'
+                    : 'project'
+                const focusId = item.taskId ?? item.agentId ?? item.projectId
+                if (!focusId) return null
+
+                return (
+                  <article key={item.id} className={cardClass(focusKind, focusId, `update-item update-${item.level} panel-surface`)}>
+                    <div>
+                      <div className="item-head">
+                        <h4>{item.title}</h4>
+                        <span className="soft-tag">{updateTypeLabel[item.type]}</span>
+                      </div>
+                      <div className="object-row top-gap">
+                        {project && (
+                          <ObjectBadge
+                            kind="project"
+                            code={project.code}
+                            name={project.name}
+                            compact
+                            clickable
+                            onClick={() => linking.select('project', project.id)}
+                            {...linking.getState('project', project.id)}
+                          />
+                        )}
+                        {agent && (
+                          <ObjectBadge
+                            kind="agent"
+                            code={agent.code}
+                            name={agent.name}
+                            compact
+                            clickable
+                           
+                            onClick={() => linking.select('agent', agent.id)}
+                            {...linking.getState('agent', agent.id)}
+                          />
+                        )}
+                        {task && (
+                          <ObjectBadge
+                            kind="task"
+                            code={task.code}
+                            name={task.title}
+                            compact
+                            clickable
+                            onClick={() => linking.select('task', task.id)}
+                            {...linking.getState('task', task.id)}
+                          />
+                        )}
+                      </div>
+                      <p className="soft-tag" style={{ marginTop: '6px' }}>{item.source} · {item.time}</p>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+
+          {decisions.length > 0 && (
+            <div className="panel strong-card">
+              <div className="panel-header">
+                <h3>待拍板</h3>
+                <span className="badge-count">{decisions.length}</span>
+              </div>
+              <div className="compact-list">
+                {decisions.slice(0, 4).map((decision) => {
+                  const project = projects.find((item) => item.id === decision.projectId)
+                  const owner = agents.find((item) => item.id === decision.ownerAgentId)
+                  return (
+                    <article
+                      key={decision.id}
+                      className={cardClass('project', decision.projectId, 'compact-item compact-card panel-surface')}
+                    >
+                      <div>
+                        <h4>{decision.title}</h4>
+                        <div className="object-row top-gap">
+                          {project && (
+                            <ObjectBadge
+                              kind="project"
+                              code={project.code}
+                              name={project.name}
+                              compact
+                              clickable
+                              onClick={() => linking.select('project', project.id)}
+                              {...linking.getState('project', project.id)}
+                            />
+                          )}
+                          {owner && (
+                            <ObjectBadge
+                              kind="agent"
+                              code={owner.code}
+                              name={owner.name}
+                              compact
+                              clickable
+                             
+                              onClick={() => linking.select('agent', owner.id)}
+                              {...linking.getState('agent', owner.id)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <span className={`priority-badge priority-${decision.priority}`}>{decision.priority}</span>
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )

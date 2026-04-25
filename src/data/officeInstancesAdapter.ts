@@ -1,30 +1,29 @@
-import { defaultInstanceDisplayName, defaultInstanceRoleLabel } from '../config/instanceDisplayNames'
 import type { Agent, Project, Room, Task } from '../types'
 
 export type OfficeInstanceStatus = 'doing' | 'done' | 'blocker' | 'idle' | 'active' | 'blocked'
 
 /**
- * Normalized status mapping between backend payloads and the workbench UI.
- * Rules:
+ * 后端状态到前端状态语义的规范映射（最小闭环）。
+ * 规则：
  * - doing/in_progress/running -> doing
  * - blocker/blocked/error -> blocker
  * - done/done_ok/finished -> done
  * - active/online/busy -> active
  * - idle/offline -> idle
- * - fallback -> idle
+ * - 兜底 -> idle，避免将未知状态误判为 blocker
  */
 
 /** Fallback status sentences keyed by normalized status. */
 const STATUS_SENTENCE: Record<string, string> = {
-  doing: 'Work is actively moving.',
-  blocker: 'A blocker needs attention.',
-  done: 'No active blocker detected.',
-  active: 'Work is actively moving.',
-  idle: 'No active blocker detected.',
-  blocked: 'A blocker needs attention.',
+  doing: '正在推进关键动作，等待下游确认。',
+  blocker: '检测到阻塞信号，等待状态回归。',
+  done: '当前未有阻塞，任务链路平稳。',
+  active: '正在推进关键动作，等待下游确认。',
+  idle: '当前未有阻塞，任务链路平稳。',
+  blocked: '检测到阻塞信号，等待状态回归。',
 }
 
-const unknownStatusSentence = 'No active blocker detected.'
+const unknownStatusSentence = '当前未有阻塞，任务链路平稳。'
 
 export function getStatusSentence(status: string): string {
   const key = status?.toLowerCase()
@@ -86,7 +85,6 @@ const OFFICE_AGENT_ID_MAP: Record<string, string> = {
   media: 'agent-3',
   family: 'agent-4',
   business: 'agent-5',
-  personal: 'agent-6',
   ztl970: 'agent-6',
 }
 
@@ -96,47 +94,21 @@ const OFFICE_AGENT_CODE_MAP: Record<string, string> = {
   media: 'INS-03',
   family: 'INS-04',
   business: 'INS-05',
-  personal: 'INS-06',
   ztl970: 'INS-06',
 }
 
-const canonicalInstanceKey = (key: string | undefined): string | undefined => {
-  const k = key?.trim().toLowerCase()
-  if (!k) return undefined
-  return k === 'ztl970' ? 'personal' : k
-}
-
 const PROJECT_NAME_HINTS: Record<string, string> = {
-  'kotovela workbench': 'project-1',
   kotovela: 'project-1',
-  'companion prototype': 'project-2',
-  'github sync': 'project-3',
-  'knowledge base refresh': 'project-4',
-  'external demo assets': 'project-5',
+  主项目: 'project-1',
+  群助手: 'project-1',
+  '羲果陪伴': 'project-2',
+  'github 同步': 'project-3',
+  github同步: 'project-3',
+  'clawhub 内容沉淀': 'project-4',
+  '对外演示素材': 'project-5',
 }
 
-const PROJECT_NAME_BY_INSTANCE_KEY: Record<string, string> = {
-  main: '中枢调度项目',
-  builder: '研发执行项目',
-  media: '内容创作项目',
-  family: '家庭事务项目',
-  business: '业务增长项目',
-  personal: '个人助手项目',
-}
-
-/**
- * Known Feishu chat_id -> readable group names.
- * Priority order when rendering task titles:
- * 1) Payload provided group name (room/channel/chat name)
- * 2) This known-id map
- * 3) Fallback to original title
- */
-const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
-  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
-  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
-  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
-  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
-}
+const FALLBACK_PROJECT_ID = 'project-1'
 
 const normalizeStatus = (value?: string): OfficeInstanceStatus => {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
@@ -197,118 +169,6 @@ const pickFirstStringFromValues = (values: unknown[], fallback = ''): string => 
   return fallback
 }
 
-const clampProgressByStatus = (status: OfficeInstanceStatus, raw: number | undefined): number => {
-  if (Number.isFinite(raw)) {
-    return Math.min(100, Math.max(0, raw as number))
-  }
-  switch (status) {
-    case 'done':
-      return 100
-    case 'doing':
-    case 'active':
-      return 60
-    case 'blocker':
-    case 'blocked':
-      return 35
-    default:
-      return 20
-  }
-}
-
-const statusActionText = (status: OfficeInstanceStatus): string => {
-  switch (status) {
-    case 'blocker':
-    case 'blocked':
-      return '阻塞待处理'
-    case 'doing':
-    case 'active':
-      return '正在推进'
-    case 'done':
-      return '已完成'
-    default:
-      return '待分派'
-  }
-}
-
-const CHAT_ID_REGEX = /\boc_[a-z0-9]{8,}\b/gi
-const GENERIC_TASK_TITLE_REGEX = /^(会话活跃（暂无任务摘要）|等待新任务（飞书群）|飞书群会话|直连会话|暂无任务)$/u
-
-const readableFeishuGroupNameFromSource = (source: Record<string, unknown>): string | undefined => {
-  const explicitName = pickFirstStringFromValues([
-    pickString(source.chatName),
-    pickString(source.chat_name),
-    pickString(source.channelName),
-    pickString(source.channel_name),
-    pickString(source.roomName),
-    pickString(source.groupName),
-    pickString(source.group),
-  ])
-  if (explicitName) return explicitName
-
-  const explicitChatId = pickFirstStringFromValues([
-    pickString(source.chatId),
-    pickString(source.chat_id),
-    pickString(source.channelId),
-    pickString(source.channel_id),
-  ])
-  if (explicitChatId) return FEISHU_CHAT_ID_TO_NAME[explicitChatId]
-
-  return undefined
-}
-
-const prettifyTaskTitle = (
-  rawTitle: string,
-  source: Record<string, unknown>,
-): string => {
-  if (!rawTitle) return rawTitle
-
-  const fallbackGroupName = readableFeishuGroupNameFromSource(source)
-  const replaced = rawTitle.replace(CHAT_ID_REGEX, (chatId) => {
-    const mapped = FEISHU_CHAT_ID_TO_NAME[chatId]
-    const groupName = fallbackGroupName || mapped
-    return groupName || chatId
-  })
-
-  // Last fallback: if the title still contains chat_id tokens, strip raw ids for readability.
-  CHAT_ID_REGEX.lastIndex = 0
-  if (CHAT_ID_REGEX.test(replaced)) {
-    CHAT_ID_REGEX.lastIndex = 0
-    return replaced
-      .replace(/飞书群会话[:：]\s*oc_[a-z0-9]+/gi, '飞书群会话')
-      .replace(/群会话[:：]\s*oc_[a-z0-9]+/gi, '群会话')
-      .replace(CHAT_ID_REGEX, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim()
-  }
-  return replaced
-}
-
-const resolveTaskTitle = (item: OfficeInstanceItem, source: Record<string, unknown>): string => {
-  const rawTitle = pickFirstStringFromValues([
-    pickString(source.title),
-    pickString(source.taskTitle),
-    item.task,
-    item.currentTask,
-  ])
-
-  const prettified = prettifyTaskTitle(rawTitle, source)
-  if (prettified && !GENERIC_TASK_TITLE_REGEX.test(prettified)) {
-    return prettified
-  }
-
-  // If title is too generic, fallback to more context-rich fields.
-  const richFallback = pickFirstStringFromValues([
-    pickString(source.note),
-    pickString(source.projectRelated),
-    readableFeishuGroupNameFromSource(source),
-    item.currentTask,
-    item.task,
-  ])
-
-  if (richFallback) return prettifyTaskTitle(richFallback, source)
-  return prettified || '待补充任务摘要'
-}
-
 const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
   for (const value of values) {
     const direct = normalizeTextId(value)
@@ -329,7 +189,7 @@ const pickFirstIdFromValues = (values: unknown[]): string | undefined => {
         normalizeTextId(nested.name) ||
         normalizeTextId((nested as { title?: unknown }).title)
       if (nestedName) {
-        // Fallback to semantic name mapping for known project names.
+        // 回退到名称语义映射（只用于已知主项目名）
         const hintKey = nestedName.trim().toLowerCase()
         if (PROJECT_NAME_HINTS[hintKey]) {
           return PROJECT_NAME_HINTS[hintKey]
@@ -377,60 +237,6 @@ const toProjectStatus = (status: OfficeInstanceStatus): Project['status'] => {
   }
 }
 
-const foldProjectStatus = (a: Project['status'], b: Project['status']): Project['status'] => {
-  if (a === 'blocked' || b === 'blocked') return 'blocked'
-  if (a === 'active' || b === 'active') return 'active'
-  return 'planning'
-}
-
-/** Merge per-instance project rows that share the same canonical id (multi-instance → one portfolio row). */
-export function mergeSyncedProjects(projects: Project[]): Project[] {
-  if (projects.length === 0) return projects
-
-  const byId = new Map<string, Project[]>()
-  for (const p of projects) {
-    const list = byId.get(p.id) ?? []
-    list.push(p)
-    byId.set(p.id, list)
-  }
-
-  const merged: Project[] = []
-  for (const group of byId.values()) {
-    if (group.length === 1) {
-      merged.push({ ...group[0], instanceCount: 1 })
-      continue
-    }
-
-    const blockers = group.reduce((sum, p) => sum + p.blockers, 0)
-    const taskCount = group.reduce((sum, p) => sum + p.taskCount, 0)
-    const progressAvg = Math.round(group.reduce((sum, p) => sum + p.progress, 0) / group.length)
-    const status = group.map((p) => p.status).reduce(foldProjectStatus, 'planning')
-    const roomIds = [...new Set(group.flatMap((p) => p.roomIds))]
-    const blockedFirst = group.find((p) => p.blockers > 0)
-    const base = blockedFirst ?? group[0]
-
-    merged.push({
-      ...base,
-      blockers,
-      taskCount,
-      progress: progressAvg,
-      status,
-      roomIds,
-      instanceCount: group.length,
-      owner: `${group.length} 个实例`,
-      focus: blockedFirst?.focus ?? base.focus,
-      nextStep: blockedFirst?.nextStep ?? base.nextStep,
-      stage: blockedFirst?.stage ?? base.stage,
-    })
-  }
-
-  return merged.sort((a, b) => {
-    if (b.blockers !== a.blockers) return b.blockers - a.blockers
-    if (b.progress !== a.progress) return b.progress - a.progress
-    return a.name.localeCompare(b.name)
-  })
-}
-
 const toRoomStatus = (status: OfficeInstanceStatus): Room['status'] => {
   switch (status) {
     case 'doing':
@@ -465,9 +271,9 @@ const toTaskPriority = (index: number): Task['priority'] => {
 }
 
 const getAgentIdByInstance = (item: OfficeInstanceItem, fallback = 'agent-1'): string => {
-  const key = canonicalInstanceKey(item.key)
+  const key = item.key?.trim()
   if (!key) return fallback
-  return OFFICE_AGENT_ID_MAP[key] ?? `office-${key}`
+  return OFFICE_AGENT_ID_MAP[key] ?? `office-${key.toLowerCase()}`
 }
 
 const getAssigneeAgentIdByTask = (item: OfficeInstanceItem): string => {
@@ -523,7 +329,7 @@ const getProjectIdFromInstance = (item: OfficeInstanceItem, index: number): stri
     return hinted
   }
 
-  const key = canonicalInstanceKey(item.key)
+  const key = item.key?.trim()
   return key ? `project-${key}` : `project-${index + 1}`
 }
 
@@ -550,7 +356,7 @@ const getRoomIdFromInstance = (item: OfficeInstanceItem, index: number): string 
     return `room-${roomCode.replace(/\s+/g, '-')}`
   }
 
-  const key = canonicalInstanceKey(item.key)
+  const key = item.key?.trim()
   return key ? `room-${key}` : `room-${index + 1}`
 }
 
@@ -578,7 +384,7 @@ const getTaskIdFromInstance = (item: OfficeInstanceItem, index: number): string 
     return `task-${code.replace(/^TSK-?/i, '').trim() ? code.trim() : code}`
   }
 
-  const key = canonicalInstanceKey(item.key)
+  const key = item.key?.trim()
   return key ? `task-${key}` : `task-${index + 1}`
 }
 
@@ -671,35 +477,23 @@ export const syncOfficeInstancesToAgents = (
     return { agents: fallbackAgents, stats: fallbackStat, hasRealData: false }
   }
 
-  const syncedAgents = instances.map((item, index) => {
-    const key = canonicalInstanceKey(item.key)
+  const syncedAgents = instances.map((item) => {
+    const key = item.key?.trim()
     const source = item as Record<string, unknown>
     const fallbackAgent = key ? buildFallbackAgent(key, fallbackAgents) : undefined
     const projectName = pickString(source.projectName || source.project || source.mainProject)
-    const canonicalProjectId = getProjectIdFromInstance(item, index)
 
     return {
       ...fallbackAgent,
       id: fallbackAgent?.id ?? `office-${key || 'unknown'}`,
       code: fallbackAgent?.code ?? OFFICE_AGENT_CODE_MAP[key ?? ''] ?? key?.toUpperCase() ?? 'INS-00',
-      name:
-        pickFirstStringFromValues([pickString(source.displayName), pickString(source.display_name)]) ||
-        defaultInstanceDisplayName(key) ||
-        pickString(item.name) ||
-        fallbackAgent?.name ||
-        `实例 ${key || 'unknown'}`,
-      role:
-        pickString(source.role) ||
-        item.role ||
-        defaultInstanceRoleLabel(key) ||
-        fallbackAgent?.role ||
-        '未设置角色',
+      name: item.name || fallbackAgent?.name || `实例 ${key || 'unknown'}`,
+      role: item.role || fallbackAgent?.role || '未设置角色',
       status: toAgentStatus(normalizeStatus(item.status)),
       currentTask: pickString(source.currentTask) || pickString(source.current_task) || item.task || fallbackAgent?.currentTask || '暂无任务',
       project: projectName || fallbackAgent?.project || 'KOTOVELA',
-      projectId: canonicalProjectId,
+      projectId: pickFirstIdFromValues([source.projectId, source.project_id]) || fallbackAgent?.projectId || FALLBACK_PROJECT_ID,
       updatedAt: pickString(source.ageText || source.updatedAt || source.updatedAtText, fallbackAgent?.updatedAt || '刚刚'),
-      instanceKey: key,
     }
   })
 
@@ -736,16 +530,13 @@ export const syncProjectsFromInstances = (
   const projects: Project[] = instances.map((item, index) => {
     const source = item as Record<string, unknown>
     const normalized = normalizeStatus(item.status)
-    const instanceKey = canonicalInstanceKey(item.key)
     const projectId = getProjectIdFromInstance(item, index)
     const projectName = pickFirstStringFromValues([
       pickString(source.projectName),
       pickString(source.project),
-      pickString(source.projectRelated),
       pickString(source.mainProject),
-      instanceKey ? PROJECT_NAME_BY_INSTANCE_KEY[instanceKey] : '',
       pickString(item.name, ''),
-      `实例 ${instanceKey || index + 1}`,
+      `实例 ${item.key || index + 1}`,
     ], '未命名项目')
     const ownerAgentId = getAssigneeAgentIdByTask(item)
     const roomId = getRoomIdFromInstance(item, index)
@@ -768,11 +559,7 @@ export const syncProjectsFromInstances = (
       pickString(source.roomName),
       pickString(source.mainRoom),
       pickString(source.group),
-      pickString(source.channelName),
     ])
-    const taskSummary = resolveTaskTitle(item, source)
-    const actionText = statusActionText(normalized)
-    const progress = clampProgressByStatus(normalized, Number.isFinite(progressRaw) ? progressRaw : undefined)
 
     return {
       id: projectId,
@@ -788,12 +575,13 @@ export const syncProjectsFromInstances = (
       owner,
       ownerAgentId,
       status: toProjectStatus(normalized),
-      progress,
+      progress: Number.isFinite(progressRaw) ? Math.min(100, Math.max(0, progressRaw)) : 20,
       focus: pickFirstStringFromValues(
         [
           pickString(source.focus),
           pickString(source.goal),
-          `${actionText}：${taskSummary}`,
+          item.task,
+          item.currentTask,
           '与实例状态同步',
         ],
         '与实例状态同步',
@@ -812,8 +600,8 @@ export const syncProjectsFromInstances = (
         [
           pickString(source.nextStep),
           pickString(source.next),
-          roomHint ? `在 ${roomHint} 跟进：${taskSummary}` : '',
-          `${actionText}：${taskSummary}`,
+          roomHint,
+          item.currentTask,
           '等待任务推进',
         ],
         '等待任务推进',
@@ -823,7 +611,7 @@ export const syncProjectsFromInstances = (
     }
   })
 
-  return { projects: mergeSyncedProjects(projects), hasRealData: true }
+  return { projects: projects, hasRealData: true }
 }
 
 export const syncRoomsFromInstances = (
@@ -843,7 +631,6 @@ export const syncRoomsFromInstances = (
       pickString(source.mainProject),
       pickString(source.projectName),
       pickString(source.project),
-      pickString(source.projectRelated),
       'KOTOVELA',
     ], 'KOTOVELA')
 
@@ -863,32 +650,24 @@ export const syncRoomsFromInstances = (
       instanceIds[0] = instanceId
     }
 
-    const anchorAgentId = getAgentIdByInstance(item)
-    if (anchorAgentId && !instanceIds.includes(anchorAgentId)) {
-      instanceIds.unshift(anchorAgentId)
-    }
-
     const roomName = pickFirstStringFromValues([
       pickString(source.roomName),
       pickString(source.channelName),
       pickString(source.channel),
       pickString(source.name),
-      `实例 ${canonicalInstanceKey(item.key) || index + 1} 房间`,
-    ], `实例 ${canonicalInstanceKey(item.key) || index + 1} 房间`)
+      `实例 ${item.key || index + 1} 房间`,
+    ], `实例 ${item.key || index + 1} 房间`)
 
     const statusText = pickFirstStringFromValues([
       pickString(source.focus),
       pickString(item.role),
       pickString(source.purpose),
-      '承载任务讨论与执行汇报',
+      '实例承载空间',
     ], '实例承载空间')
-    const taskSummary = resolveTaskTitle(item, source)
-    const actionText = statusActionText(normalized)
 
     const recentAction = pickFirstStringFromValues([
       pickString(source.recentAction),
       pickString(source.lastAction),
-      `${actionText}：${taskSummary}`,
       pickString(source.currentTask),
       item.task,
       '实例回传更新',
@@ -947,14 +726,19 @@ export const syncTasksFromInstances = (
     const projectName = pickFirstStringFromValues([
       pickString(source.projectName),
       pickString(source.project),
-      pickString(source.projectRelated),
       'KOTOVELA',
     ], 'KOTOVELA')
 
     return {
       id: taskId,
       code: pickString(source.taskCode, `TSK-${taskId.slice(-3).toUpperCase()}`),
-      title: resolveTaskTitle(item, source),
+      title: pickFirstStringFromValues([
+        pickString(source.title),
+        pickString(source.taskTitle),
+        item.task,
+        item.currentTask,
+        '未命名任务',
+      ], '未命名任务'),
       project: projectName,
       projectId,
       assignee: pickFirstStringFromValues([pickString(source.assignee), pickString(source.owner)], item.name || '实例'),
@@ -974,8 +758,8 @@ export const syncTasksFromInstances = (
   return { tasks: tasks, hasRealData: true }
 }
 
-export async function loadOfficeInstances(apiPath = '/api/office-instances'): Promise<OfficeInstanceItem[]> {
-  const response = await fetch(apiPath, {
+export async function loadOfficeInstances(): Promise<OfficeInstanceItem[]> {
+  const response = await fetch('/api/office-instances', {
     method: 'GET',
     headers: { Accept: 'application/json' },
   })

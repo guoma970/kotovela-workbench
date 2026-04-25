@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'personal'] as const
+export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'ztl970'] as const
 
 export const OFFICE_ROLE_MAP: Record<string, string> = {
   main: '中枢调度',
@@ -11,30 +11,11 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
   media: '内容助手',
   family: '家庭助手',
   business: '业务助手',
-  personal: '个人助手',
   ztl970: '个人助手',
-}
-
-const OFFICE_PROJECT_RELATED_MAP: Record<string, string> = {
-  main: '言町科技工作台研发群',
-  builder: '言町科技工作台研发群',
-  media: '内容创作协同项目',
-  family: '家庭事务协同项目',
-  business: '业务增长协同项目',
-  personal: '个人助手协同项目',
-}
-
-const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
-  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
-  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
-  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
-  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
 }
 
 type SessionItem = {
   key?: string
-  /** Original session key before agent-id normalization (e.g. agent:main:feishu:group:oc_…) */
-  sessionKeyRaw?: string
   name?: string
   role?: string
   status?: string
@@ -43,12 +24,6 @@ type SessionItem = {
   updatedAt?: string
   ageMs?: number | string
   ageText?: string
-  kind?: string
-  agentId?: string
-  model?: string
-  /** When no matching session row exists for this slot (final payload only) */
-  slotKey?: string
-  [key: string]: unknown
 }
 
 type SessionResponse = {
@@ -83,83 +58,21 @@ const toMs = (value: unknown): number | undefined => {
 }
 
 const normalizeSessionKey = (value: unknown): string => {
-  const trimmed = typeof value === 'string' ? value.trim() : value != null ? String(value).trim() : ''
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
   if (!trimmed) {
     return ''
   }
 
   const parts = trimmed.split(':')
   if (parts[0] === 'agent' && parts.length >= 2) {
-    const key = parts[1]
-    return key === 'ztl970' ? 'personal' : key
-  }
-  return trimmed === 'ztl970' ? 'personal' : trimmed
-}
-
-const extractFeishuChatId = (raw: string): string | undefined => {
-  const m = /(?:^|:)oc_[a-z0-9]{8,}(?:$|:)?/i.exec(raw)
-  if (!m) return undefined
-  return m[0].replace(/:/g, '').toLowerCase()
-}
-
-const pickSessionRichText = (session: SessionItem): string => {
-  const candidates: unknown[] = [
-    session.task,
-    session.currentTask,
-    session.title,
-    session.summary,
-    session.note,
-    session.latestMessage,
-    session.lastMessage,
-    session.preview,
-    session.content,
-    session.snippet,
-    session.description,
-  ]
-  for (const value of candidates) {
-    if (typeof value !== 'string') continue
-    const t = value.trim()
-    if (!t) continue
-    if (t === '暂无任务') continue
-    return t
-  }
-  return ''
-}
-
-/** When OpenClaw JSON has no task/currentTask, derive a one-line summary for the cockpit. */
-const inferTaskSummary = (session: SessionItem): string => {
-  const rich = pickSessionRichText(session)
-  if (rich) return rich
-
-  const raw = typeof session.sessionKeyRaw === 'string' ? session.sessionKeyRaw : ''
-  const kind = typeof session.kind === 'string' ? session.kind.toLowerCase() : ''
-  const key = typeof session.key === 'string' ? session.key.trim().toLowerCase() : ''
-
-  if (kind === 'group' || raw.includes('feishu:group') || raw.includes(':group:')) {
-    const chatId = extractFeishuChatId(raw)
-    const groupName = chatId ? FEISHU_CHAT_ID_TO_NAME[chatId] : undefined
-    if (groupName) return `飞书群会话 · ${groupName}`
-    const tail = chatId || raw.split(':').filter(Boolean).pop() || ''
-    const shortId = tail.length > 14 ? `${tail.slice(0, 10)}…` : tail
-    return shortId ? `飞书群会话 · ${shortId}` : '飞书群会话'
+    return parts[1]
   }
 
-  if (kind === 'direct') {
-    if (key === 'media') return '诗句创作中，待同步最新内容'
-    if (key) return `实例 ${key} · 直连会话进行中`
-    return '直连会话进行中'
-  }
-
-  if (raw.includes('feishu')) {
-    return '飞书会话'
-  }
-
-  const slot = typeof session.slotKey === 'string' ? session.slotKey.trim() : ''
-  if (slot) {
-    return `实例 ${slot} · 暂无任务上报（请同步任务标题/摘要）`
-  }
-
-  return '等待新任务（飞书群）'
+  return trimmed
 }
 
 const parseSessionOutput = (raw: unknown): SessionItem[] => {
@@ -178,18 +91,11 @@ const parseSessionOutput = (raw: unknown): SessionItem[] => {
 
   const mapped = list
     .filter((item): item is SessionItem => typeof item === 'object' && item !== null)
-    .map((item) => {
-      const originalKey =
-        typeof item.key === 'string' ? item.key : item.key != null ? String(item.key) : ''
-      const agentId = typeof item.agentId === 'string' ? item.agentId.trim() : ''
-      const sessionKeyRaw = originalKey || (agentId ? `agent:${agentId}` : '')
-      return {
-        ...item,
-        sessionKeyRaw,
-        key: normalizeSessionKey(item.key ?? item.agentId),
-        updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
-      }
-    })
+    .map((item) => ({
+      ...item,
+      key: normalizeSessionKey(item.key),
+      updatedAt: typeof item.ageMs === 'number' ? `最近 ${Math.max(1, Math.round(item.ageMs / 1000))} 秒` : item.updatedAt,
+    }))
 
   const deduped: Record<string, SessionItem> = {}
   for (const item of mapped) {
@@ -219,12 +125,7 @@ const buildFallbackSession = (session: SessionItem) => {
     name: session.name || key || '未知实例',
     role: session.role || OFFICE_ROLE_MAP[key] || '未设置角色',
     status: typeof session.status === 'string' && session.status.length > 0 ? session.status : 'active',
-    task: inferTaskSummary(session),
-    sessionKeyRaw: session.sessionKeyRaw,
-    kind: typeof session.kind === 'string' ? session.kind : undefined,
-    model: typeof session.model === 'string' ? session.model : undefined,
-    currentTask: typeof session.currentTask === 'string' ? session.currentTask : undefined,
-    projectRelated: typeof session.projectRelated === 'string' ? session.projectRelated : undefined,
+    task: typeof session.task === 'string' && session.task.length > 0 ? session.task : session.currentTask || '暂无任务',
     updatedAt,
     ageMs,
     ageText: updatedAt,
@@ -291,12 +192,8 @@ export const fetchOfficeInstancesPayload = async () => {
   const now = Date.now()
   const sourceItems = sessions.length > 0 ? sessions : Array.isArray(snapshot?.instances) ? snapshot.instances : []
   const normalized = sourceItems.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
-  const activeKeys =
-    sessions.length > 0
-      ? [...new Set(normalized.map((item) => item.key).filter((k): k is (typeof OFFICE_TARGET_KEYS)[number] => Boolean(k)))]
-      : OFFICE_TARGET_KEYS
 
-  const instances = activeKeys.map((key) => {
+  const instances = OFFICE_TARGET_KEYS.map((key) => {
     const found = normalized.find((item) => item.key === key)
     const safeAge = Math.max(0, typeof found?.ageMs === 'number' ? found.ageMs : 0)
 
@@ -305,14 +202,7 @@ export const fetchOfficeInstancesPayload = async () => {
       name: found?.name || `实例 ${key}`,
       role: found?.role || OFFICE_ROLE_MAP[key],
       status: statusByAge(safeAge),
-      task: inferTaskSummary({
-        task: found?.task,
-        currentTask: found?.currentTask,
-        sessionKeyRaw: found?.sessionKeyRaw,
-        kind: found?.kind,
-        model: found?.model,
-        ...(found ? {} : { slotKey: key }),
-      } as SessionItem),
+      task: found?.task || '暂无任务',
       updatedAt: found?.ageText || found?.updatedAt || '刚刚',
       ageMs: safeAge,
       ageText: found?.ageText || found?.updatedAt || '刚刚',
@@ -320,7 +210,7 @@ export const fetchOfficeInstancesPayload = async () => {
         safeAge <= 5 * 60 * 1000
           ? `最近 ${Math.max(1, Math.round(safeAge / 1000))} 秒有状态上报`
           : `上次上报于 ${Math.max(1, Math.round(safeAge / 60000))} 分钟前`,
-      projectRelated: found?.projectRelated || OFFICE_PROJECT_RELATED_MAP[key] || 'KOTOVELA 协同项目',
+      projectRelated: 'KOTOVELA 中枢群',
     }
   })
 

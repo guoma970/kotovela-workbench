@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'personal']
+const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'ztl970']
 
 const OFFICE_ROLE_MAP = {
   main: '中枢调度',
@@ -11,7 +11,6 @@ const OFFICE_ROLE_MAP = {
   media: '内容助手',
   family: '家庭助手',
   business: '业务助手',
-  personal: '个人助手',
   ztl970: '个人助手',
 }
 
@@ -43,10 +42,10 @@ const normalizeSessionKey = (value) => {
 
   const parts = trimmed.split(':')
   if (parts[0] === 'agent' && parts.length >= 2) {
-    const key = parts[1]
-    return key === 'ztl970' ? 'personal' : key
+    return parts[1]
   }
-  return trimmed === 'ztl970' ? 'personal' : trimmed
+
+  return trimmed
 }
 
 const parseSessionOutput = (raw) => {

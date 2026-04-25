@@ -2,45 +2,18 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
-import { useOfficeInstances } from '../data/useOfficeInstances'
-import { formatLastSyncedAt } from '../lib/formatSyncTime'
 
-const getNavItems = (isInternal: boolean) =>
-  isInternal
-    ? [
-        { to: '/', step: 1, label: 'Dashboard 总览', note: '系统状态 · 同步概览' },
-        { to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
-        { to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
-        { to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
-        { to: '/agents', step: 5, label: 'Agents 实例', note: '实例状态 · 路由分派' },
-      ]
-    : [
-        { to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
-        { to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
-        { to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
-        { to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-        { to: '/agents', step: 5, label: 'Agents', note: 'Agent activity and routing' },
-      ]
+const navItems = [
+  { to: '/', step: 1, label: 'Dashboard', note: '总览（中枢状态）' },
+  { to: '/projects', step: 2, label: 'Projects', note: '项目地图（跟踪与承接）' },
+  { to: '/rooms', step: 3, label: 'Rooms', note: '协作通道（执行牵引）' },
+  { to: '/tasks', step: 4, label: 'Tasks', note: '任务流水（阻塞与待办）' },
+  { to: '/agents', step: 5, label: 'Agents', note: '实例状态（指挥与分派）' },
+]
 
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
-  const {
-    mode,
-    preferredDataSource,
-    activeDataSource,
-    isFallback,
-    lastSyncedAtMs,
-    pollingIntervalMs,
-  } = useOfficeInstances()
-  const productName = mode === 'internal' ? 'KOTOVELA HUB' : 'OpenClaw × KOTOVELA'
-  const navItems = getNavItems(mode === 'internal')
-  /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
-  const productSubtitleZh =
-    mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : '开源演示 · 多实例协作叙事（内置 Mock）'
-  /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
-  const productTaglineEn =
-    mode === 'internal' ? null : 'OpenClaw collaboration cockpit · OSS-friendly demo'
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -175,31 +148,11 @@ export function AppShell() {
       >
         <div className="brand">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/yanting-logo-tight.png" alt={`${productName} · ${productSubtitleZh}`} />
+            <img className="brand-logo" src="/yanting-logo-tight.png" alt="言町科技" />
           </div>
           <div className="brand-copy">
-            <h1>{productName}</h1>
-            <p className="brand-subtitle-zh">{productSubtitleZh}</p>
-            {productTaglineEn ? <p className="brand-subtitle-en">{productTaglineEn}</p> : null}
-            {mode === 'internal' ? (
-              <p className="brand-sync-meta">
-                {preferredDataSource === 'openclaw' ? (
-                  <>
-                    数据源：{isFallback ? 'OpenClaw（已回退 Mock）' : 'OpenClaw'}
-                    <br />
-                    上次同步 {formatLastSyncedAt(lastSyncedAtMs)} · 每{' '}
-                    {Math.max(1, Math.round(pollingIntervalMs / 1000))} 秒刷新
-                  </>
-                ) : (
-                  <>数据源：Mock · 不请求 OpenClaw</>
-                )}
-              </p>
-            ) : (
-              <p className="brand-runtime-line">
-                Demo · 目标数据源 {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-                {isFallback ? ' · 已回退 Mock' : activeDataSource === 'openclaw' ? ' · 已连接 OpenClaw' : ' · 当前 Mock'}
-              </p>
-            )}
+            <h1>言町科技 KOTOVELA</h1>
+            <p>OpenClaw协作驾驶舱</p>
           </div>
         </div>
 
@@ -224,7 +177,7 @@ export function AppShell() {
       <button
         type="button"
         className={sidebarOpen ? 'sidebar-backdrop sidebar-backdrop-visible' : 'sidebar-backdrop'}
-        aria-label="Close sidebar"
+        aria-label="关闭侧边菜单"
         onClick={() => {
           setSidebarOpen(false)
           menuButtonRef.current?.focus()
@@ -238,7 +191,7 @@ export function AppShell() {
             ref={menuButtonRef}
             type="button"
             className="mobile-nav-toggle"
-            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((open) => !open)}
           >
@@ -252,9 +205,9 @@ export function AppShell() {
               <span>{currentNavItem.note}</span>
             </div>
             <div className="mobile-nav-meta">
-              <span>{productName}</span>
+              <span>言町科技 KOTOVELA</span>
               <span className={hasLinkedFocus ? 'mobile-nav-pill' : 'mobile-nav-pill mobile-nav-pill-muted'}>
-                {hasLinkedFocus ? (mode === 'internal' ? '关联焦点' : 'Linked focus') : mode === 'internal' ? '当前页面' : 'Current page'}
+                {hasLinkedFocus ? '联动中' : '当前页'}
               </span>
             </div>
           </div>

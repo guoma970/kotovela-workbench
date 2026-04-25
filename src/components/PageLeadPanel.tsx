@@ -17,10 +17,6 @@ interface PageLeadPanelProps {
   intro: string
   metrics: PageLeadPanelMetric[]
   actions?: PageLeadPanelAction[]
-  /** Internal mode: short semantics line (e.g. project vs room vs task). */
-  internalHint?: string
-  /** Internal mode copy preference. */
-  internalMode?: boolean
 }
 
 const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
@@ -28,7 +24,7 @@ const MOBILE_PAGE_LEAD_MEDIA = '(max-width: 960px)'
 const getIsCompactViewport = () =>
   typeof window !== 'undefined' ? window.matchMedia(MOBILE_PAGE_LEAD_MEDIA).matches : false
 
-export function PageLeadPanel({ heading, intro, metrics, actions = [], internalHint, internalMode = false }: PageLeadPanelProps) {
+export function PageLeadPanel({ heading, intro, metrics, actions = [] }: PageLeadPanelProps) {
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactViewport)
   const [expanded, setExpanded] = useState(() => !getIsCompactViewport())
 
@@ -56,9 +52,9 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
   return (
     <section className={`panel strong-card page-lead-panel ${collapsed ? 'page-lead-panel-collapsed' : ''}`}>
       <div className="panel-header">
-        <h3>{internalMode ? `页面快照 · ${heading}` : `Page snapshot · ${heading}`}</h3>
+        <h3>页面速览 · {heading}</h3>
         <div className="page-lead-toolbar">
-          <span>{internalMode ? (collapsed ? '紧凑视图' : '当前视图') : collapsed ? 'Compact view' : 'Current view'}</span>
+          <span>{collapsed ? '精简视角' : '当前视角'}</span>
           {isCompactViewport && (
             <button
               type="button"
@@ -66,15 +62,12 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
               onClick={() => setExpanded((value) => !value)}
               aria-expanded={expanded}
             >
-              {internalMode ? (expanded ? '收起' : '展开') : expanded ? 'Collapse' : 'Expand'}
+              {expanded ? '收起速览' : '展开速览'}
             </button>
           )}
         </div>
       </div>
       <p className={`page-note ${collapsed ? 'page-lead-intro-compact' : ''}`}>{intro}</p>
-      {internalHint ? (
-        <p className={`page-note page-note-hint ${collapsed ? 'page-lead-intro-compact' : ''}`}>{internalHint}</p>
-      ) : null}
       <div className="info-pairs">
         {visibleMetrics.map((item) => (
           item.to ? (
@@ -105,9 +98,7 @@ export function PageLeadPanel({ heading, intro, metrics, actions = [], internalH
       )}
       {collapsed && (hiddenMetricCount > 0 || hiddenActionCount > 0) && (
         <button type="button" className="page-lead-peek" onClick={() => setExpanded(true)}>
-          {internalMode
-            ? `还有 ${hiddenMetricCount} 个指标、${hiddenActionCount} 个后续动作`
-            : `${hiddenMetricCount} more metrics and ${hiddenActionCount} more next steps`}
+          还有 {hiddenMetricCount} 个指标、{hiddenActionCount} 个下一步
         </button>
       )}
     </section>

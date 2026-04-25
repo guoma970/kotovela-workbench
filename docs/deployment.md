@@ -5,54 +5,8 @@
 ```bash
 cd /path/to/repo
 npm install
-# 公开演示（Mock）：npm run dev:demo
-# 内部驾驶舱（默认轮询 OpenClaw）：npm run dev:internal
-npm run dev:internal
+npm run dev
 ```
-
-浏览器访问 **http://localhost:5173**（端口写死，勿被占用）。
-
-### 内部驾驶舱：本机显示「真实 OpenClaw」状态（操作清单）
-
-目标：页面数据来自本机执行的 `openclaw sessions`，而不是 `src/data/mockData.ts`。
-
-1. **前提**
-   - 本机已安装 CLI：`openclaw --version` 有版本号。
-   - 仓库根目录已 `npm install`。
-
-2. **用 Internal 模式启动（会加载 `.env.internal`）**
-
-   ```bash
-   npm run dev:internal
-   ```
-
-   默认配置（见仓库内 `.env.internal`）为：`VITE_MODE=internal`、`VITE_DATA_SOURCE=openclaw`、`VITE_OFFICE_INSTANCES_API_PATH=/api/office-instances`。  
-   Vite 开发服务器会把 **`/api/office-instances`** 代理到同仓库的 `server/officeInstances.ts`：在 **Node 子进程里**执行与线上一致的 `openclaw --log-level silent sessions --json --all-agents --active 240`，把 JSON 转成驾驶舱用的 payload。
-
-3. **自检接口是否「live」**（需在 `dev:internal` 已启动时执行）
-
-   ```bash
-   npm run check:office
-   ```
-
-   或手动：
-
-   ```bash
-   curl -s http://127.0.0.1:5173/api/office-instances | head -c 400
-   ```
-
-   - 若 JSON 里 **`"source":"live"`**：表示已读到 `openclaw sessions`，不是快照文件。
-   - 若 **`"source":"snapshot"`**：表示本机 `openclaw` 未返回可用会话，已回退到 `data/office-instances.snapshot.json`（可 `npm run sync:office-snapshot` 更新快照）。
-   - 若请求失败（5xx / 连接拒绝）：前端在配置了 `VITE_FALLBACK_TO_MOCK=true` 时会 **回退 Mock**，顶栏可能仍显示「Mock」或提示 fallback。
-
-4. **若仍像 Mock 或数据不对**
-   - 直接跑：`openclaw --log-level silent sessions --json --all-agents --active 240`，确认 stdout 是合法 JSON 且 `sessions` 非空。
-   - 临时将 `.env.internal` 中 **`VITE_FALLBACK_TO_MOCK=false`**（或在本机 `.env.internal.local` 覆盖）再试一次，便于在浏览器 Network 里看到 **真实接口错误**，而不是静默 Mock。
-   - 确认没有用 **`npm run dev:demo`**（Demo 固定 `VITE_DATA_SOURCE=mock`，不会请求真实实例）。
-
-5. **外出访问（手机 / Vercel 读家里 Mac）**  
-   云端 **没有** 你的 `openclaw` 二进制，需二选一：  
-   - 在 **Mac mini** 上 `npm run serve:office-api` 暴露 `8787`，再用隧道把 **HTTPS** 指到该端口；Vercel 内部构建里设置 **`VITE_OFFICE_INSTANCES_API_PATH`** 为该 HTTPS 地址（含 `token` 若启用鉴权）。见下文「Mac mini 常驻」与 **`docs/vercel-setup.md`**。
 
 ## 生产构建校验
 
@@ -63,14 +17,12 @@ npm run build
 
 ## 预发布建议（推荐）
 
-当前最适合先走 **Vercel 预发布**。完整步骤（双项目 Demo / Internal、`VERCEL_BUILD_MODE`、环境变量）见 **[vercel-setup.md](./vercel-setup.md)**。
-
-简版：
+当前最适合先走 **Vercel 预发布**：
 
 1. 将仓库导入 Vercel
-2. Build Command 由仓库根 `vercel.json` 指定为 `node scripts/vercel-build.mjs`（勿在控制台改成裸 `vite build`）
+2. Build Command 使用默认 `npm run build`
 3. Output Directory 使用默认 `dist`
-4. `api/office-instances.ts` 作为服务端接口保留 `/api/office-instances`
+4. `api/office-instances.js` 作为服务端接口保留 `/api/office-instances`
 5. 前端通过同域 `/api/office-instances` 获取实例状态
 
 这样可以得到一个：
@@ -78,27 +30,6 @@ npm run build
 - 飞书内可直接访问
 - 不依赖本地 `localhost`
 - 仍保留实例状态接口的预发布版本
-
-## Mac mini 常驻：自建 office API（外出访问）
-
-若有一台 **24h 开机的 Mac mini**，已安装并运行 OpenClaw，可在该机器仓库目录执行：
-
-```bash
-npm install
-OFFICE_API_PORT=8787 \
-OFFICE_API_TOKEN='随机长密钥' \
-OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' \
-npm run serve:office-api
-```
-
-- `OFFICE_API_CORS_ORIGIN` 须与内部站在浏览器中的 **HTTPS 源**一致（上例为 **KOTOVELA HUB** 常用部署域 `https://kotovelahub.vercel.app`；若你使用自有域名，请改成实际主机名）
-- 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances`
-- 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`（前端可把完整 URL 配进 `VITE_OFFICE_INSTANCES_API_PATH`，含 query 则注意构建时写入）
-- **外出访问**：家庭宽带通常无固定公网 IP，需任选其一：
-  - **Cloudflare Tunnel** / **Tailscale Funnel** / **ngrok**：把 `8787` 暴露为 **HTTPS**（避免浏览器混合内容拦截）
-  - 或 **仅 Tailscale/ZeroTier VPN**：手机加入同一虚拟网后访问 `http://100.x.x.x:8787`
-- **Vercel internal 前端**：构建环境变量里把 `VITE_OFFICE_INSTANCES_API_PATH` 设为隧道给出的 **HTTPS** 地址（路径 `/api/office-instances` 及鉴权与本地一致）
-- **launchd**：用 `launchctl` 把上述命令注册为开机自启，并在 plist 里写入与交互 shell 一致的 `PATH`（确保能找到 `openclaw`）
 
 ## 实例状态同步（远程查看）
 
@@ -165,47 +96,10 @@ docs/ops/office-snapshot-sync.md
 - 远程预发布打开：优先实时接口，失败时退回快照
 - 下一步如果要做到真正“持续实时”，再补本机到云端的自动状态同步
 
-## 飞书内「轻应用」入口（工作台 / 自建应用）
+## 飞书内访问建议
 
-站点本身是 **HTTPS 单页应用**，已适配移动端 `viewport` 与 PWA meta。要在 **飞书里像轻应用一样一键打开**（同事从工作台进，不必记域名），需要在 **飞书管理侧** 配入口，而不是只改仓库代码。
-
-### 和「手机桌面 PWA」的区别
-
-| 方式 | 说明 |
-|------|------|
-| **飞书工作台 / 网页应用** | 在飞书 **内置浏览器 / WebView** 里打开你的 `https://…vercel.app`，体验类似「钉在工作台上的 H5 轻应用」；**不能**指望飞书内出现与 Safari 完全相同的「添加到主屏幕」流程。 |
-| **系统浏览器 PWA** | 用户在 **Safari / Chrome** 里打开同一 HTTPS 地址，再 **添加到主屏幕 / 安装应用**，得到桌面独立图标（见下文「手机轻应用」）。 |
-
-两者可同时使用：日常在飞书里点工作台；需要全屏独立窗口时用系统浏览器安装。
-
-### 推荐配置方式（择一或组合）
-
-1. **工作台添加快捷网页（最常见）**  
-   企业管理员：**管理后台** → **工作台**（或 **企业文化 / 应用管理**，以你租户后台文案为准）→ **添加** → 选择 **网页** / **自定义链接** → 填写 **内部驾驶舱** 的 `https://kotovelahub.vercel.app`（或你的定稿域名）、名称如 **KOTOVELA HUB** → 保存并设可见范围。
-
-2. **飞书开放平台 · 企业自建应用（更正式）**  
-   在 [飞书开放平台](https://open.feishu.cn/) 创建 **企业自建应用** → 配置 **网页应用** / **应用主页** 为你的 HTTPS 地址 → 发布版本 → 在管理后台把该应用 **上架到工作台** 并授权给成员。适合需要以后接 **飞书登录、JSSDK、审批** 等能力时再演进。
-
-3. **群 / 文档入口**  
-   在飞书群 **置顶**、**群公告** 或 **知识库** 里固定 HTTPS 链接，作为补充入口。
-
-### 技术侧注意（当前仓库已满足大部分）
-
-- 地址必须是 **HTTPS**（Vercel 默认满足）。  
-- 本应用为前端 SPA，**不依赖**必须在飞书 WebView 里弹第三方登录 cookie 才可用的跨站策略；若日后接飞书 OAuth，再单独评估 WebView 内回调 URL。  
-- 若飞书内打开出现 **空白或脚本被拦**，到管理后台检查是否误开 **仅内网** 或 **未知域名拦截**，把 `*.vercel.app` 或你的自有域加入可信列表。
-
-更完整的双站部署与域名定稿见 **[vercel-setup.md](./vercel-setup.md)**。
-
-## 手机 / iPad / 电脑「轻应用」体验
-
-仓库已提供 **双份 Web App Manifest**（`public/manifest.demo.webmanifest` / `manifest.internal.webmanifest`，由 Vite `mode` 注入到 `index.html`）与 **Apple 全屏 meta**。部署到 **HTTPS** 即可（**Vercel 默认的 `*.vercel.app` 已满足**；自有域名仅为品牌与分流，**不是**「添加到主屏幕」的前置条件）：
-
-- **iPhone / iPad（Safari）**：分享 → **添加到主屏幕**，可从桌面图标以 **独立窗口** 打开（类似轻应用）
-- **Android（Chrome）**：菜单 → **安装应用** 或 **添加到主屏幕**
-- **桌面 Chrome / Edge**：地址栏安装提示（若浏览器支持）
-
-图标当前使用 `favicon.svg`；若需 iOS 旧系统更稳的触控图标，可后续增加 `apple-touch-icon` 专用 PNG（180×180）。
+- 预发布阶段：直接把 Vercel 预发布链接放进飞书群 / 文档 / 知识库
+- 稳定后：再考虑挂到飞书 H5 或工作台页签
 
 ## 当前边界
 
