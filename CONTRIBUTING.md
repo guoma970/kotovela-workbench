@@ -1,6 +1,6 @@
 # Contributing to OpenClaw × Kotovela
 
-> This public repository only keeps the open-source showcase baseline. Internal execution features and later product enhancements must evolve only in the private `kotovela-hub` repository and must not flow back into this public repo.
+> This public repository only keeps the public-safe, mock-only showcase baseline. Private execution features and later product enhancements must not flow back into this public repo.
 
 ## Development flow
 
@@ -15,6 +15,7 @@
 2. 提交前执行：
 
    ```bash
+   bash validate_repo.sh
    npm run lint
    npm run build
    ```
@@ -31,6 +32,10 @@
 - `chore:` 维护性调整
 - `fix:` 交互/样式修复
 - `refactor:` 重构
+
+## Public-safe boundaries
+
+Do not add private runtime files, live API/server integrations, real tokens, local private paths, internal group IDs, or live workspace payloads. Keep examples synthetic and suitable for https://openclaw-kotovela.vercel.app.
 
 ## Directory boundaries
 

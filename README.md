@@ -1,8 +1,8 @@
 # OpenClaw × Kotovela
 
-Open-source showcase for a multi-agent collaboration cockpit.
+Public-safe, mock-only showcase for a multi-agent collaboration cockpit.
 
-This public repository contains only demo, mock, and dry-run capabilities. The internal execution system, **Kotovela Hub**, is maintained separately in a private repository and is not included here.
+This public repository contains only synthetic demo capabilities. Private execution systems, live runtime code, real credentials, local private paths, and workspace payloads are not included here.
 
 ## Demo
 
@@ -14,21 +14,21 @@ https://openclaw-kotovela.vercel.app
 - Mock collaboration flows
 - Dry-run examples
 - Public documentation
-- Guardrails that keep internal runtime code out of the public repository
+- Guardrails that keep private runtime code out of the public repository
 
 ## What is not included
 
 - Production execution logic
 - Real Feishu/GitHub sync credentials
 - Customer data
-- Kotovela Hub internal automation
+- Private execution automation
 - Scheduler, Consultants, System Control, or Evidence Acceptance internals
 
 ---
 
-## Public scope
+## Public-safe scope
 
-This repository intentionally stays on the original open-source showcase baseline.
+This repository intentionally stays public-safe and mock-only. Run `bash validate_repo.sh` before opening a pull request.
 
 Dashboard → Projects → Rooms → Tasks → Agents
 
