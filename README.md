@@ -1,16 +1,36 @@
 # OpenClaw × Kotovela
 
-A public showcase dashboard for OpenClaw-style agent collaboration.
+Open-source showcase for a multi-agent collaboration cockpit.
 
-Track agent status, blockers, tasks, and collaboration flows in one place.
+This public repository contains only demo, mock, and dry-run capabilities. The internal execution system, **Kotovela Hub**, is maintained separately in a private repository and is not included here.
 
-> Public repo scope: this repository intentionally stays on the original open-source showcase baseline and uses bundled mock/demo data only. `Kotovela Hub` is private/internal and is not included in this public repository.
+## Demo
+
+https://openclaw-kotovela.vercel.app
+
+## What is included
+
+- React/Vite dashboard showcase
+- Mock collaboration flows
+- Dry-run examples
+- Public documentation
+- Guardrails that keep internal runtime code out of the public repository
+
+## What is not included
+
+- Production execution logic
+- Real Feishu/GitHub sync credentials
+- Customer data
+- Kotovela Hub internal automation
+- Scheduler, Consultants, System Control, or Evidence Acceptance internals
 
 ---
 
-> Designed for fast understanding of multi-agent systems in under 10 seconds.
+## Public scope
 
----
+This repository intentionally stays on the original open-source showcase baseline.
+
+Dashboard → Projects → Rooms → Tasks → Agents
 
 ![Cover](./public/screenshots/cover.png)
 
@@ -26,76 +46,36 @@ When multiple agents collaborate, it becomes difficult to answer simple but crit
 - How are tasks connected to projects and teams?
 - What should be handled next?
 
-Without a clear view, coordination becomes slow, fragmented, and reactive.
-
----
-
-## What this project does
-
-OpenClaw × Kotovela provides a unified dashboard to:
-
-- Visualize agent activity in real time
-- Surface blockers and decision points
-- Connect tasks, projects, and collaboration channels
-- Help you quickly understand and act on the system state
-
----
-
-## System Overview
-
-Dashboard → Projects → Rooms → Tasks → Agents
-
-![Overview](./public/screenshots/overview.png)
-
-- **Dashboard** — global overview of blockers and activity
-- **Projects** — project routing and ownership
-- **Rooms** — collaboration channels where work happens
-- **Tasks** — execution units and blocker tracking
-- **Agents** — who is doing what
+OpenClaw × Kotovela provides a visual dashboard to make those coordination states easier to scan and discuss.
 
 ---
 
 ## Screenshots
 
 ### Dashboard
-See blockers, active agents, and recent updates at a glance  
+See blockers, active agents, and recent updates at a glance.
+
 ![Dashboard](./public/screenshots/dashboard.png)
 
 ### Agents
-Track agent status and assignments in real time  
+Track agent status and assignments in demo mode.
+
 ![Agents](./public/screenshots/agents.png)
 
 ### Tasks
-Inspect tasks, priorities, and blocker details  
+Inspect mock tasks, priorities, and blocker details.
+
 ![Tasks](./public/screenshots/tasks.png)
 
 ### Projects
-Understand project structure and ownership  
+Understand project structure and ownership.
+
 ![Projects](./public/screenshots/projects.png)
 
 ### Rooms
-Follow collaboration channels and active contexts  
+Follow collaboration channels and active contexts.
+
 ![Rooms](./public/screenshots/rooms.png)
-
----
-
-## Design Principles
-
-- **Agent-first** — focus on what each agent is doing
-- **Blocker-first** — surface what needs attention
-- **Linked context** — connect tasks, projects, and rooms
-- **Fast scanning** — understand system state in seconds
-- **Action-oriented** — reduce path from insight to action
-
----
-
-## Use Cases
-
-- Multi-agent orchestration dashboards
-- AI workflow monitoring
-- Team operation dashboards
-- Task coordination systems
-- Team collaboration visualization
 
 ---
 
@@ -108,28 +88,13 @@ npm install
 npm run dev
 ```
 
-**Mock Data**
+## Verification
 
-This project uses mock data for demonstration:
-
-- `data/agents.json` — agent definitions
-- `data/projects.json` — project definitions
-- `data/rooms.json` — room definitions
-- `data/tasks.json` — task definitions
-
-You can replace them with your own data sources.
-
----
-
-## Roadmap
-
-- [ ] Lightweight personal control mode (agent-first view)
-- [ ] Enhanced blocker visualization
-- [ ] Real-time updates (WebSocket / API)
-- [ ] Actionable task operations
-- [ ] External integrations (GitHub / Feishu / custom APIs)
-
----
+```bash
+bash scripts/guard-public-baseline.sh
+npm run lint
+npm run build
+```
 
 ## License
 
