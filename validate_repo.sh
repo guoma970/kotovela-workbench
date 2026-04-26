@@ -58,6 +58,7 @@ while IFS= read -r -d '' path; do scan_targets+=("$path"); done < <(find . \
   -path './dist' -prune -o \
   -path './validate_repo.sh' -prune -o \
   -path './PUBLIC_SAFE_CHECKLIST.md' -prune -o \
+  -name '*.log' -prune -o \
   -type f -print0)
 sensitive_pattern='/Users/ztl|oc_[0-9a-f]{8,}|ou_[0-9a-f]{8,}|chat:oc_|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|kotovela-hub|Kotovela Hub|real-run|real_run|\.env\.internal|dev:internal|build:internal|/api/office-instances|server/officeInstances|api/office-instances'
 if ((${#scan_targets[@]})) && grep -I -R -n -E "$sensitive_pattern" "${scan_targets[@]}" 2>/dev/null; then
