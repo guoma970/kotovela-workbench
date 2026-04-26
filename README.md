@@ -1,38 +1,57 @@
 # OpenClaw × Kotovela
 
-Public-safe, mock-only showcase for a multi-agent collaboration cockpit.
+**Public-safe / mock-only multi-agent collaboration cockpit showcase.**
 
-This public repository contains only synthetic demo capabilities. Private execution systems, live runtime code, real credentials, local private paths, and workspace payloads are not included here.
+[Open the live demo](https://openclaw-kotovela.vercel.app) · [View screenshots](#screenshots) · [Read the architecture](./docs/architecture.md)
 
-## Demo
+![OpenClaw × Kotovela public showcase cover](./public/screenshots/cover.png)
 
-https://openclaw-kotovela.vercel.app
+This repository is a public showcase for exploring how a multi-agent workbench can make collaboration state visible. It uses synthetic demo data only and is designed to be safe for public review, demos, and portfolio-style sharing.
 
-## What is included
+## Public-safe boundary
 
-- React/Vite dashboard showcase
-- Mock collaboration flows
-- Dry-run examples
-- Public documentation
-- Guardrails that keep private runtime code out of the public repository
+### What is included
 
-## What is not included
+- React/Vite dashboard showcase for Dashboard, Projects, Rooms, Tasks, and Agents
+- Synthetic mock data that illustrates collaboration status, blockers, priorities, and recent updates
+- Public-safe screenshots for the live demo experience
+- A simple architecture diagram showing the mock-only data flow
+- Repository guardrails and CI checks that keep private runtime artifacts out of this public repo
 
-- Production execution logic
-- Real Feishu/GitHub sync credentials
-- Customer data
-- Private execution automation
-- Scheduler, Consultants, System Control, or Evidence Acceptance internals
+### What is not included
+
+- Production execution logic or live agent runtime code
+- Real Feishu, GitHub, workspace, customer, or credential payloads
+- Token handling, private webhook logic, or live sync workers
+- Private scheduler, consultant, system-control, or evidence-acceptance internals
+- Any private local paths or environment-specific deployment secrets
 
 ---
 
-## Public-safe scope
+## Demo path
 
-This repository intentionally stays public-safe and mock-only. Run `bash validate_repo.sh` before opening a pull request.
+Live demo: https://openclaw-kotovela.vercel.app
 
+Recommended walkthrough:
+
+```text
 Dashboard → Projects → Rooms → Tasks → Agents
+```
 
-![Cover](./public/screenshots/cover.png)
+The demo is intentionally read-only and mock-only. It is useful for discussing information architecture, visual scanning, and coordination workflows without exposing private execution details.
+
+---
+
+## Architecture preview
+
+```mermaid
+flowchart LR
+  A[Mock Data\nsrc/data/mockData.ts] --> B[React + Vite Dashboard]
+  B --> C[Public Demo\nopenclaw-kotovela.vercel.app]
+  D[Private Execution Systems] -. not included .-> B
+```
+
+See [docs/architecture.md](./docs/architecture.md) for the full public-safe architecture note.
 
 ---
 
@@ -57,16 +76,6 @@ See blockers, active agents, and recent updates at a glance.
 
 ![Dashboard](./public/screenshots/dashboard.png)
 
-### Agents
-Track agent status and assignments in demo mode.
-
-![Agents](./public/screenshots/agents.png)
-
-### Tasks
-Inspect mock tasks, priorities, and blocker details.
-
-![Tasks](./public/screenshots/tasks.png)
-
 ### Projects
 Understand project structure and ownership.
 
@@ -76,6 +85,16 @@ Understand project structure and ownership.
 Follow collaboration channels and active contexts.
 
 ![Rooms](./public/screenshots/rooms.png)
+
+### Tasks
+Inspect mock tasks, priorities, and blocker details.
+
+![Tasks](./public/screenshots/tasks.png)
+
+### Agents
+Track agent status and assignments in demo mode.
+
+![Agents](./public/screenshots/agents.png)
 
 ---
 
@@ -91,10 +110,12 @@ npm run dev
 ## Verification
 
 ```bash
-bash scripts/guard-public-baseline.sh
+bash validate_repo.sh
 npm run lint
 npm run build
 ```
+
+The same public-safe validation is also enforced by GitHub Actions.
 
 ## License
 
