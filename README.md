@@ -1,6 +1,6 @@
-# Kotovela Workbench
+# OpenClaw × Kotovela
 
-A visual cockpit for multi-agent collaboration.
+A public showcase dashboard for OpenClaw-style agent collaboration.
 
 Track agent status, blockers, tasks, and collaboration flows in one place.
 
@@ -32,7 +32,7 @@ Without a clear view, coordination becomes slow, fragmented, and reactive.
 
 ## What this project does
 
-Kotovela Workbench provides a unified cockpit to:
+OpenClaw × Kotovela provides a unified dashboard to:
 
 - Visualize agent activity in real time
 - Surface blockers and decision points
@@ -93,7 +93,7 @@ Follow collaboration channels and active contexts
 
 - Multi-agent orchestration dashboards
 - AI workflow monitoring
-- Internal operation cockpits
+- Team operation dashboards
 - Task coordination systems
 - Team collaboration visualization
 
@@ -102,8 +102,8 @@ Follow collaboration channels and active contexts
 ## Quick Start
 
 ```bash
-git clone https://github.com/yourname/kotovela-workbench.git
-cd kotovela-workbench
+git clone https://github.com/guoma970/openclaw-kotovela.git
+cd openclaw-kotovela
 npm install
 npm run dev
 ```
