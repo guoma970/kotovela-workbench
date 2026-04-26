@@ -22,7 +22,7 @@ npm run build
 1. 将仓库导入 Vercel
 2. Build Command 使用默认 `npm run build`
 3. Output Directory 使用默认 `dist`
-4. 前端使用公开 mock/showcase 数据，不接入本机 OpenClaw 运行态
+4. 前端使用公开 mock/showcase 数据，不接入本机 OpenClaw 运行态；public repo 不保留 api/server live 接口
 
 这样可以得到一个：
 - 手机可打开

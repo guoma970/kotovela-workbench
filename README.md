@@ -4,7 +4,7 @@ A public showcase dashboard for OpenClaw-style agent collaboration.
 
 Track agent status, blockers, tasks, and collaboration flows in one place.
 
-> Public repo scope: this repository intentionally stays on the original open-source showcase baseline. Later internal cockpit enhancements belong in the private `kotovela-hub` codebase, not here.
+> Public repo scope: this repository intentionally stays on the original open-source showcase baseline and uses bundled mock/demo data only. `Kotovela Hub` is private/internal and is not included in this public repository.
 
 ---
 

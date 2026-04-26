@@ -757,17 +757,3 @@ export const syncTasksFromInstances = (
 
   return { tasks: tasks, hasRealData: true }
 }
-
-export async function loadOfficeInstances(): Promise<OfficeInstanceItem[]> {
-  const response = await fetch('/api/office-instances', {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  })
-
-  if (!response.ok) {
-    throw new Error(`Office instances request failed: ${response.status}`)
-  }
-
-  const payload = (await response.json()) as OfficeInstancesResponse
-  return parseOfficeInstancesPayload(payload)
-}

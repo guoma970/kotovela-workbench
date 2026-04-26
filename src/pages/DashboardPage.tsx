@@ -297,7 +297,7 @@ export function DashboardPage() {
               <p className="eyebrow">Office Board</p>
               <h2>实例工位图</h2>
             </div>
-            <p className="page-note">共 {officeBlueprint.length} 个席位 · {dataSource === 'real' ? '实时数据' : '本地快照'}{isLoading ? ' · 刷新中' : ''}</p>
+            <p className="page-note">共 {officeBlueprint.length} 个席位 · {dataSource === 'real' ? '实时数据' : 'Mock demo'}{isLoading ? ' · 刷新中' : ''}</p>
           </div>
 
           <div className="office-controls">
