@@ -1,8 +1,8 @@
-# Contributing to KOTOVELA Workbench
+# Contributing to OpenClaw × Kotovela
 
-> 公开仓库只保留初始开源展示版。内部驾驶舱 / 后续增强功能请仅在 private `kotovela-hub` 演进，不回流到本仓库。
+> This public repository only keeps the open-source showcase baseline. Internal execution features and later product enhancements must evolve only in the private `kotovela-hub` repository and must not flow back into this public repo.
 
-## 开发流程（建议）
+## Development flow
 
 1. 从 `main` 拉最新：
 
@@ -25,20 +25,20 @@
    git push -u origin feat/your-task-name
    ```
 
-## Commit 约定
+## Commit convention
 
 - `feat:` 新功能
 - `chore:` 维护性调整
 - `fix:` 交互/样式修复
 - `refactor:` 重构
 
-## 目录约束
+## Directory boundaries
 
-本项目约定 `src/` 按以下分层：
+The public `src/` tree should stay within demo/showcase boundaries:
 
 - `components/`：通用组件
 - `layout/`：主布局骨架
 - `pages/`：页面视图
-- `data/`：mock 数据
+- `data/`: mock/demo data
 - `lib/`：联动与工具逻辑
 - `types/`：类型定义
