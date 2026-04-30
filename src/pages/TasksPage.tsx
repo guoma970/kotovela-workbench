@@ -61,7 +61,7 @@ type AuditEntry = {
 const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string }> = [
   { key: 'running', label: 'Running', labelZh: '进行中' },
   { key: 'queue', label: 'Queue', labelZh: '排队中' },
-  { key: 'paused', label: 'Paused', labelZh: '暂停/阻塞' },
+  { key: 'paused', label: 'Paused', labelZh: '已暂停' },
   { key: 'done', label: 'Done', labelZh: '已完成' },
   { key: 'need_human', label: 'Need Human', labelZh: '需人工处理' },
 ]
@@ -69,7 +69,7 @@ const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: stri
 const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
   running: '进行中',
   queue: '排队中',
-  paused: '暂停/阻塞',
+  paused: '已暂停',
   done: '已完成',
   need_human: '需人工处理',
 }
@@ -230,7 +230,7 @@ export function TasksPage() {
 
       <PageLeadPanel
         heading={isInternal ? '任务队列' : 'Task Queue'}
-        intro={isInternal ? '按状态查看当前任务结果、责任归属、阻塞与审计回链。' : 'Track task status results by queue state.'}
+        intro={isInternal ? '按状态查看当前任务结果、责任归属、卡点与执行记录。' : 'Track task status results by queue state.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -277,7 +277,7 @@ export function TasksPage() {
                       {taskRecord ? (
                         <div className="relation-stack" style={{ marginTop: 12 }}>
                           <div>
-                            <span className="section-label">{isInternal ? '回链项目' : 'Linked project'}</span>
+                            <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
                             <div className="object-row top-gap">
                               {project ? (
                                 <ObjectBadge
@@ -296,7 +296,7 @@ export function TasksPage() {
                             </div>
                           </div>
                           <div>
-                            <span className="section-label">{isInternal ? '回链房间' : 'Linked rooms'}</span>
+                            <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
                             <div className="object-row top-gap">
                               {linkedRooms.length > 0 ? (
                                 linkedRooms.slice(0, 2).map((room) => (
@@ -317,7 +317,7 @@ export function TasksPage() {
                             </div>
                           </div>
                           <div>
-                            <span className="section-label">{isInternal ? '回链实例' : 'Linked agent'}</span>
+                            <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
                             <div className="object-row top-gap">
                               {agent ? (
                                 <ObjectBadge

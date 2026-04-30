@@ -25,7 +25,7 @@ export type ConsultantSettingsConfig = {
 const internalConfig: ConsultantSettingsConfig = {
   mode: 'internal',
   pageTitle: '顾问配置页',
-  pageNote: '内部模式展示完整顾问池与分配口径，用于业务侧核对 domain、active_load 与状态。',
+  pageNote: '内部模式展示完整顾问池与分配口径，用于业务侧核对领域、当前工作量与状态。',
   consultants: [
     {
       consultant_id: 'consultant_guoshituan_main',
@@ -73,10 +73,10 @@ const internalConfig: ConsultantSettingsConfig = {
     },
   ],
   ruleSummary: [
-    '同 domain 优先命中，active_load 更低者优先。',
-    '顾问可兼任团长角色，展示与分配证据统一落在 consultant_id。',
-    'external_partner 不直分 consultant_id，lead 场景转 business.lead_router，非 lead 场景拦截。',
-    'consult_only / content_only / no_delivery 仍按现有 guardrails 执行，不覆盖 system_mode / publish_mode / force_stop。',
+    '同一领域优先命中，当前工作量更低者优先。',
+    '顾问可兼任团长角色，展示与分配证据统一落在顾问编号。',
+    '外部合作方不直接分配顾问编号，线索场景先转业务接入口，非线索场景会被拦截。',
+    '仅咨询、仅内容、不可交付等保护规则继续生效，不覆盖系统模式、发布状态与紧急停止。',
   ],
 }
 
@@ -109,9 +109,9 @@ const opensourceConfig: ConsultantSettingsConfig = {
     },
   ],
   ruleSummary: [
-    'Mock-only consultant samples are isolated from internal data.',
-    'external_partner stays unassigned to consultant_id and remains blocked or transferred by existing rules.',
-    'Brand isolation and live guardrails remain controlled by existing runtime + scheduler logic.',
+    '仅用于演示的顾问样例与内部数据保持隔离。',
+    '外部合作方不会直接分配顾问编号，仍由现有规则阻塞或转交。',
+    '品牌隔离与实时保护规则继续由现有运行时和调度逻辑控制。',
   ],
 }
 

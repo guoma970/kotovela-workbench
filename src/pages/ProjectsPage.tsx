@@ -42,7 +42,7 @@ export function ProjectsPage() {
         </div>
         <p className="page-note">
           {showCockpitDetail
-            ? '每个项目展示阶段、负责人、阻塞与关联实例。'
+            ? '每个项目展示阶段、负责人、有卡点与关联协作者。'
             : 'Each project shows status, stage, blockers, linked agents, and linked tasks.'}
         </p>
       </div>
@@ -51,24 +51,24 @@ export function ProjectsPage() {
         heading={showCockpitDetail ? '项目' : 'Projects'}
         intro={
           showCockpitDetail
-            ? '先看项目数量与阻塞，再进入任务、房间与实例。'
+            ? '先看项目数量与有卡点情况，再进入任务、频道与协作者。'
             : 'Start with project volume and blockers, then jump into Tasks, Rooms, and Agents.'
         }
         internalMode={showCockpitDetail}
         metrics={[
           { label: showCockpitDetail ? '项目' : 'Projects', value: projects.length, to: { pathname: '/projects' } },
           { label: showCockpitDetail ? '活跃项目' : 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
-          { label: showCockpitDetail ? '阻塞总数' : 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: showCockpitDetail ? '有卡点总数' : 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
           { label: showCockpitDetail ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
         ]}
         actions={[
           { label: showCockpitDetail ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
           { label: showCockpitDetail ? '进入房间' : 'Go to rooms', to: { pathname: '/rooms' } },
-          { label: showCockpitDetail ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
+          { label: showCockpitDetail ? '查看协作者' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
         internalHint={
           showCockpitDetail
-            ? '项目：多实例、多任务下的成果与阶段归属；在飞书群里布置的具体事，落在「任务」里。'
+            ? '项目：多协作者、多任务下的成果与阶段归属；在飞书群里布置的具体事，落在「任务」里。'
             : undefined
         }
       />
@@ -106,12 +106,12 @@ export function ProjectsPage() {
                 </div>
                 {showCockpitDetail && (project.instanceCount ?? 0) > 1 ? (
                   <div>
-                    <span>实例</span>
+                    <span>协作者</span>
                     <strong>{project.instanceCount}</strong>
                   </div>
                 ) : null}
                 <div>
-                  <span>{showCockpitDetail ? '阻塞' : 'Blocker'}</span>
+                  <span>{showCockpitDetail ? '有卡点' : 'Blocker'}</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -144,7 +144,7 @@ export function ProjectsPage() {
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">{showCockpitDetail ? '实例' : 'Agents'}</span>
+                  <span className="section-label">{showCockpitDetail ? '协作者' : 'Agents'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.length > 0 ? (
                       linkedAgents.map((agent) => (

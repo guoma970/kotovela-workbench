@@ -17,7 +17,7 @@ const getNavItems = (isInternal: boolean) =>
         { group: '工作台', to: '/leads', step: 5, label: '待跟进', note: '跟进列表 · 状态归一' },
         { group: '管理配置', to: '/scheduler', step: 6, label: '调度队列', note: '执行控制 · 队列调度' },
         { group: '管理配置', to: '/consultants', step: 7, label: '角色配置', note: '顾问配置 · 分配规则' },
-        { group: '管理配置', to: '/model-usage', step: 8, label: '用量统计', note: '额度 · token · OAuth 顺序' },
+        { group: '管理配置', to: '/model-usage', step: 8, label: '用量统计', note: '额度 · 用量 · 调用顺序' },
         { group: '管理配置', to: '/system-control', step: 9, label: '系统设置', note: '系统模式 · 安全规则' },
         { group: '管理配置', to: '/evidence-acceptance', step: 10, label: '执行验证', note: '匹配成功率 · 未匹配原因 · 关联成功率' },
         { group: '协作者', to: '/agents', step: 11, label: '协作者状态', note: '协作者状态 · 路由分派' },

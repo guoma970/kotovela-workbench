@@ -230,7 +230,7 @@ export function LeadsPage() {
           value: effectiveLeads.filter((lead) => lead.status === column.key).length,
         }))}
         actions={[
-          { label: isInternal ? '进入 Dashboard' : 'Go to Dashboard', to: { pathname: '/' } },
+          { label: isInternal ? '进入总览' : 'Go to Dashboard', to: { pathname: '/' } },
           { label: isInternal ? '进入 Scheduler' : 'Go to Scheduler', to: { pathname: '/scheduler' } },
         ]}
         internalHint={isInternal ? 'internal 模式优先读取 /api/leads；opensource 模式仅使用 mock leads。' : undefined}
@@ -268,7 +268,7 @@ export function LeadsPage() {
                 {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
                   <div className="relation-stack" style={{ marginTop: 12 }}>
                     <div>
-                      <span className="section-label">{isInternal ? '回链项目' : 'Linked project'}</span>
+                      <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
                       <div className="object-row top-gap">
                         {relatedProject ? (
                           <ObjectBadge
@@ -285,7 +285,7 @@ export function LeadsPage() {
                       </div>
                     </div>
                     <div>
-                      <span className="section-label">{isInternal ? '回链房间' : 'Linked rooms'}</span>
+                      <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
                       <div className="object-row top-gap">
                         {relatedRooms.length > 0 ? relatedRooms.slice(0, 2).map((room) => (
                           <ObjectBadge
@@ -302,7 +302,7 @@ export function LeadsPage() {
                       </div>
                     </div>
                     <div>
-                      <span className="section-label">{isInternal ? '回链实例' : 'Linked agent'}</span>
+                      <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
                       <div className="object-row top-gap">
                         {relatedAgent ? (
                           <ObjectBadge

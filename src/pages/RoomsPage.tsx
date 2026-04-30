@@ -45,18 +45,18 @@ export function RoomsPage() {
 
       <PageLeadPanel
         heading={isInternal ? '频道' : 'Rooms'}
-        intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和实例。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
+        intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和协作者。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
         internalMode={isInternal}
         metrics={[
           { label: isInternal ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
           { label: isInternal ? '活跃房间' : 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
           { label: isInternal ? '待处理总数' : 'Pending total', value: pendingCount, to: { pathname: '/tasks' } },
-          { label: isInternal ? '实例' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: isInternal ? '协作者' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
         ]}
         actions={[
           { label: isInternal ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
           { label: isInternal ? '进入项目' : 'Go to projects', to: { pathname: '/projects' } },
-          { label: isInternal ? '进入实例' : 'Go to agents', to: { pathname: '/agents' } },
+          { label: isInternal ? '查看协作者' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
         internalHint={
           isInternal
@@ -121,7 +121,7 @@ export function RoomsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">{isInternal ? '实例' : 'Agents'} {linkedAgents.length > 0 ? '' : '—'}</span>
+                  <span className="section-label">{isInternal ? '协作者' : 'Agents'} {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
                       <ObjectBadge
@@ -148,7 +148,7 @@ export function RoomsPage() {
                   {isInternal ? '关联项目' : 'Related project'}
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/agents', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '关联实例' : 'Related agents'}
+                  {isInternal ? '关联协作者' : 'Related agents'}
                 </NavLink>
               </div>
             </article>
