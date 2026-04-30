@@ -151,7 +151,7 @@ export function ConsultantsPage() {
     <section className="page consultant-settings-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{APP_MODE === 'internal' ? 'Consultants 顾问' : 'Consultants'}</p>
+          <p className="eyebrow">{APP_MODE === 'internal' ? '角色配置' : 'Consultants'}</p>
           <h2>{consultantSettingsConfig.pageTitle}</h2>
         </div>
         <p className="page-note">
@@ -161,12 +161,12 @@ export function ConsultantsPage() {
 
       <section className="panel strong-card consultant-mode-strip">
         <div className="info-pairs">
-          <div className="context-strip"><span>app_mode</span><strong>{APP_MODE}</strong></div>
-          <div className="context-strip"><span>system_mode</span><strong>{systemMode.systemMode}</strong></div>
-          <div className="context-strip"><span>publish_mode</span><strong>{systemMode.publishMode}</strong></div>
-          <div className="context-strip"><span>force_stop</span><strong>{String(systemMode.forceStop)}</strong></div>
-          <div className="context-strip"><span>consultant_pool</span><strong>{consultants.length}</strong></div>
-          <div className="context-strip"><span>configured_active_load</span><strong>{totalActiveLoad}</strong></div>
+          <div className="context-strip"><span>应用模式</span><strong>{APP_MODE}</strong></div>
+          <div className="context-strip"><span>系统模式</span><strong>{systemMode.systemMode}</strong></div>
+          <div className="context-strip"><span>发布状态</span><strong>{systemMode.publishMode}</strong></div>
+          <div className="context-strip"><span>紧急停止</span><strong>{systemMode.forceStop ? '已开启' : '未开启'}</strong></div>
+          <div className="context-strip"><span>顾问数量</span><strong>{consultants.length}</strong></div>
+          <div className="context-strip"><span>当前承载量</span><strong>{totalActiveLoad}</strong></div>
         </div>
         <p className="page-note top-gap">
           {APP_MODE === 'internal'

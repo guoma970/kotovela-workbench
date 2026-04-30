@@ -22,6 +22,29 @@ type AuditEntry = {
   actor?: string
 }
 
+const SYSTEM_MODE_LABELS: Record<SystemModeValue, string> = {
+  dev: '开发验证',
+  test: '测试验证',
+  live: '正式运行',
+}
+
+const PUBLISH_MODE_LABELS: Record<PublishModeValue, string> = {
+  auto_disabled: '自动发布关闭',
+  manual_only: '仅手动发布',
+  semi_auto: '半自动发布',
+}
+
+const formatControlDetail = (value: string) =>
+  value
+    .replace(/system_mode/g, '系统模式')
+    .replace(/publish_mode/g, '发布状态')
+    .replace(/force_stop/g, '紧急停止')
+    .replace(/guardrails/g, '安全规则')
+    .replace(/warning/g, '安全提醒')
+    .replace(/overload/g, '负载状态')
+    .replace(/=true/g, '=已开启')
+    .replace(/=false/g, '=未开启')
+
 export function SystemControlPage() {
   const { projects, agents, rooms, tasks } = useOfficeInstances()
   const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
@@ -77,8 +100,8 @@ export function SystemControlPage() {
   const liveHint = useMemo(
     () =>
       state.system_mode === 'live'
-        ? 'LIVE MODE · Real business traffic enabled'
-        : '非 live 环境，仅供联调与验证',
+        ? '正式模式 · 真实业务流量已开启'
+        : '非正式环境，仅供联调与验证',
     [state.system_mode],
   )
 
@@ -88,95 +111,95 @@ export function SystemControlPage() {
     <section className="page consultant-settings-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">System Control</p>
-          <h2>系统控制页</h2>
+          <p className="eyebrow">系统设置</p>
+          <h2>系统设置</h2>
         </div>
-        <p className="page-note">最小可用控制台，展示并控制 system_mode / publish_mode / force_stop / warning / overload。</p>
+        <p className="page-note">最小可用控制台，展示并控制系统模式、发布状态、紧急停止、安全提醒与负载状态。</p>
       </div>
 
       <section className={`panel strong-card system-mode-bar ${state.system_mode === 'live' ? 'is-live' : state.system_mode === 'test' ? 'is-test' : 'is-dev'}`}>
         <div className="system-mode-bar-main">
-          <span className="system-mode-bar-label">SYSTEM MODE</span><strong className="system-mode-bar-value">{state.system_mode}</strong>
+          <span className="system-mode-bar-label">系统模式</span><strong className="system-mode-bar-value">{SYSTEM_MODE_LABELS[state.system_mode]}</strong>
           <span className="system-mode-bar-divider">/</span>
-          <span className="system-mode-bar-label">PUBLISH MODE</span><strong className="system-mode-bar-value">{state.publish_mode}</strong>
-          <span className={`system-mode-flag ${state.force_stop ? 'is-on' : 'is-off'}`}>FORCE STOP: {state.force_stop ? 'ON' : 'OFF'}</span>
+          <span className="system-mode-bar-label">发布状态</span><strong className="system-mode-bar-value">{PUBLISH_MODE_LABELS[state.publish_mode]}</strong>
+          <span className={`system-mode-flag ${state.force_stop ? 'is-on' : 'is-off'}`}>紧急停止：{state.force_stop ? '已开启' : '未开启'}</span>
         </div>
         <div className="system-mode-bar-side">{liveHint}</div>
       </section>
 
-      {isReadonlyOpenSource ? <p className="page-note">opensource 模式只读展示，不写入 internal 控制状态。</p> : null}
+      {isReadonlyOpenSource ? <p className="page-note">开源演示模式只读展示，不写入内部控制状态。</p> : null}
       {error ? <p className="page-note" style={{ color: '#fca5a5' }}>{error}</p> : null}
 
       <section className="panel strong-card consultant-editor-panel">
         <div className="panel-header align-start">
           <h3>控制面板</h3>
-          <span className="home-count">app_mode {state.app_mode}</span>
+          <span className="home-count">应用模式 {state.app_mode}</span>
         </div>
         <div className="consultant-form-grid">
           <label>
-            <span>system_mode</span>
+            <span>系统模式</span>
             <select value={state.system_mode} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ system_mode: e.target.value as SystemModeValue })}>
-              <option value="dev">dev</option>
-              <option value="test">test</option>
-              <option value="live">live</option>
+              <option value="dev">开发验证</option>
+              <option value="test">测试验证</option>
+              <option value="live">正式运行</option>
             </select>
           </label>
           <label>
-            <span>publish_mode</span>
+            <span>发布状态</span>
             <select value={state.publish_mode} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ publish_mode: e.target.value as PublishModeValue })}>
-              <option value="auto_disabled">auto_disabled</option>
-              <option value="manual_only">manual_only</option>
-              <option value="semi_auto">semi_auto</option>
+              <option value="auto_disabled">自动发布关闭</option>
+              <option value="manual_only">仅手动发布</option>
+              <option value="semi_auto">半自动发布</option>
             </select>
           </label>
           <label>
-            <span>force_stop</span>
+            <span>紧急停止</span>
             <select value={String(state.force_stop)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ force_stop: e.target.value === 'true' })}>
-              <option value="false">false</option>
-              <option value="true">true</option>
+              <option value="false">未开启</option>
+              <option value="true">已开启</option>
             </select>
           </label>
           <label>
-            <span>warning</span>
+            <span>安全提醒</span>
             <select value={String(state.warning)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ warning: e.target.value === 'true' })}>
-              <option value="false">false</option>
-              <option value="true">true</option>
+              <option value="false">未开启</option>
+              <option value="true">已开启</option>
             </select>
           </label>
           <label>
-            <span>overload</span>
+            <span>负载状态</span>
             <select value={String(state.overload)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ overload: e.target.value === 'true' })}>
-              <option value="false">false</option>
-              <option value="true">true</option>
+              <option value="false">正常</option>
+              <option value="true">偏高</option>
             </select>
           </label>
           <label>
-            <span>live_guardrails.enabled</span>
+            <span>安全规则</span>
             <select value={String(state.live_guardrails.enabled)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ live_guardrails: { ...state.live_guardrails, enabled: e.target.value === 'true' } as SystemControlState['live_guardrails'] })}>
-              <option value="false">false</option>
-              <option value="true">true</option>
+              <option value="false">未开启</option>
+              <option value="true">已开启</option>
             </select>
           </label>
         </div>
 
         <div className="cross-link-row top-gap">
-          <span className="inline-link-chip">warning: {String(state.warning)}</span>
-          <span className="inline-link-chip">overload: {String(state.overload)}</span>
-          <span className="inline-link-chip">guardrails: {state.live_guardrails.enabled ? 'enabled' : 'disabled'}</span>
-          <Link className="inline-link-chip" to="/">返回 Dashboard</Link>
+          <span className="inline-link-chip">安全提醒：{state.warning ? '已开启' : '未开启'}</span>
+          <span className="inline-link-chip">负载状态：{state.overload ? '偏高' : '正常'}</span>
+          <span className="inline-link-chip">安全规则：{state.live_guardrails.enabled ? '已开启' : '未开启'}</span>
+          <Link className="inline-link-chip" to="/">返回总览</Link>
         </div>
       </section>
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>decision_log / audit_log 证据</h3>
+          <h3>决策记录 / 操作记录证据</h3>
           <span className="badge-count">{auditEntries.length}</span>
         </div>
         <div className="consultant-evidence-list">
           {state.decision_log.slice(0, 6).map((entry, index) => (
             <article key={`${entry.timestamp}-${index}`} className="consultant-evidence-card">
-              <strong>{entry.action}</strong>
-              <p>{entry.reason} · {entry.detail}</p>
+              <strong>{formatControlDetail(entry.action)}</strong>
+              <p>{formatControlDetail(entry.reason)} · {formatControlDetail(entry.detail)}</p>
               <small>{entry.actor || '-'} · {entry.timestamp}</small>
               <EvidenceObjectLinks
                 textParts={[entry.action, entry.reason, entry.detail, entry.actor]}
@@ -196,9 +219,9 @@ export function SystemControlPage() {
           ))}
           {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry) => (
             <article key={entry.id} className="consultant-evidence-card">
-              <strong>{entry.action}</strong>
+              <strong>{formatControlDetail(entry.action)}</strong>
               <p>{entry.target}</p>
-              <small>{entry.result} · {entry.time}</small>
+              <small>{formatControlDetail(entry.result)} · {entry.time}</small>
               <EvidenceObjectLinks
                 textParts={[entry.action, entry.target, entry.result]}
                 signalParts={[entry.user, entry.target, entry.result]}
@@ -215,7 +238,7 @@ export function SystemControlPage() {
               />
             </article>
           ))}
-          {!state.decision_log.length ? <p className="empty-state">暂无 decision_log 证据。</p> : null}
+          {!state.decision_log.length ? <p className="empty-state">还没有操作记录。</p> : null}
         </div>
       </section>
     </section>

@@ -37,14 +37,14 @@ export function RoomsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? 'Rooms 房间' : 'Rooms'}</p>
+          <p className="eyebrow">{isInternal ? '频道' : 'Rooms'}</p>
           <h2>{isInternal ? '房间状态总览' : 'Room Status'}</h2>
         </div>
         <p className="page-note">{isInternal ? '查看每个房间的状态、用途与最近动作。' : 'Each room shows its name, status, purpose, and most recent action.'}</p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? 'Rooms 房间' : 'Rooms'}
+        heading={isInternal ? '频道' : 'Rooms'}
         intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和实例。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
         internalMode={isInternal}
         metrics={[

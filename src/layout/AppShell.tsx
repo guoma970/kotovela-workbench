@@ -10,16 +10,17 @@ import { brandAssets } from '../config/brandAssets'
 const getNavItems = (isInternal: boolean) =>
   isInternal
     ? [
-        { group: '驾驶舱层', to: '/', step: 1, label: 'Dashboard 总览', note: '系统状态 · 同步概览' },
-        { group: '驾驶舱层', to: '/projects', step: 2, label: 'Projects 项目', note: '项目组合 · 负责人 · 阻塞' },
-        { group: '驾驶舱层', to: '/rooms', step: 3, label: 'Rooms 房间', note: '协作通道 · 关联实例' },
-        { group: '驾驶舱层', to: '/tasks', step: 4, label: 'Tasks 任务', note: '执行队列 · 阻塞优先' },
-        { group: '驾驶舱层', to: '/leads', step: 5, label: 'Leads 线索', note: '线索列表 · 状态归一' },
-        { group: '调度系统', to: '/scheduler', step: 6, label: 'Scheduler 调度', note: '执行控制 · 队列调度' },
-        { group: '调度系统', to: '/consultants', step: 7, label: 'Consultants 顾问', note: '顾问配置 · 分配规则' },
-        { group: '调度系统', to: '/system-control', step: 8, label: 'System Control 系统控制', note: 'system_mode · guardrails' },
-        { group: '调度系统', to: '/evidence-acceptance', step: 9, label: 'Evidence Acceptance 验收', note: '命中率 · 未命中原因 · 回链成功率' },
-        { group: '执行层', to: '/agents', step: 10, label: 'Agents 实例', note: '实例状态 · 路由分派' },
+        { group: '工作台', to: '/', step: 1, label: '总览', note: '系统状态 · 同步概览' },
+        { group: '工作台', to: '/projects', step: 2, label: '项目', note: '项目组合 · 负责人 · 有卡点' },
+        { group: '工作台', to: '/rooms', step: 3, label: '频道', note: '协作频道 · 关联协作者' },
+        { group: '工作台', to: '/tasks', step: 4, label: '任务', note: '执行队列 · 卡点优先' },
+        { group: '工作台', to: '/leads', step: 5, label: '待跟进', note: '跟进列表 · 状态归一' },
+        { group: '管理配置', to: '/scheduler', step: 6, label: '调度队列', note: '执行控制 · 队列调度' },
+        { group: '管理配置', to: '/consultants', step: 7, label: '角色配置', note: '顾问配置 · 分配规则' },
+        { group: '管理配置', to: '/model-usage', step: 8, label: '用量统计', note: '额度 · token · OAuth 顺序' },
+        { group: '管理配置', to: '/system-control', step: 9, label: '系统设置', note: '系统模式 · 安全规则' },
+        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: '执行验证', note: '匹配成功率 · 未匹配原因 · 关联成功率' },
+        { group: '协作者', to: '/agents', step: 11, label: '协作者状态', note: '协作者状态 · 路由分派' },
       ]
     : [
         { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -29,9 +30,10 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Cockpit', to: '/leads', step: 5, label: 'Leads', note: 'Lead list and normalized status' },
         { group: 'Scheduling', to: '/scheduler', step: 6, label: 'Scheduler', note: 'Execution control and queue' },
         { group: 'Scheduling', to: '/consultants', step: 7, label: 'Consultants', note: 'Consultant settings and routing' },
-        { group: 'Scheduling', to: '/system-control', step: 8, label: 'System Control', note: 'system_mode and guardrails' },
-        { group: 'Scheduling', to: '/evidence-acceptance', step: 9, label: 'Evidence Acceptance', note: 'Hit rate, misses, and link-back success' },
-        { group: 'Execution', to: '/agents', step: 10, label: 'Agents', note: 'Agent activity and routing' },
+        { group: 'Scheduling', to: '/model-usage', step: 8, label: 'Model Usage', note: 'Quota, tokens, and OAuth order' },
+        { group: 'Scheduling', to: '/system-control', step: 9, label: 'System Control', note: 'system mode and safety rules' },
+        { group: 'Scheduling', to: '/evidence-acceptance', step: 10, label: 'Evidence Acceptance', note: 'Hit rate, misses, and link-back success' },
+        { group: 'Execution', to: '/agents', step: 11, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
 export function AppShell() {
@@ -43,7 +45,6 @@ export function AppShell() {
     activeDataSource,
     isFallback,
     lastSyncedAtMs,
-    pollingIntervalMs,
   } = useOfficeInstances()
   const productName = BRAND_NAME
   const navItems = getNavItems(mode === 'internal')
@@ -197,19 +198,17 @@ export function AppShell() {
               <p className="brand-sync-meta">
                 {preferredDataSource === 'openclaw' ? (
                   <>
-                    数据源：{isFallback ? 'OpenClaw（已回退 Mock）' : 'OpenClaw'}
+                    {isFallback ? '当前使用演示数据' : '实时数据已连接'}
                     <br />
-                    上次同步 {formatLastSyncedAt(lastSyncedAtMs)} · 每{' '}
-                    {Math.max(1, Math.round(pollingIntervalMs / 1000))} 秒刷新
+                    {formatLastSyncedAt(lastSyncedAtMs)} 更新 · 自动刷新
                   </>
                 ) : (
-                  <>数据源：Mock · 不请求 OpenClaw</>
+                  <>当前使用演示数据</>
                 )}
               </p>
             ) : (
               <p className="brand-runtime-line">
-                Demo · 目标数据源 {preferredDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
-                {isFallback ? ' · 已回退 Mock' : activeDataSource === 'openclaw' ? ' · 已连接 OpenClaw' : ' · 当前 Mock'}
+                Demo · {isFallback || activeDataSource === 'mock' ? '当前使用演示数据' : preferredDataSource === 'openclaw' ? '实时数据已连接' : '当前使用演示数据'}
               </p>
             )}
           </div>

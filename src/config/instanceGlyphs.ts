@@ -6,19 +6,19 @@ export const OFFICE_INSTANCE_KEY_TO_GLYPH: Record<string, string> = {
   main: '树',
   builder: '筑',
   media: '果',
-  family: '言',
-  business: '柒',
-  personal: '羲',
-  ztl970: '羲',
+  family: '羲',
+  business: '言',
+  personal: '柒',
+  ztl970: '柒',
 }
 
 export const INS_CODE_TO_GLYPH: Record<string, string> = {
   'INS-01': '树',
   'INS-02': '筑',
   'INS-03': '果',
-  'INS-04': '言',
-  'INS-05': '柒',
-  'INS-06': '羲',
+  'INS-04': '羲',
+  'INS-05': '言',
+  'INS-06': '柒',
 }
 
 /** 由 legacy agent id（agent-1 … agent-6）解析 INS 编号，用于 Mock 数据无 instanceKey 时。 */

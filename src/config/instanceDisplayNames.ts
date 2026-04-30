@@ -23,8 +23,8 @@ export const OFFICE_INSTANCE_INTERNAL_NICKNAME_BY_KEY: Record<string, string> = 
   media: '小果',
   family: '小羲',
   business: '小言',
-  personal: 'Personal',
-  ztl970: 'Personal',
+  personal: '小柒',
+  ztl970: '小柒',
 }
 
 export const OFFICE_INSTANCE_INTERNAL_ROLE_BY_KEY: Record<string, string> = {

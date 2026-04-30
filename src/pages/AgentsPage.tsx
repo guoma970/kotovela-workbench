@@ -51,27 +51,27 @@ export function AgentsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? 'Agents 实例' : 'Agents'}</p>
-          <h2>{isInternal ? '实例状态总览' : 'Agent Status'}</h2>
+          <p className="eyebrow">{isInternal ? '协作者状态' : 'Agents'}</p>
+          <h2>{isInternal ? '协作者状态总览' : 'Agent Status'}</h2>
         </div>
-        <p className="page-note">{isInternal ? '快速查看谁在阻塞、推进或待命。' : 'See who is blocked, active, or idle at a glance.'}</p>
+        <p className="page-note">{isInternal ? '快速查看谁有卡点、正在推进或空闲。' : 'See who is blocked, active, or idle at a glance.'}</p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? 'Agents 实例' : 'Agents'}
-        intro={isInternal ? '优先处理阻塞实例，再确认当前执行链。' : 'Start with blocked agents, then confirm the active execution chain.'}
+        heading={isInternal ? '协作者' : 'Agents'}
+        intro={isInternal ? '优先处理有卡点的协作者，再确认当前执行链。' : 'Start with blocked agents, then confirm the active execution chain.'}
         internalMode={isInternal}
         metrics={[
-          { label: isInternal ? '实例' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
-          { label: isInternal ? '进行中' : 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
-          { label: isInternal ? '阻塞' : 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
-          { label: isInternal ? '待命' : 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: isInternal ? '协作者' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: isInternal ? '推进中' : 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: isInternal ? '有卡点' : 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
+          { label: isInternal ? '空闲' : 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
         ]}
         actions={
           targetAgent
             ? [
                 {
-                  label: isInternal ? '查看阻塞实例' : 'View blocked agent',
+                  label: isInternal ? '查看有卡点的协作者' : 'View blocked agent',
                   to: { pathname: '/agents', search: targetFocusSearch },
                 },
               ]
@@ -144,7 +144,7 @@ export function AgentsPage() {
               <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
                 <span className="soft-tag">{isInternal ? '更新：' : 'Updated: '}{agent.updatedAt}</span>
                 {linkedRooms.length > 0 && (
-                  <span className="soft-tag">· {linkedRooms.length} {isInternal ? '个房间' : 'rooms'}</span>
+                  <span className="soft-tag">· {linkedRooms.length} {isInternal ? '个频道' : 'rooms'}</span>
                 )}
                 {linkedTasks.length > 0 && (
                   <span className="soft-tag">· {linkedTasks.length} {isInternal ? '个任务' : 'tasks'}</span>
@@ -156,7 +156,7 @@ export function AgentsPage() {
                   {isInternal ? '查看关联任务' : 'View related tasks'}
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '查看关联房间' : 'View related rooms'}
+                  {isInternal ? '查看关联频道' : 'View related rooms'}
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
                   {isInternal ? '查看关联项目' : 'View related project'}
@@ -165,6 +165,7 @@ export function AgentsPage() {
             </article>
           )
         })}
+        {filteredAgents.length === 0 ? <p className="empty-state">{isInternal ? '协作者数据加载中，请稍候。' : 'No agent data yet.'}</p> : null}
       </div>
     </section>
   )

@@ -37,7 +37,7 @@ export function ProjectsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{showCockpitDetail ? 'Projects 项目' : 'Projects'}</p>
+          <p className="eyebrow">{showCockpitDetail ? '项目' : 'Projects'}</p>
           <h2>{showCockpitDetail ? '项目看板总览' : 'Project Board'}</h2>
         </div>
         <p className="page-note">
@@ -48,7 +48,7 @@ export function ProjectsPage() {
       </div>
 
       <PageLeadPanel
-        heading={showCockpitDetail ? 'Projects 项目' : 'Projects'}
+        heading={showCockpitDetail ? '项目' : 'Projects'}
         intro={
           showCockpitDetail
             ? '先看项目数量与阻塞，再进入任务、房间与实例。'

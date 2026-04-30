@@ -61,10 +61,25 @@ type AuditEntry = {
 const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string }> = [
   { key: 'running', label: 'Running', labelZh: '进行中' },
   { key: 'queue', label: 'Queue', labelZh: '排队中' },
-  { key: 'paused', label: 'Paused', labelZh: '暂停' },
+  { key: 'paused', label: 'Paused', labelZh: '暂停/阻塞' },
   { key: 'done', label: 'Done', labelZh: '已完成' },
   { key: 'need_human', label: 'Need Human', labelZh: '需人工处理' },
 ]
+
+const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
+  running: '进行中',
+  queue: '排队中',
+  paused: '暂停/阻塞',
+  done: '已完成',
+  need_human: '需人工处理',
+}
+
+const TASK_PRIORITY_LABEL_ZH: Record<string, string> = {
+  high: '高优先级',
+  medium: '中优先级',
+  low: '低优先级',
+  unknown: '未标注优先级',
+}
 
 const normalizeStatus = (status?: string, needHuman?: boolean): TaskBoardStatus => {
   if (needHuman) return 'need_human'
@@ -203,7 +218,7 @@ export function TasksPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? 'Tasks 任务' : 'Tasks'}</p>
+          <p className="eyebrow">{isInternal ? '任务' : 'Tasks'}</p>
           <h2>{isInternal ? '任务列表页' : 'Task List'}</h2>
         </div>
         <p className="page-note">
@@ -215,7 +230,7 @@ export function TasksPage() {
 
       <PageLeadPanel
         heading={isInternal ? '任务队列' : 'Task Queue'}
-        intro={isInternal ? '按状态查看当前任务结果与责任归属。' : 'Track task status results by queue state.'}
+        intro={isInternal ? '按状态查看当前任务结果、责任归属、阻塞与审计回链。' : 'Track task status results by queue state.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -245,19 +260,19 @@ export function TasksPage() {
                     <article key={task.task_id} className={cardClass(task)}>
                       <div className="item-head">
                         <h4>{task.title}</h4>
-                        <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                        <span className={`priority-badge priority-${task.priority}`}>{isInternal ? (TASK_PRIORITY_LABEL_ZH[task.priority] ?? task.priority) : task.priority}</span>
                       </div>
                       <div className="queue-meta dense-meta" style={{ marginTop: 8 }}>
-                        <span>task_id: {task.task_id}</span>
+                        <span>{isInternal ? '任务编号' : 'task_id'}: {task.task_id}</span>
                       </div>
                       <div className="queue-meta dense-meta">
-                        <span>status: {task.status}</span>
+                        <span>{isInternal ? '状态' : 'status'}: {isInternal ? TASK_STATUS_LABEL_ZH[task.status] : task.status}</span>
                       </div>
                       <div className="queue-meta dense-meta">
-                        <span>owner: {task.owner}</span>
+                        <span>{isInternal ? '负责人' : 'owner'}: {task.owner}</span>
                       </div>
                       <div className="queue-meta dense-meta">
-                        <span>updated_at: {task.updated_at}</span>
+                        <span>{isInternal ? '更新时间' : 'updated_at'}: {task.updated_at}</span>
                       </div>
                       {taskRecord ? (
                         <div className="relation-stack" style={{ marginTop: 12 }}>
@@ -327,7 +342,7 @@ export function TasksPage() {
                     </article>
                   )
                 })}
-                {list.length === 0 ? <p className="empty-state empty-compact">{isInternal ? '暂无任务' : 'No tasks'}</p> : null}
+                {list.length === 0 ? <p className="empty-state empty-compact">{isInternal ? '当前没有进行中的任务 · 一切顺利' : 'No tasks'}</p> : null}
               </div>
             </section>
           )
@@ -337,7 +352,7 @@ export function TasksPage() {
       {isInternal ? (
         <section className="panel strong-card">
           <div className="panel-header">
-            <h3>decision_log / audit_log 证据</h3>
+            <h3>决策记录 / 审计记录证据</h3>
             <span className="badge-count">{auditEntries.length}</span>
           </div>
           <p className="page-note">

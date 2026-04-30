@@ -72,6 +72,14 @@ const STATUS_COLUMNS: Array<{ key: LeadStatus; label: string; labelZh: string }>
   { key: 'need_human', label: 'Need Human', labelZh: '需人工处理' },
 ]
 
+const LEAD_STATUS_LABEL_ZH: Record<LeadStatus, string> = {
+  queue: '排队中',
+  running: '跟进中',
+  done: '已转化',
+  lost: '已流失',
+  need_human: '需人工处理',
+}
+
 const normalizeLeadStatus = (status?: string, assignmentStatus?: string): LeadStatus => {
   const s = String(status ?? '').toLowerCase()
   const a = String(assignmentStatus ?? '').toLowerCase()
@@ -203,7 +211,7 @@ export function LeadsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? 'Leads 线索' : 'Leads'}</p>
+          <p className="eyebrow">{isInternal ? '待跟进' : 'Leads'}</p>
           <h2>{isInternal ? '线索列表页' : 'Lead List'}</h2>
         </div>
         <p className="page-note">
@@ -215,7 +223,7 @@ export function LeadsPage() {
 
       <PageLeadPanel
         heading={isInternal ? '线索队列' : 'Lead Queue'}
-        intro={isInternal ? '统一状态口径后查看线索跟进结果。' : 'Track leads with normalized status labels.'}
+        intro={isInternal ? '统一状态口径后查看线索来源、负责人、跟进状态与回链证据。' : 'Track leads with normalized status labels.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -248,15 +256,15 @@ export function LeadsPage() {
                 <div className="item-head">
                   <h4>{lead.name}</h4>
                   <span className={`priority-badge priority-${lead.status === 'done' ? 'low' : lead.status === 'running' ? 'medium' : 'high'}`}>
-                    {lead.status}
+                    {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}
                   </span>
                 </div>
-                <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>lead_id: {lead.lead_id}</span></div>
-                <div className="queue-meta dense-meta"><span>source: {lead.source}</span></div>
-                <div className="queue-meta dense-meta"><span>status: {lead.status}</span></div>
-                <div className="queue-meta dense-meta"><span>owner: {lead.owner}</span></div>
-                <div className="queue-meta dense-meta"><span>updated_at: {lead.updated_at}</span></div>
-                <div className="queue-meta dense-meta"><span>mode: {lead.source_mode}</span></div>
+                <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>{isInternal ? '线索编号' : 'lead_id'}: {lead.lead_id}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '来源' : 'source'}: {lead.source}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '状态' : 'status'}: {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '负责人' : 'owner'}: {lead.owner}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '更新时间' : 'updated_at'}: {lead.updated_at}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '数据模式' : 'mode'}: {lead.source_mode}</span></div>
                 {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
                   <div className="relation-stack" style={{ marginTop: 12 }}>
                     <div>
@@ -324,7 +332,7 @@ export function LeadsPage() {
       {isInternal ? (
         <section className="panel strong-card">
           <div className="panel-header">
-            <h3>decision_log / audit_log 证据</h3>
+            <h3>决策记录 / 审计记录证据</h3>
             <span className="badge-count">{auditEntries.length}</span>
           </div>
           <p className="page-note">

@@ -5,7 +5,7 @@ import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { Agent, Project, Room, Task, UpdateItem } from '../types'
-import { BRAND_NAME } from '../config/brand'
+import { BRAND_NAME, INTERNAL_PRODUCT_TITLE } from '../config/brand'
 import { brandAssets } from '../config/brandAssets'
 import { consultantSettingsConfig } from '../config/consultantSettings'
 
@@ -165,7 +165,7 @@ function AuditLogPanel() {
           })}
         </div>
       ) : (
-        <p className="empty-state">暂无审计记录。</p>
+        <p className="empty-state">还没有操作记录。</p>
       )}
     </section>
   )
@@ -258,8 +258,8 @@ function InternalControlSummary({
   const blocked = agents.filter((a) => a.status === 'blocked').length
   const active = agents.filter((a) => a.status === 'active').length
   const idle = agents.filter((a) => a.status === 'idle').length
-  const projectsWithBlockers = projects.filter((p) => p.blockers > 0).length
-  const topProjects = [...projects]
+  const projectsWithBlockers = buildProjectSnapshots(projects).filter((p) => p.blockers > 0).length
+  const topProjects = buildProjectSnapshots(projects)
     .sort((a, b) => {
       if (b.blockers !== a.blockers) return b.blockers - a.blockers
       return b.progress - a.progress
@@ -269,49 +269,49 @@ function InternalControlSummary({
   const sourceLine =
     activeDataSource === 'openclaw'
       ? isFallback
-        ? '数据源 OpenClaw 不可用，已回退 Mock'
+        ? '当前使用演示数据'
         : livePayload
-          ? '数据源 OpenClaw · 实例 payload 已接入'
-          : '数据源 OpenClaw（当前无实例行，展示同步口径）'
-      : '数据源 Mock · 演示口径'
+          ? '实时数据已连接'
+          : '实时数据已连接'
+      : '当前使用演示数据'
 
   const healthLine =
     blocked > 0
-      ? `需关注：${blocked} 个实例阻塞`
+      ? `需关注：${blocked} 个协作者有卡点`
       : active > 0
-        ? `进行中：${active} 个实例 · 整体在推进`
+        ? `推进中：${active} 个协作者 · 整体在推进`
         : idle === agents.length && agents.length > 0
-          ? '当前无进行中任务，实例待命'
-          : '暂无实例数据'
+          ? '当前没有进行中的任务 · 一切顺利'
+          : '协作者数据加载中，请稍候。'
 
-  const pollSec = Math.max(1, Math.round(pollingIntervalMs / 1000))
+  void pollingIntervalMs
   const { systemMode, publishMode, forceStop } = systemModeState
   const systemModeTone = systemMode === 'live' ? 'is-live' : systemMode === 'test' ? 'is-test' : 'is-dev'
   const syncStatusLine = isLoading
-    ? '正在拉取 OpenClaw…'
+    ? '数据加载中…'
     : activeDataSource === 'openclaw' && !isFallback
-      ? `上次同步 ${formatLastSyncedAt(lastSyncedAtMs)} · 每 ${pollSec} 秒轮询`
+      ? `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 自动刷新`
       : isFallback
-        ? `上次成功同步 ${formatLastSyncedAt(lastSyncedAtMs)} · 已回退 Mock · 每 ${pollSec} 秒重试`
-        : `当前为 Mock 数据 · 未轮询 OpenClaw`
+        ? `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 当前使用演示数据 · 自动刷新`
+        : `当前使用演示数据`
 
   return (
     <section className="control-summary panel strong-card">
       <div className={`system-mode-bar ${systemModeTone}`}>
         <div className="system-mode-bar-main">
-          <span className="system-mode-bar-label">SYSTEM MODE</span>
+          <span className="system-mode-bar-label">系统模式</span>
           <strong className="system-mode-bar-value">{systemMode}</strong>
           <span className="system-mode-bar-divider" aria-hidden>
             /
           </span>
-          <span className="system-mode-bar-label">PUBLISH MODE</span>
+          <span className="system-mode-bar-label">发布状态</span>
           <strong className="system-mode-bar-value">{publishMode}</strong>
           <span className={`system-mode-flag ${forceStop ? 'is-on' : 'is-off'}`}>
-            FORCE STOP: {forceStop ? 'ON' : 'OFF'}
+            紧急停止：{forceStop ? '已开启' : '未开启'}
           </span>
         </div>
         <div className="system-mode-bar-side">
-          {systemMode === 'live' ? 'LIVE MODE · Real business traffic enabled' : '非 live 环境，仅供联调与验证'}
+          {systemMode === 'live' ? '正式模式 · 真实业务流量已开启' : '非正式环境，仅供联调与验证'}
         </div>
       </div>
 
@@ -333,19 +333,19 @@ function InternalControlSummary({
 
       <div className="control-summary-metrics" role="list">
         <div className="control-metric" role="listitem">
-          <span className="control-metric-label">实例</span>
+          <span className="control-metric-label">协作者</span>
           <strong className="control-metric-value">{agents.length}</strong>
         </div>
         <div className="control-metric is-blocked" role="listitem">
-          <span className="control-metric-label">阻塞</span>
+          <span className="control-metric-label">有卡点</span>
           <strong className="control-metric-value">{blocked}</strong>
         </div>
         <div className="control-metric is-active" role="listitem">
-          <span className="control-metric-label">进行中</span>
+          <span className="control-metric-label">推进中</span>
           <strong className="control-metric-value">{active}</strong>
         </div>
         <div className="control-metric is-idle" role="listitem">
-          <span className="control-metric-label">待命</span>
+          <span className="control-metric-label">空闲</span>
           <strong className="control-metric-value">{idle}</strong>
         </div>
         <div className="control-metric" role="listitem">
@@ -353,7 +353,7 @@ function InternalControlSummary({
           <strong className="control-metric-value">{projects.length}</strong>
         </div>
         <div className={`control-metric ${projectsWithBlockers > 0 ? 'is-blocked' : ''}`} role="listitem">
-          <span className="control-metric-label">项目阻塞</span>
+          <span className="control-metric-label">项目卡点</span>
           <strong className="control-metric-value">{projectsWithBlockers}</strong>
         </div>
       </div>
@@ -362,7 +362,7 @@ function InternalControlSummary({
         <div className="control-project-snapshot">
           <div className="control-project-snapshot-head">
             <span className="control-project-snapshot-title">项目进度快照</span>
-            <span className="control-project-snapshot-hint">阻塞优先排序 · 点击进项目板</span>
+            <span className="control-project-snapshot-hint">卡点优先排序 · 点击进项目板</span>
           </div>
           <ul className="control-project-snapshot-list">
             {topProjects.map((project) => (
@@ -377,7 +377,7 @@ function InternalControlSummary({
                   </span>
                   <span className="control-project-line-pct">{project.progress}%</span>
                   {project.blockers > 0 ? (
-                    <span className="control-project-line-badge">{project.blockers} 阻塞</span>
+                    <span className="control-project-line-badge">{project.blockers} 个卡点</span>
                   ) : (
                     <span className="control-project-line-ok">—</span>
                   )}
@@ -391,7 +391,7 @@ function InternalControlSummary({
       {idle > 0 ? (
         <div className="control-summary-footer">
           <button type="button" className="control-idle-link" onClick={onOpenAgentsIdle}>
-            待命实例 {idle} 个 — 在 Agents 页查看全部
+            空闲协作者 {idle} 个 — 在协作者状态页查看全部
           </button>
         </div>
       ) : null}
@@ -474,6 +474,31 @@ type ChannelTier = 'L1' | 'L2' | 'L3'
 type RouteResult = 'direct' | 'blocked' | 'transfer'
 
 type ExternalPartnerMode = 'content_only' | 'consult_only' | 'no_delivery'
+
+type ProjectSnapshot = Pick<Project, 'id' | 'name' | 'progress' | 'blockers'>
+
+const buildProjectSnapshots = (projects: Project[]): ProjectSnapshot[] => {
+  const snapshots = new Map<string, ProjectSnapshot>()
+  for (const project of projects) {
+    const key = project.name.trim() || project.id
+    const current = snapshots.get(key)
+    if (!current) {
+      snapshots.set(key, {
+        id: project.id,
+        name: project.name,
+        progress: project.progress,
+        blockers: project.blockers,
+      })
+      continue
+    }
+    snapshots.set(key, {
+      ...current,
+      progress: Math.max(current.progress, project.progress),
+      blockers: current.blockers + project.blockers,
+    })
+  }
+  return Array.from(snapshots.values())
+}
 
 type AutoTaskBoardItem = {
   task_name: string
@@ -1039,12 +1064,12 @@ function AutoTaskSystemSummaryCard() {
         <span className="home-count">{data?.total ?? 0}</span>
       </div>
       <div className="auto-task-overview">
-        <div className="auto-task-metric"><span>total</span><strong>{data?.total ?? 0}</strong></div>
-        <div className="auto-task-metric"><span>success</span><strong>{data?.success ?? 0}</strong></div>
-        <div className={`auto-task-metric ${(data?.failed ?? 0) > 0 ? 'is-failed' : ''}`}><span>failed</span><strong>{data?.failed ?? 0}</strong></div>
+        <div className="auto-task-metric"><span>任务总数</span><strong>{data?.total ?? 0}</strong></div>
+        <div className="auto-task-metric"><span>已成功</span><strong>{data?.success ?? 0}</strong></div>
+        <div className={`auto-task-metric ${(data?.failed ?? 0) > 0 ? 'is-failed' : ''}`}><span>失败/需关注</span><strong>{data?.failed ?? 0}</strong></div>
       </div>
       <button className="auto-task-go-btn" type="button" onClick={() => navigate('/scheduler')}>
-        查看详情 / 进入系统
+        进入 Scheduler 查看队列与待人工
       </button>
     </section>
   )
@@ -1092,6 +1117,13 @@ const shortText = (value: string, max = 56): string => {
   return `${text.slice(0, max - 1)}…`
 }
 
+const humanizeBlockerText = (value: string): string => {
+  const normalized = value
+    .replace(/超过\s*480\s*分钟未见会话上报/g, '8 小时内未收到会话上报，建议先同步任务并进入房间确认实例是否离线')
+    .replace(/480\s*分钟未见会话上报/g, '8 小时内未收到会话上报，建议同步任务并检查房间')
+  return shortText(normalized, 88)
+}
+
 const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tasks: Task[]): HomeItem[] => {
   return agents.map((agent) => {
     const relatedTasks = tasks.filter((task) => task.executorAgentId === agent.id)
@@ -1102,7 +1134,7 @@ const buildHomeItems = (agents: Agent[], projects: Project[], rooms: Room[], tas
     const projectName = relatedProject?.name || agent.project
     const projectProgress = Number.isFinite(relatedProject?.progress) ? relatedProject!.progress : 0
     const roomName = relatedRoom?.name || '未绑定房间'
-    const blockedText = shortText(blockerTask?.title || agent.currentTask || '阻塞事项待处理')
+    const blockedText = humanizeBlockerText(blockerTask?.title || agent.currentTask || '阻塞事项待处理')
     const doingText = shortText(doingTask?.title || agent.currentTask || '执行事项待补充')
     const idleText = shortText(agent.currentTask || '等待任务分派')
 
@@ -1724,6 +1756,23 @@ export function AutoTaskSystemPanel() {
       item.need_human ? 'need_human' : '',
       item.auto_action ? `auto_${item.auto_action}` : '',
     ].filter(Boolean)
+    const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
+    const blockReason = item.blocked_by?.length
+      ? item.blocked_by.join(' / ')
+      : latestDecision?.block_reason ?? latestDecision?.reason ?? (item.predicted_block ? '预测存在阻塞风险' : '-')
+    const riskLabel = item.predicted_risk ?? (item.abnormal || item.stuck ? 'high' : item.need_human || blockReason !== '-' ? 'medium' : 'low')
+    const suggestedAction = item.need_human
+      ? '人工接管 / 指派负责人'
+      : item.status === 'blocked' || item.predicted_block || (item.blocked_by?.length ?? 0) > 0
+        ? '先解除阻塞，再恢复执行'
+        : ['todo', 'queued', 'queue', 'pending', 'preparing'].includes(item.status)
+          ? '确认优先级后等待调度'
+          : ['doing', 'running'].includes(item.status)
+            ? '观察执行结果，必要时暂停'
+            : item.status === 'failed'
+              ? '查看失败原因并重试'
+              : '归档结果或进入详情复核'
+    const showTechnicalDetails = activeView === 'debug' || expanded
 
     return (
       <article className={`scheduler-task-card scheduler-task-card-${tone}`} key={`${tone}-${item.task_name}-${index}`}>
@@ -1731,55 +1780,31 @@ export function AutoTaskSystemPanel() {
           <strong>{item.task_name}</strong>
           <span className={`scheduler-status scheduler-status-${item.status}`}>{item.status}</span>
         </div>
-        <div className="scheduler-task-meta-grid">
-          <span>agent: {item.agent}</span>
-          <span>pool: {item.instance_pool ?? '-'}</span>
-          <span>domain: {item.domain ?? '-'}</span>
-          <span>parent_task_id: {item.parent_task_id ?? '-'}</span>
-          <span>scenario_id: {item.scenario_id ?? '-'}</span>
-          <span>task_group: {item.task_group_label ?? '-'}</span>
-          <span>task_group_id: {item.task_group_id ?? '-'}</span>
-          <span>template_source: {item.template_source ?? item.template_key ?? '-'}</span>
-          <span>subdomain: {item.subdomain ?? '-'}</span>
-          <span>project_line: {item.project_line ?? '-'}</span>
-          <span>brand_display: {item.brand_display ?? item.brand_line ?? '-'}</span>
-          <span>mcn_display: {item.mcn_display ?? item.mcn_line ?? '-'}</span>
-          <span>account_display: {item.account_display ?? item.account_line ?? '-'}</span>
-          <span>account_type: {item.account_type ?? '-'}</span>
-          <span>tier: {item.tier ?? '-'}</span>
-          <span>route_result: {item.route_result ?? '-'}</span>
-          <span>route_target: {item.route_target ?? '-'}</span>
-          <span>can_close_deal: {typeof item.can_close_deal === 'boolean' ? String(item.can_close_deal) : '-'}</span>
-          <span>notify_mode: {item.notify_mode ?? '-'}</span>
-          <span>target_group_id: {item.target_group_id ?? '-'}</span>
-          <span>preferred_agent: {item.preferred_agent ?? '-'}</span>
-          <span>assigned_agent: {item.assigned_agent ?? '-'}</span>
-          <span>target_system: {item.target_system ?? '-'}</span>
-          <span>template_task_index: {item.template_task_index ?? '-'}</span>
-          <span>slot_id: {item.slot_id ?? '-'}</span>
-          <span>status: {item.status}</span>
-          <span>auto_generated: {item.auto_generated ? 'true' : 'false'}</span>
-          <span>trigger_source: {item.trigger_source ?? '-'}</span>
-          <span>predicted_risk: {item.predicted_risk ?? '-'}</span>
-          <span>predicted_block: {item.predicted_block ? 'true' : 'false'}</span>
-          <span>dependency_status: {item.dependency_status ?? ((item.blocked_by?.length ?? 0) > 0 ? 'blocked' : 'ready')}</span>
-          <span>priority: P{item.priority}</span>
-          <span>user_id: {item.user_id ?? '-'}</span>
-          <span>recommended_execute_at: {item.recommended_execute_at ?? '-'}</span>
-          <span>retry_count: {item.retry_count ?? 0}</span>
-          <span>need_human: {item.need_human ? 'true' : 'false'}</span>
-          <span>human_owner: {item.human_owner ?? '-'}</span>
-          <span>consultant_id: {item.consultant_id ?? '-'}</span>
-          <span>consultant_owner: {item.consultant_owner ?? '-'}</span>
-          <span>assignment_mode: {item.assignment_mode ?? '-'}</span>
-          <span>assignment_status: {item.assignment_status ?? '-'}</span>
-          <span>reassigned_to: {item.reassigned_to ?? '-'}</span>
-          <span>reassigned_at: {item.reassigned_at ?? '-'}</span>
-          <span>reassigned_reason: {item.reassigned_reason ?? '-'}</span>
-          <span>taken_over_at: {item.taken_over_at ?? '-'}</span>
-          <span>manual_decision: {item.manual_decision ?? '-'}</span>
-          <span>auto_action: {item.auto_action ?? '-'}</span>
+        <div className="scheduler-task-meta-grid scheduler-task-business-grid">
+          <span>任务名：{item.task_name}</span>
+          <span>当前状态：{item.status}</span>
+          <span>阻塞原因：{blockReason}</span>
+          <span>风险等级：{riskLabel}</span>
+          <span>建议动作：{suggestedAction}</span>
+          <span>负责人：{item.human_owner ?? item.assigned_agent ?? item.agent}</span>
         </div>
+        <details className="scheduler-task-result-block" open={showTechnicalDetails}>
+          <summary className="scheduler-task-result-head"><strong>展开详情 / 调试字段</strong></summary>
+          <div className="scheduler-task-result-content">
+            <div><span>agent</span><strong>{item.agent}</strong></div>
+            <div><span>pool</span><strong>{item.instance_pool ?? '-'}</strong></div>
+            <div><span>domain</span><strong>{item.domain ?? '-'}</strong></div>
+            <div><span>parent_task_id</span><strong>{item.parent_task_id ?? '-'}</strong></div>
+            <div><span>scenario_id</span><strong>{item.scenario_id ?? '-'}</strong></div>
+            <div><span>task_group</span><strong>{item.task_group_label ?? '-'}</strong></div>
+            <div><span>task_group_id</span><strong>{item.task_group_id ?? '-'}</strong></div>
+            <div><span>template_source</span><strong>{item.template_source ?? item.template_key ?? '-'}</strong></div>
+            <div><span>route_target</span><strong>{item.route_target ?? '-'}</strong></div>
+            <div><span>route_result</span><strong>{item.route_result ?? '-'}</strong></div>
+            <div><span>raw payload</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
+            {item.decision_log?.length ? <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div> : null}
+          </div>
+        </details>
         {item.depends_on?.length ? (
           <div className="scheduler-task-result-block">
             <div className="scheduler-task-result-head"><strong>依赖链路</strong></div>
@@ -1851,7 +1876,7 @@ export function AutoTaskSystemPanel() {
             ) : null}
           </div>
         ) : null}
-        {item.decision_log?.length ? (
+        {item.decision_log?.length && showTechnicalDetails ? (
           <div className="scheduler-task-result-block">
             <div className="scheduler-task-result-head"><strong>自动决策</strong></div>
             <div className="scheduler-task-result-content">
@@ -2087,7 +2112,7 @@ export function AutoTaskSystemPanel() {
     <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
       <div className="home-section-head scheduler-hub-head">
         <div>
-          <h3>Scheduler 调度系统中枢</h3>
+          <h3>调度队列中枢</h3>
           <p className="scheduler-hub-subtitle">基于 /api/tasks-board 的实时调度视图</p>
         </div>
         <span className="home-count">{data?.board?.length ?? 0}</span>
@@ -2877,28 +2902,45 @@ export function DashboardPage() {
     navigate({ pathname, search: createFocusSearch('', focusType, focusId) })
   }
 
-  const blockerActions = (item: HomeItem): ActionItem[] => [
-    {
-      label: '去处理',
-      onClick: () => goFocus('/tasks', 'task', item.taskId || item.agentId),
-      disabled: !item.taskId,
-    },
-    {
-      label: '去房间',
-      onClick: () => goFocus('/rooms', 'room', item.roomId),
-      disabled: !item.roomId,
-      quiet: true,
-    },
-    ...(showInternalCockpit
-      ? []
+  const blockerActions = (item: HomeItem): ActionItem[] =>
+    showInternalCockpit
+      ? [
+          {
+            label: '同步任务',
+            onClick: () => setActionMessage(`${item.name}：建议先触发任务同步；当前前端已提供入口占位，需后端接入同步动作。`),
+          },
+          {
+            label: '进入房间',
+            onClick: () => goFocus('/rooms', 'room', item.roomId),
+            disabled: !item.roomId,
+            quiet: true,
+          },
+          {
+            label: '标记待处理',
+            onClick: () => item.taskId
+              ? goFocus('/tasks', 'task', item.taskId)
+              : setActionMessage(`${item.name}：已标记为待处理（前端占位，等待后端写回任务状态）。`),
+            quiet: true,
+          },
+        ]
       : [
+          {
+            label: '去处理',
+            onClick: () => goFocus('/tasks', 'task', item.taskId || item.agentId),
+            disabled: !item.taskId,
+          },
+          {
+            label: '去房间',
+            onClick: () => goFocus('/rooms', 'room', item.roomId),
+            disabled: !item.roomId,
+            quiet: true,
+          },
           {
             label: '标记完成',
             onClick: () => setActionMessage(`${item.name} 的“标记完成”已预留，当前先做触发占位。`),
             quiet: true,
-          } satisfies ActionItem,
-        ]),
-  ]
+          },
+        ]
 
   const activeActions = (item: HomeItem): ActionItem[] =>
     showInternalCockpit
@@ -2982,8 +3024,8 @@ export function DashboardPage() {
               <img className="page-brand-logo" src={brandAssets.logo} alt="" />
             </div>
             <div>
-              <p className="eyebrow">{BRAND_NAME}</p>
-              <h2>{BRAND_NAME}</h2>
+              <p className="eyebrow">{INTERNAL_PRODUCT_TITLE}</p>
+              <h2>业务驾驶舱</h2>
             </div>
           </div>
           <p className="page-note home-internal-page-note">
@@ -3009,9 +3051,6 @@ export function DashboardPage() {
 
         <div className="home-v1-grid home-v1-grid--internal">
           <div className="home-internal-main-col">
-            <AutoTaskSystemSummaryCard />
-            <ConsultantConfigSummaryCard />
-            <AuditLogPanel />
             <SectionList
               title="需处理"
               items={blockers}
@@ -3028,11 +3067,14 @@ export function DashboardPage() {
               statusLabels={{ blocker: '阻塞', active: '进行中', idle: '待命' }}
               updatedLabel="更新于"
             />
+            <AutoTaskSystemSummaryCard />
+            <ConsultantConfigSummaryCard />
+            <AuditLogPanel />
           </div>
           <RecentUpdates
             updates={recentUpdates}
             onViewDetail={viewUpdateDetail}
-            title="最近动态"
+            title="最近动态 / 操作记录入口"
             emptyText="暂无动态。"
             detailLabel="查看"
           />
@@ -3060,11 +3102,11 @@ export function DashboardPage() {
 
       <div className="home-runtime-strip">
         <span className={`home-runtime-pill ${activeDataSource === 'openclaw' ? 'is-live' : ''}`}>
-          数据源：{activeDataSource === 'openclaw' ? 'OpenClaw' : 'Mock'}
+          {activeDataSource === 'openclaw' && !isFallback ? '实时数据已连接' : '当前使用演示数据'}
         </span>
-        <span className="home-runtime-pill">刷新状态：{isLoading ? '更新中' : '已展示最新状态'}</span>
+        <span className="home-runtime-pill">刷新状态：{isLoading ? '数据加载中…' : '已展示最新状态'}</span>
         <span className="home-runtime-pill">模式：公开演示</span>
-        {isFallback ? <span className="home-runtime-pill">当前 fallback 到 Mock</span> : null}
+        {isFallback ? <span className="home-runtime-pill">当前使用演示数据</span> : null}
       </div>
 
       {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}

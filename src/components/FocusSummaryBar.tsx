@@ -10,12 +10,12 @@ import {
 } from '../lib/workbenchLinking'
 
 const pageLinks = [
-  { to: '/', label: 'Dashboard', internalLabel: 'Dashboard 总览' },
-  { to: '/projects', label: 'Projects', internalLabel: 'Projects 项目' },
-  { to: '/agents', label: 'Agents', internalLabel: 'Agents 实例' },
-  { to: '/tasks', label: 'Tasks', internalLabel: 'Tasks 任务' },
-  { to: '/leads', label: 'Leads', internalLabel: 'Leads 线索' },
-  { to: '/rooms', label: 'Rooms', internalLabel: 'Rooms 房间' },
+  { to: '/', label: 'Dashboard', internalLabel: '总览' },
+  { to: '/projects', label: 'Projects', internalLabel: '项目' },
+  { to: '/agents', label: 'Agents', internalLabel: '协作者状态' },
+  { to: '/tasks', label: 'Tasks', internalLabel: '任务' },
+  { to: '/leads', label: 'Leads', internalLabel: '待跟进' },
+  { to: '/rooms', label: 'Rooms', internalLabel: '频道' },
 ]
 
 export function FocusSummaryBar({ search, pathname, onClear }: { search: string; pathname: string; onClear?: () => void }) {
