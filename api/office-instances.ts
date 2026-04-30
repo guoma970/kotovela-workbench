@@ -3,7 +3,7 @@ import { fetchOfficeInstancesPayload } from '../server/officeInstances.js'
 
 const upstreamUrl = process.env.OFFICE_INSTANCES_UPSTREAM_URL?.trim()
 const upstreamToken = process.env.OFFICE_INSTANCES_UPSTREAM_TOKEN?.trim()
-const allowedOrigin = process.env.ALLOWED_ORIGIN?.trim() || '*'
+const configuredAllowedOrigin = process.env.ALLOWED_ORIGIN?.trim()
 const upstreamAllowedHosts = new Set(
   (process.env.OFFICE_INSTANCES_UPSTREAM_ALLOW_HOSTS ?? '')
     .split(',')
@@ -45,6 +45,21 @@ const parseSafeUpstreamUrl = (value: string) => {
   return parsed.toString()
 }
 
+const isLocalHostHeader = (host: string) =>
+  host.includes('localhost') ||
+  host.startsWith('127.0.0.1') ||
+  host.startsWith('0.0.0.0') ||
+  host.startsWith('[::1]') ||
+  /^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?$/.test(host)
+
+const resolveAllowedOrigin = (req: VercelRequest) => {
+  if (configuredAllowedOrigin) return configuredAllowedOrigin
+  const host = req.headers.host?.trim()
+  if (!host) return undefined
+  const protocol = isLocalHostHeader(host) ? 'http' : 'https'
+  return `${protocol}://${host}`
+}
+
 const fetchUpstreamPayload = async () => {
   if (!upstreamUrl) {
     return null
@@ -65,9 +80,12 @@ const fetchUpstreamPayload = async () => {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  const allowedOrigin = resolveAllowedOrigin(req)
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET')
-  res.setHeader('Vary', 'Origin')
+  res.setHeader('Vary', 'Origin, Host')
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET')

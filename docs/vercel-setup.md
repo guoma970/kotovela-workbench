@@ -104,6 +104,7 @@
   3. **Add New… → Project**，**Import 同一 Git 仓库**，创建时项目名填 **`kotovelahub`**（公开 Demo 则 **`openclaw-kotovela`**，且 **`VERCEL_BUILD_MODE`** 为 `demo` 或留空）。  
   4. 把抄下的环境变量**原样加回**新项目 → 触发 **Deploy**，确认 **Domains** 里已是定稿域名。  
   5. 更新 **Mac mini** 的 **`OFFICE_API_CORS_ORIGIN`** 为新的内部站 `https://kotovelahub.vercel.app`（或控制台实际域名）。
+  6. 在 **Vercel Production Environment Variables** 中显式设置 **`ALLOWED_ORIGIN=https://你的内部站域名`**；仓库代码现已默认回退到“当前请求源站”，但正式环境仍建议显式配置，避免后续换域名时误用默认值。
 
 **说明**：Vercel 上不存在「在仓库里删除旧 URL」这种操作；**线上地址只由项目是否存在、项目名、以及 Domains 配置决定**。删项目或改名后，务必把所有对外链接和 CORS 指到新域名。
 
