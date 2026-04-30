@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   loadOfficeInstances,
   syncOfficeInstancesToAgents,
@@ -11,6 +11,7 @@ import { updates as fallbackUpdates } from './mockData'
 import { OfficeInstancesContext, type DataSource } from './officeInstancesStore'
 import { deriveWorkbenchUpdates, diffWorkbenchUpdates, mergeWorkbenchUpdates } from './workbenchUpdates'
 import { runtimeConfig, type PreferredDataSource, type WorkbenchMode } from '../config/runtime'
+import { usePollingFetch } from './hooks/usePollingFetch'
 import type { Agent, Project, Room, Task } from '../types'
 
 export function OfficeInstancesProvider({
@@ -32,14 +33,7 @@ export function OfficeInstancesProvider({
     runtimeConfig.preferredDataSource === 'openclaw' ? 'openclaw' : 'mock',
   )
   const [isFallback, setIsFallback] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [lastSyncedAtMs, setLastSyncedAtMs] = useState<number | null>(null)
-  const [hasBootstrapped, setHasBootstrapped] = useState(runtimeConfig.preferredDataSource === 'mock')
 
-  const lastFetchMsRef = useRef(0)
-  const activeRequestRef = useRef(0)
-  const activeAbortRef = useRef<AbortController | null>(null)
   const liveInstancesRef = useRef<OfficeInstanceItem[]>([])
   const liveUpdatesRef = useRef(fallbackUpdates)
 
@@ -50,158 +44,91 @@ export function OfficeInstancesProvider({
   const visibilityRefreshEnabled = runtimeConfig.visibilityRefreshEnabled
 
   const applyMockSnapshot = useCallback(
-    (nextError = '') => {
+    () => {
       setInstances([])
       setUpdates(fallbackUpdates)
       setActiveDataSource('mock')
       setIsFallback(preferredDataSource === 'openclaw')
       liveInstancesRef.current = []
       liveUpdatesRef.current = fallbackUpdates
-      setError(nextError)
     },
     [preferredDataSource],
   )
 
-  const fetchData = useCallback(async () => {
-    const requestId = activeRequestRef.current + 1
-    activeRequestRef.current = requestId
-    activeAbortRef.current?.abort()
-    const abortController = new AbortController()
-    activeAbortRef.current = abortController
-
+  const fetchData = useCallback(async (signal: AbortSignal) => {
     if (preferredDataSource === 'mock') {
-      setLastSyncedAtMs(null)
-      applyMockSnapshot('')
-      setHasBootstrapped(true)
-      return
+      applyMockSnapshot()
+      return { lastSyncedAtMs: null, error: '' }
     }
 
-    setIsLoading(true)
-    setError('')
+    const raw = await loadOfficeInstances(runtimeConfig.officeInstancesApiPath, signal)
+    if (raw.length === 0) {
+      throw new Error('Office instances payload was empty')
+    }
 
-    try {
-      const raw = await loadOfficeInstances(runtimeConfig.officeInstancesApiPath, abortController.signal)
-      if (requestId !== activeRequestRef.current) return
-      if (raw.length === 0) {
-        throw new Error('Office instances payload was empty')
-      }
-
-      const nextAgents = syncOfficeInstancesToAgents(raw, fallbackAgents).agents
-      const nextProjects = syncProjectsFromInstances(raw, fallbackProjects).projects
-      const nextRooms = syncRoomsFromInstances(raw, fallbackRooms).rooms
-      const nextTasks = syncTasksFromInstances(raw, fallbackTasks).tasks
-      const previousLiveInstances = liveInstancesRef.current
-      const nextUpdates =
-        previousLiveInstances.length > 0
-          ? mergeWorkbenchUpdates(
-              diffWorkbenchUpdates({
-                previousInstances: previousLiveInstances,
-                nextInstances: raw,
-                agents: nextAgents,
-                projects: nextProjects,
-                rooms: nextRooms,
-                tasks: nextTasks,
-                fallbackAgents,
-              }),
-              liveUpdatesRef.current,
-            )
-          : deriveWorkbenchUpdates({
-              dataSource: 'openclaw',
-              instances: raw,
+    const nextAgents = syncOfficeInstancesToAgents(raw, fallbackAgents).agents
+    const nextProjects = syncProjectsFromInstances(raw, fallbackProjects).projects
+    const nextRooms = syncRoomsFromInstances(raw, fallbackRooms).rooms
+    const nextTasks = syncTasksFromInstances(raw, fallbackTasks).tasks
+    const previousLiveInstances = liveInstancesRef.current
+    const nextUpdates =
+      previousLiveInstances.length > 0
+        ? mergeWorkbenchUpdates(
+            diffWorkbenchUpdates({
+              previousInstances: previousLiveInstances,
+              nextInstances: raw,
               agents: nextAgents,
               projects: nextProjects,
               rooms: nextRooms,
               tasks: nextTasks,
               fallbackAgents,
-              fallbackUpdates,
-            })
+            }),
+            liveUpdatesRef.current,
+          )
+        : deriveWorkbenchUpdates({
+            dataSource: 'openclaw',
+            instances: raw,
+            agents: nextAgents,
+            projects: nextProjects,
+            rooms: nextRooms,
+            tasks: nextTasks,
+            fallbackAgents,
+            fallbackUpdates,
+          })
 
-      setInstances(raw)
-      setUpdates(nextUpdates)
-      setActiveDataSource('openclaw')
-      setIsFallback(false)
-      liveInstancesRef.current = raw
-      liveUpdatesRef.current = nextUpdates
-      const now = Date.now()
-      lastFetchMsRef.current = now
-      setLastSyncedAtMs(now)
-    } catch (fetchError) {
-      if (abortController.signal.aborted || requestId !== activeRequestRef.current) return
-      if (runtimeConfig.fallbackToMock) {
-        applyMockSnapshot('OpenClaw 接口不可用，已自动回退到 Mock 数据')
-      } else {
-        setError(fetchError instanceof Error ? fetchError.message : String(fetchError))
-      }
-    } finally {
-      if (requestId === activeRequestRef.current) {
-        setIsLoading(false)
-        setHasBootstrapped(true)
-      }
+    setInstances(raw)
+    setUpdates(nextUpdates)
+    setActiveDataSource('openclaw')
+    setIsFallback(false)
+    liveInstancesRef.current = raw
+    liveUpdatesRef.current = nextUpdates
+    const now = Date.now()
+
+    return {
+      lastSyncedAtMs: now,
+      error: '',
     }
   }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks, preferredDataSource, applyMockSnapshot])
 
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
-    if (!pollingEnabled || preferredDataSource !== 'openclaw') {
-      return
-    }
-
-    let timer: number | undefined
-    const scheduleNextPoll = () => {
-      const jitterMs = Math.floor(Math.random() * 1000)
-      timer = window.setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          void fetchData()
-        }
-        scheduleNextPoll()
-      }, pollingIntervalMs + jitterMs)
-    }
-
-    scheduleNextPoll()
-
-    return () => {
-      if (timer !== undefined) window.clearTimeout(timer)
-      activeAbortRef.current?.abort()
-    }
-  }, [fetchData, pollingEnabled, pollingIntervalMs, preferredDataSource])
-
-  useEffect(() => {
-    if (!visibilityRefreshEnabled || preferredDataSource !== 'openclaw') {
-      return
-    }
-
-    const shouldRefresh = () => {
-      const elapsed = Date.now() - lastFetchMsRef.current
-      return elapsed > runtimeConfig.staleMs
-    }
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && shouldRefresh()) {
-        void fetchData()
+  const { error, hasBootstrapped, isLoading, lastSyncedAtMs, refresh } = usePollingFetch({
+    enabled: true,
+    pollingEnabled: pollingEnabled && preferredDataSource === 'openclaw',
+    pollingIntervalMs,
+    visibilityRefreshEnabled: visibilityRefreshEnabled && preferredDataSource === 'openclaw',
+    staleMs: runtimeConfig.staleMs,
+    initialHasBootstrapped: runtimeConfig.preferredDataSource === 'mock',
+    fetcher: fetchData,
+    onError: (fetchError) => {
+      if (runtimeConfig.fallbackToMock) {
+        const fallbackMessage = 'OpenClaw 接口不可用，已自动回退到 Mock 数据'
+        applyMockSnapshot()
+        return { lastSyncedAtMs: null, error: fallbackMessage }
       }
-    }
-
-    const handleOnline = () => {
-      if (shouldRefresh()) {
-        void fetchData()
+      return {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
       }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('online', handleOnline)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('online', handleOnline)
-    }
-  }, [fetchData, preferredDataSource, visibilityRefreshEnabled])
-
-  const refresh = useCallback(() => {
-    void fetchData()
-  }, [fetchData])
+    },
+  })
 
   const isInternalOpenclawBootstrap =
     mode === 'internal' && preferredDataSource === 'openclaw' && !hasBootstrapped && !isFallback
