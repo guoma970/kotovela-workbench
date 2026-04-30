@@ -38,6 +38,8 @@ export function OfficeInstancesProvider({
   const [hasBootstrapped, setHasBootstrapped] = useState(runtimeConfig.preferredDataSource === 'mock')
 
   const lastFetchMsRef = useRef(0)
+  const activeRequestRef = useRef(0)
+  const activeAbortRef = useRef<AbortController | null>(null)
   const liveInstancesRef = useRef<OfficeInstanceItem[]>([])
   const liveUpdatesRef = useRef(fallbackUpdates)
 
@@ -61,6 +63,12 @@ export function OfficeInstancesProvider({
   )
 
   const fetchData = useCallback(async () => {
+    const requestId = activeRequestRef.current + 1
+    activeRequestRef.current = requestId
+    activeAbortRef.current?.abort()
+    const abortController = new AbortController()
+    activeAbortRef.current = abortController
+
     if (preferredDataSource === 'mock') {
       setLastSyncedAtMs(null)
       applyMockSnapshot('')
@@ -72,7 +80,8 @@ export function OfficeInstancesProvider({
     setError('')
 
     try {
-      const raw = await loadOfficeInstances(runtimeConfig.officeInstancesApiPath)
+      const raw = await loadOfficeInstances(runtimeConfig.officeInstancesApiPath, abortController.signal)
+      if (requestId !== activeRequestRef.current) return
       if (raw.length === 0) {
         throw new Error('Office instances payload was empty')
       }
@@ -117,14 +126,17 @@ export function OfficeInstancesProvider({
       lastFetchMsRef.current = now
       setLastSyncedAtMs(now)
     } catch (fetchError) {
+      if (abortController.signal.aborted || requestId !== activeRequestRef.current) return
       if (runtimeConfig.fallbackToMock) {
         applyMockSnapshot('OpenClaw 接口不可用，已自动回退到 Mock 数据')
       } else {
         setError(fetchError instanceof Error ? fetchError.message : String(fetchError))
       }
     } finally {
-      setIsLoading(false)
-      setHasBootstrapped(true)
+      if (requestId === activeRequestRef.current) {
+        setIsLoading(false)
+        setHasBootstrapped(true)
+      }
     }
   }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks, preferredDataSource, applyMockSnapshot])
 
@@ -137,14 +149,23 @@ export function OfficeInstancesProvider({
       return
     }
 
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') {
-        return
-      }
-      void fetchData()
-    }, pollingIntervalMs)
+    let timer: number | undefined
+    const scheduleNextPoll = () => {
+      const jitterMs = Math.floor(Math.random() * 1000)
+      timer = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          void fetchData()
+        }
+        scheduleNextPoll()
+      }, pollingIntervalMs + jitterMs)
+    }
 
-    return () => window.clearInterval(timer)
+    scheduleNextPoll()
+
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer)
+      activeAbortRef.current?.abort()
+    }
   }, [fetchData, pollingEnabled, pollingIntervalMs, preferredDataSource])
 
   useEffect(() => {

@@ -132,6 +132,7 @@ const PROJECT_NAME_BY_INSTANCE_KEY: Record<string, string> = {
  * 3) Fallback to original title
  */
 const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
+  oc_e579a92488b397fb84236924cf9e4e79: 'KOTOVELAHUB研发群',
   oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
   oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
   oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
@@ -619,22 +620,31 @@ const buildFallbackAgent = (key: string, fallbackAgents: Agent[]): Agent | undef
   return fallbackAgents.find((item) => item.id === mappedId)
 }
 
+const isSafeRecord = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+const isSafeOfficeInstanceItem = (value: unknown): value is OfficeInstanceItem => {
+  if (!isSafeRecord(value)) return false
+  const hasIdentity = typeof value.key === 'string' || typeof value.name === 'string' || typeof value.id === 'string'
+  const safeScalar = ['key', 'name', 'role', 'status', 'task', 'currentTask', 'updatedAt', 'ageText'].every((field) => {
+    const fieldValue = value[field]
+    return fieldValue === undefined || typeof fieldValue === 'string' || typeof fieldValue === 'number'
+  })
+  return hasIdentity && safeScalar
+}
+
 export function parseOfficeInstancesPayload(payload: unknown): OfficeInstanceItem[] {
-  if (!payload || typeof payload !== 'object') {
+  if (!isSafeRecord(payload)) {
     return []
   }
 
-  const root = payload as { instances?: unknown }
-  const raw = Array.isArray(root.instances) ? root.instances : []
-
-  if (!Array.isArray(raw)) {
-    return []
-  }
+  const raw = Array.isArray(payload.instances) ? payload.instances : []
 
   return raw
-    .filter((item): item is OfficeInstanceItem => {
-      return typeof item === 'object' && item !== null
-    })
+    .filter(isSafeOfficeInstanceItem)
     .map((item) => {
       const asItem = item as OfficeInstanceItem
 
@@ -974,10 +984,11 @@ export const syncTasksFromInstances = (
   return { tasks: tasks, hasRealData: true }
 }
 
-export async function loadOfficeInstances(apiPath = '/api/office-instances'): Promise<OfficeInstanceItem[]> {
+export async function loadOfficeInstances(apiPath = '/api/office-instances', signal?: AbortSignal): Promise<OfficeInstanceItem[]> {
   const response = await fetch(apiPath, {
     method: 'GET',
     headers: { Accept: 'application/json' },
+    signal,
   })
 
   if (!response.ok) {

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fetchOfficeInstancesPayload } from './server/officeInstances'
+import { fetchModelUsagePayload } from './server/modelUsage'
 import { inferTaskBoardEvidenceContext, type StableEvidenceRoutingHints } from './src/lib/evidenceContext'
 
 type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
@@ -30,12 +31,17 @@ type TaskNotificationRecord = {
   message: string
 }
 
-const TASK_BOARD_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/tasks-board.json')
-const TASK_NOTIFY_LOG_FILE = path.resolve('/Users/ztl/OpenClaw-Runner/task-notifications.json')
-const MEMORY_STORE_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-memory.json')
-const TEMPLATE_POOL_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/scheduler-template-pool.json')
-const CONTENT_LEARNING_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/data/content-learning.json')
-const AUDIT_LOG_FILE = path.resolve('/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/server/data/audit-log.json')
+const PROJECT_ROOT = path.resolve(process.env.OPENCLAW_PROJECT_ROOT ?? process.cwd())
+const OPENCLAW_RUNNER_ROOT = path.resolve(
+  process.env.OPENCLAW_RUNNER_ROOT ?? path.join(PROJECT_ROOT, 'data', 'openclaw-runner'),
+)
+
+const TASK_BOARD_FILE = path.resolve(process.env.TASK_BOARD_FILE ?? path.join(OPENCLAW_RUNNER_ROOT, 'tasks-board.json'))
+const TASK_NOTIFY_LOG_FILE = path.resolve(process.env.TASK_NOTIFY_LOG_FILE ?? path.join(OPENCLAW_RUNNER_ROOT, 'task-notifications.json'))
+const MEMORY_STORE_FILE = path.resolve(process.env.MEMORY_STORE_FILE ?? path.join(PROJECT_ROOT, 'data', 'scheduler-memory.json'))
+const TEMPLATE_POOL_FILE = path.resolve(process.env.TEMPLATE_POOL_FILE ?? path.join(PROJECT_ROOT, 'data', 'scheduler-template-pool.json'))
+const CONTENT_LEARNING_FILE = path.resolve(process.env.CONTENT_LEARNING_FILE ?? path.join(PROJECT_ROOT, 'data', 'content-learning.json'))
+const AUDIT_LOG_FILE = path.resolve(process.env.AUDIT_LOG_FILE ?? path.join(PROJECT_ROOT, 'server', 'data', 'audit-log.json'))
 
 type AuditLogEntry = {
   id: string
@@ -3163,8 +3169,34 @@ export default defineConfig(({ mode }) => {
             }
           })
 
+          server.middlewares.use('/api/model-usage', async (req, res, next) => {
+            if (req.method !== 'GET') {
+              next()
+              return
+            }
+
+            try {
+              const payload = await fetchModelUsagePayload()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(JSON.stringify(payload))
+            } catch (error) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(
+                JSON.stringify({
+                  error: 'model-usage fetch failed',
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+              )
+            }
+          })
+
           server.middlewares.use('/api/system-mode', async (req, res, next) => {
-            const MODE_STATE_FILE = path.resolve(`/Users/ztl/.openclaw/workspace-builder/kotovela-workbench/server/data/system-mode.${isInternal ? 'internal' : 'opensource'}.json`)
+            const MODE_STATE_FILE = path.resolve(
+              process.env.MODE_STATE_FILE ?? path.join(PROJECT_ROOT, 'server', 'data', `system-mode.${isInternal ? 'internal' : 'opensource'}.json`),
+            )
 
             const normalizeSystemState = (input: Record<string, unknown>) => {
               const rawSystem = String(input.system_mode ?? input.systemMode ?? process.env.SYSTEM_MODE ?? (isInternal ? 'test' : 'dev')).toLowerCase()
