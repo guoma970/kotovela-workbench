@@ -2,7 +2,7 @@ import type {
   ArchiveCenterEntry,
   PublishCenterEntry,
   TemplatePoolEntry,
-} from './DashboardAutoTaskPanel'
+} from '../lib/autoTaskShared'
 
 function getRecommendedTemplates(
   templates: TemplatePoolEntry[],

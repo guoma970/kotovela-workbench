@@ -1,81 +1,18 @@
 import type { ReactNode } from 'react'
 import type {
+  AlertTaskItem,
   AutoTaskBoardItem,
+  ParentTaskView,
+  PoolTab,
+  RecentDecision,
+  RecentResult,
+  RoutingDecisionRow,
+  SystemAlertItem,
+  TaskCardTone,
+  TaskGroupView,
   TaskNotificationItem,
   UserProfile,
-} from './DashboardAutoTaskPanel'
-
-type TaskCardTone = 'running' | 'queue' | 'paused' | 'done'
-
-type RoutingDecisionRow = {
-  key: string
-  content_line: string
-  brand_line: string
-  account_line: string
-  account_type: string
-  tier: string
-  can_close_deal: string
-  route_target: string
-  count: number
-}
-
-type ParentTaskView = {
-  id: string
-  title: string
-  template: string
-  childCount: number
-  progress: number
-  blockedPoint: string
-  domains: Array<string | undefined>
-}
-
-type TaskGroupView = {
-  id: string
-  label: string
-  template: string
-  domain: string
-  projectLine: string
-  count: number
-}
-
-type PoolTab = {
-  key: 'builder' | 'media' | 'family' | 'business' | 'personal'
-  label: string
-  max_concurrency: number
-  running_count: number
-  queue_count: number
-  health: 'healthy' | 'warning' | 'critical'
-}
-
-type RecentDecision = {
-  taskName: string
-  agent: string
-  decision: string
-  reason: string
-  detail: string
-  timestamp: string
-  retryCount: number
-}
-
-type RecentResult = {
-  task_name: string
-  updated_at?: string
-  result: {
-    content: string
-  }
-}
-
-type AlertTaskItem = {
-  task_name: string
-  agent: string
-}
-
-type SystemAlertItem = {
-  level: 'warning' | 'critical'
-  task_name?: string
-  agent?: string
-  reason: string
-}
+} from '../lib/autoTaskShared'
 
 type TaskCardRenderer = (item: AutoTaskBoardItem, tone: TaskCardTone, index: number) => ReactNode
 

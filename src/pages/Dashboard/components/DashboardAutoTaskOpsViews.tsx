@@ -6,106 +6,23 @@ import {
 import type {
   ArchiveCenterEntry,
   AutoTaskBoardItem,
+  ArchiveStructureGroup,
+  ConsultantSummaryEntry,
+  DomainLoadSummaryEntry,
+  ExecutionStatusSummary,
+  ParentTaskView,
+  PoolTab,
   PublishCenterEntry,
+  ReassignmentRecord,
+  RecentDecision,
+  RecentResult,
+  RiskSummary,
+  TaskCardTone,
+  TaskGroupView,
   TemplatePoolEntry,
-} from './DashboardAutoTaskPanel'
-
-type TaskCardTone = 'running' | 'queue' | 'paused' | 'done'
+} from '../lib/autoTaskShared'
 
 type TaskCardRenderer = (item: AutoTaskBoardItem, tone: TaskCardTone, index: number) => ReactNode
-
-type ParentTaskView = {
-  id: string
-  title: string
-  template: string
-  childCount: number
-  progress: number
-  blockedPoint: string
-  domains: Array<string | undefined>
-}
-
-type TaskGroupView = {
-  id: string
-  label: string
-  template: string
-  domain: string
-  projectLine: string
-  count: number
-}
-
-type RiskSummary = {
-  predictedHigh: number
-  needHuman: number
-  blocked: number
-  externalBlocked: number
-  leadTransferred: number
-}
-
-type DomainLoadSummaryEntry = {
-  domain: string
-  total: number
-  running: number
-  queued: number
-  needHuman: number
-  blocked: number
-}
-
-type ConsultantSummaryEntry = {
-  consultantId: string
-  owner: string
-  activeLoad: number
-  converted: number
-  total: number
-  conversionRate: number
-}
-
-type ReassignmentRecord = {
-  lead_id?: string
-  reassigned_at?: string
-  task_name: string
-  consultant_id?: string
-  reassigned_to?: string
-  reassigned_reason?: string
-}
-
-type RecentDecision = {
-  taskName: string
-  agent: string
-  decision: string
-  reason: string
-  detail: string
-  timestamp: string
-}
-
-type RecentResult = {
-  task_name: string
-  updated_at?: string
-  result: {
-    content: string
-  }
-}
-
-type PoolTab = {
-  key: 'builder' | 'media' | 'family' | 'business' | 'personal'
-  label: string
-  max_concurrency: number
-  running_count: number
-  queue_count: number
-  health: 'healthy' | 'warning' | 'critical'
-}
-
-type ExecutionStatusSummary = {
-  running: number
-  queued: number
-  blocked: number
-  needHuman: number
-}
-
-type ArchiveStructureGroup = {
-  structureId: string
-  count: number
-  topAccount?: [string, number]
-}
 
 export function AutoTaskOperationsView({
   parentTaskViews,

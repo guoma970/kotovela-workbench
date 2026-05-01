@@ -2,11 +2,10 @@ import type {
   ArchiveCenterEntry,
   AutoTaskBoardItem,
   AutoTaskBoardPayload,
+  NotificationDomain,
   PublishCenterEntry,
   TaskNotificationItem,
-} from '../components/DashboardAutoTaskPanel'
-
-type NotificationDomain = 'builder' | 'media' | 'family' | 'business'
+} from './autoTaskShared'
 
 const DONE_TASK_STATUSES = ['done', 'success', 'cancelled'] as const
 

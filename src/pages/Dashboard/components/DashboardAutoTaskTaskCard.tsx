@@ -1,7 +1,5 @@
 import { Fragment } from 'react'
-import type { AutoTaskBoardItem } from './DashboardAutoTaskPanel'
-
-type TaskCardTone = 'running' | 'queue' | 'paused' | 'done'
+import type { AutoTaskBoardItem, TaskCardTone } from '../lib/autoTaskShared'
 
 type ControlAction = 'pause' | 'resume' | 'cancel' | 'priority_up' | 'priority_down'
 type ManualAction = 'takeover' | 'assign' | 'ignore'
