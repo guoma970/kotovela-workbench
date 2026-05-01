@@ -77,21 +77,56 @@ const numberFormatter = new Intl.NumberFormat('zh-CN')
 const formatNumber = (value: number | undefined) => numberFormatter.format(Math.round(value ?? 0))
 
 const formatTime = (value?: string) => {
-  if (!value) return '-'
+  if (!value) return '暂未同步'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
+  if (Number.isNaN(date.getTime())) return '暂未同步'
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
 const formatTier = (value?: string) => {
-  if (!value) return '-'
+  if (!value) return '暂未同步'
   return value.replace(/[_-]+/g, ' ')
 }
 
-const formatFlag = (value?: boolean, truthy = '开启', falsy = '关闭') => {
-  if (typeof value !== 'boolean') return '-'
+const formatFlag = (value?: boolean, truthy = '开启', falsy = '关闭', fallback = '暂未同步') => {
+  if (typeof value !== 'boolean') return fallback
   return value ? truthy : falsy
 }
+
+const maskEmail = (value?: string) => {
+  if (!value) return undefined
+  return value.replace(
+    /([A-Za-z0-9._%+-])([A-Za-z0-9._%+-]*)(@[\w.-]+\.[A-Za-z]{2,})/g,
+    (_, first: string, _middle: string, domain: string) => `${first}***${domain}`,
+  )
+}
+
+const formatAccountLabel = (value?: string, fallback = '账号信息暂未同步') => {
+  if (!value) return fallback
+  const masked = maskEmail(value) ?? value
+  return masked.replace(/^openai-codex:/, 'Codex 账号：')
+}
+
+const formatDisabledReason = (value?: string) => {
+  switch (value) {
+    case 'org_level_disabled':
+      return '组织层已关闭'
+    case 'user_level_disabled':
+      return '当前账号已关闭'
+    case 'rate_limit_reached':
+      return '已达到限额'
+    case undefined:
+    case '':
+      return '当前未限制'
+    default:
+      return value.replace(/[_-]+/g, ' ')
+  }
+}
+
+const formatModelName = (value?: string) => maskEmail(value) ?? value ?? '模型信息暂未同步'
+
+const formatModelList = (values: string[]) =>
+  values.length ? values.map((item) => formatModelName(item)).join(' / ') : '模型信息暂未同步'
 
 const formatModelUsageSource = (value?: ModelUsagePayload['source']) => {
   switch (value) {
@@ -145,7 +180,7 @@ function UsageRankList({ title, items }: { title: string; items: UsageBucket[] }
             </article>
           ))
         ) : (
-          <p className="empty-state">近窗口内暂无可解析 usage。</p>
+          <p className="empty-state">近窗口内暂无可解析的用量记录。</p>
         )}
       </div>
     </section>
@@ -196,19 +231,30 @@ export function ModelUsagePage() {
 
   const activeCodexOrder = useMemo(() => {
     const main = payload?.agents.find((agent) => agent.id === 'main')
-    return main?.codex_order.join(' → ') || '-'
+    return main?.codex_order.length
+      ? main.codex_order.map((item) => formatAccountLabel(item)).join(' → ')
+      : '账号顺序暂未同步'
   }, [payload])
 
   const claudeRecent = payload?.claude_code_usage?.recent_activity
+
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'Kotovela Hub · 用量统计'
+
+    return () => {
+      document.title = previousTitle
+    }
+  }, [])
 
   return (
     <section className="page model-usage-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Model Usage</p>
-          <h2>模型额度与使用情况</h2>
+          <p className="eyebrow">Kotovela Hub</p>
+          <h2>用量统计</h2>
         </div>
-        <p className="page-note">本页只读展示 OpenClaw 本机模型、Codex 调用顺序、Claude Code 账户信息与近 24 小时调用记录，不显示敏感密钥。</p>
+        <p className="page-note">本页只读展示 OpenClaw 本机模型、Codex 调用顺序、Claude Code 账户信息与近 24 小时调用记录；账号默认脱敏展示，不显示敏感密钥。</p>
       </div>
 
       <div className="model-usage-provider-grid">
@@ -279,7 +325,7 @@ export function ModelUsagePage() {
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>Claude Code 本机额度线索</h3>
+          <h3>Claude Code 使用状态</h3>
           <span className="home-count">{payload?.claude_code_usage ? '本机 Claude' : '当前不可用'}</span>
         </div>
         <div className="model-usage-agent-grid">
@@ -292,25 +338,25 @@ export function ModelUsagePage() {
             <p>个人档位：<b>{formatTier(payload?.claude_code_usage?.user_rate_limit_tier)}</b></p>
             <p>附加额度：<b>{formatFlag(payload?.claude_code_usage?.has_extra_usage_enabled, '已开启', '未开启')}</b></p>
             <p>限额提醒：<b>{formatFlag(payload?.claude_code_usage?.usage_limit_notifications_enabled, '已开启', '未开启')}</b></p>
-            <p>关闭原因：{payload?.claude_code_usage?.extra_usage_disabled_reason || '-'}</p>
+            <p>附加额度状态：{formatDisabledReason(payload?.claude_code_usage?.extra_usage_disabled_reason)}</p>
           </article>
           <article className="model-usage-agent-card">
             <div className="model-usage-agent-head">
               <strong>最近活跃度</strong>
-              <span>{payload?.window_hours ?? 24}h</span>
+              <span>近 {payload?.window_hours ?? 24} 小时</span>
             </div>
-            <p>history 记录：<b>{formatNumber(claudeRecent?.event_count)}</b></p>
-            <p>活跃 sessionId：<b>{formatNumber(claudeRecent?.session_count)}</b></p>
-            <p>已知本机会话：<b>{formatNumber(claudeRecent?.known_session_count)}</b>（active {formatNumber(claudeRecent?.active_session_count)} / idle {formatNumber(claudeRecent?.idle_session_count)}）</p>
-            <p>最近 history：{formatTime(claudeRecent?.last_event_at)}</p>
-            <p>最近 session：{formatTime(claudeRecent?.last_session_at)}</p>
+            <p>历史记录：<b>{formatNumber(claudeRecent?.event_count)}</b></p>
+            <p>活跃会话数：<b>{formatNumber(claudeRecent?.session_count)}</b></p>
+            <p>已知本机会话：<b>{formatNumber(claudeRecent?.known_session_count)}</b>（活跃 {formatNumber(claudeRecent?.active_session_count)} / 空闲 {formatNumber(claudeRecent?.idle_session_count)}）</p>
+            <p>最近记录：{formatTime(claudeRecent?.last_event_at)}</p>
+            <p>最近会话：{formatTime(claudeRecent?.last_session_at)}</p>
           </article>
         </div>
       </section>
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>实例模型与 Codex 账号顺序</h3>
+          <h3>协作者与账号顺序</h3>
           <span className="badge-count">{payload?.agents.length ?? 0}</span>
         </div>
         <div className="model-usage-agent-grid">
@@ -320,18 +366,18 @@ export function ModelUsagePage() {
                 <strong>{agent.label}</strong>
                 <span>{agent.id}</span>
               </div>
-              <p>当前模型：<b>{agent.configured_model || '-'}</b></p>
-              <p>备用模型：{agent.fallback_models.length ? agent.fallback_models.join(' / ') : '-'}</p>
-              <p>Codex 顺序：{agent.codex_order.length ? agent.codex_order.join(' → ') : '-'}</p>
-              <p>最近可用：{agent.codex_last_good || '-'}</p>
+              <p>当前模型：<b>{formatModelName(agent.configured_model)}</b></p>
+              <p>备用模型：{formatModelList(agent.fallback_models)}</p>
+              <p>账号顺序：{agent.codex_order.length ? agent.codex_order.map((item) => formatAccountLabel(item)).join(' → ') : '账号顺序暂未同步'}</p>
+              <p>最近可用账号：{agent.codex_last_good ? formatAccountLabel(agent.codex_last_good) : '账号信息暂未同步'}</p>
               {agent.codex_session_overrides.length ? (
-                <p>会话覆盖：{agent.codex_session_overrides.map((item) => `${item.profile} × ${item.count}`).join(' / ')}</p>
+                <p>会话覆盖：{agent.codex_session_overrides.map((item) => `${formatAccountLabel(item.profile)} × ${item.count}`).join(' / ')}</p>
               ) : null}
               {agent.codex_usage_stats.length ? (
                 <div className="model-usage-profile-list">
                   {agent.codex_usage_stats.map((stats) => (
                     <small key={stats.profile}>
-                      {stats.profile} · 错误 {stats.error_count ?? 0}
+                      {formatAccountLabel(stats.profile)} · 异常 {stats.error_count ?? 0}
                       {stats.cooldown_reason ? ` · 冷却 ${stats.cooldown_reason}` : ''}
                       {stats.last_used ? ` · 最近使用 ${formatTime(stats.last_used)}` : ''}
                     </small>
@@ -354,7 +400,7 @@ export function ModelUsagePage() {
           <span className="home-count">{formatModelUsageSource(payload?.source)}</span>
         </div>
         <p className="page-note">
-          更新时间：{formatTime(payload?.generated_at)}。Codex 百分比来自 `openclaw models status`，用量数据来自本机近 24 小时会话记录；Claude Code 线索来自本机账户与会话元数据。
+          更新时间：{formatTime(payload?.generated_at)}。Codex 百分比来自本机状态检查；用量数据来自近 24 小时会话记录；Claude Code 状态来自本机账户与会话元数据。
         </p>
         {payload?.warnings.length ? (
           <div className="consultant-evidence-list">

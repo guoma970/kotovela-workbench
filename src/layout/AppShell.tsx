@@ -36,6 +36,26 @@ const getNavItems = (isInternal: boolean) =>
         { group: 'Execution', to: '/agents', step: 11, label: 'Agents', note: 'Agent activity and routing' },
       ]
 
+const getSyncMetaLabel = (
+  preferredDataSource: 'mock' | 'openclaw',
+  isFallback: boolean,
+  lastSyncedAtMs: number | null,
+) => {
+  if (preferredDataSource !== 'openclaw') {
+    return '当前使用演示数据'
+  }
+
+  if (lastSyncedAtMs == null) {
+    return '等待首次同步 · 自动刷新中'
+  }
+
+  if (isFallback) {
+    return `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 当前使用演示数据 · 自动刷新中`
+  }
+
+  return `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 自动刷新中`
+}
+
 export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -54,6 +74,7 @@ export function AppShell() {
   /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
     mode === 'internal' ? null : brandConfig.taglineEn
+  const syncMetaLabel = getSyncMetaLabel(preferredDataSource, isFallback, lastSyncedAtMs)
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
   const focusSearchParams = new URLSearchParams(location.search)
@@ -197,13 +218,9 @@ export function AppShell() {
             {mode === 'internal' ? (
               <p className="brand-sync-meta">
                 {preferredDataSource === 'openclaw' ? (
-                  <>
-                    {isFallback ? '当前使用演示数据' : '实时数据已连接'}
-                    <br />
-                    {formatLastSyncedAt(lastSyncedAtMs)} 更新 · 自动刷新
-                  </>
+                  <>{syncMetaLabel}</>
                 ) : (
-                  <>当前使用演示数据</>
+                  <>{syncMetaLabel}</>
                 )}
               </p>
             ) : (
