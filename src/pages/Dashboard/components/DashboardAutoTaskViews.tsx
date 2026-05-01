@@ -14,8 +14,11 @@ import type {
   UserProfile,
 } from '../lib/autoTaskShared'
 import {
+  formatAccountLine,
   formatAccountType,
+  formatBrandLine,
   formatBooleanDecision,
+  formatContentLine,
   formatDecisionAction,
   formatPoolHealth,
   formatPoolKey,
@@ -43,7 +46,7 @@ export function AutoTaskRoutingView({
   return (
     <>
       <section className="scheduler-overview-card">
-        <div className="scheduler-section-title">内容分配规则表</div>
+        <div className="scheduler-section-title">分配判断表</div>
         <div className="scheduler-routing-table-wrap">
           <table className="scheduler-routing-table">
             <thead>
@@ -61,9 +64,9 @@ export function AutoTaskRoutingView({
             <tbody>
               {routingDecisionTable.map((row) => (
                 <tr key={row.key}>
-                  <td>{row.content_line}</td>
-                  <td>{row.brand_line}</td>
-                  <td>{row.account_line}</td>
+                  <td>{formatContentLine(row.content_line)}</td>
+                  <td>{formatBrandLine(row.brand_line)}</td>
+                  <td>{formatAccountLine(row.account_line)}</td>
                   <td>{formatAccountType(row.account_type as AutoTaskBoardItem['account_type'])}</td>
                   <td>{row.tier}</td>
                   <td>{row.can_close_deal === '-' ? '-' : formatBooleanDecision(row.can_close_deal === 'true')}</td>
@@ -77,7 +80,7 @@ export function AutoTaskRoutingView({
       </section>
 
       <section className="scheduler-queue-card">
-        <div className="scheduler-section-title">任务去向一览</div>
+        <div className="scheduler-section-title">事项去向一览</div>
         <div className="scheduler-route-card-list">
           {routeFocusedTasks.length
             ? routeFocusedTasks.map((item, index) =>

@@ -111,6 +111,37 @@ const SOURCE_PROJECT_LABELS: Record<string, string> = {
   case_library: '案例库',
 }
 
+const CONTENT_LINE_LABELS: Record<string, string> = {
+  layout_renovation: '户型改造',
+  kitchen_storage: '厨房收纳',
+  material_case: '材料案例',
+  floor_heating: '地暖系统',
+  group_buy_material: '团购材料',
+  customer_followup: '客户跟进',
+  growth_record: '成长记录',
+  ai_tools: 'AI 工具',
+}
+
+const BRAND_LINE_LABELS: Record<string, string> = {
+  kotovela: 'Kotovela',
+  yanfami: '言范家',
+  kotoharo: '言家',
+  guoshituan: '果实团',
+}
+
+const ACCOUNT_LINE_LABELS: Record<string, string> = {
+  yanfami_official: '言范家官方号',
+  kotoharo_official: '言家官方号',
+  kotovela_official: 'Kotovela 官方号',
+  guoshituan_official: '果实团官方号',
+  guoma970: '果妈 970',
+  latin_boy_guoguo: '拉丁男孩果果',
+  luyi_children: '鹿依儿童号',
+  chongming_storage: '崇明收纳号',
+  openclaw: 'OpenClaw 系统号',
+  mom970: '970 妈妈号',
+}
+
 const STRUCTURE_TYPE_LABELS: Record<string, string> = {
   official: '官方结构',
   personal: '个人表达',
@@ -118,6 +149,14 @@ const STRUCTURE_TYPE_LABELS: Record<string, string> = {
   short_content: '短内容结构',
   article: '文章结构',
   consult_content: '咨询内容结构',
+}
+
+const STRUCTURE_TEMPLATE_LABELS: Record<string, string> = {
+  layout_article_v1: '户型改造长文版',
+  kitchen_short_v1: '厨房收纳短内容版',
+  material_article_v1: '材料案例长文版',
+  floor_heating_article_v1: '地暖系统长文版',
+  layout_short_v1: '户型改造短内容版',
 }
 
 const SCENARIO_TEMPLATE_LABELS: Record<AutoTaskTemplateKey, string> = {
@@ -204,8 +243,24 @@ export function formatSourceProject(value?: AutoTaskBoardItem['source'] extends 
   return value ? (SOURCE_PROJECT_LABELS[String(value)] ?? String(value)) : '-'
 }
 
+export function formatContentLine(value?: string) {
+  return value ? (CONTENT_LINE_LABELS[value] ?? value.replace(/[._-]+/g, ' ')) : '-'
+}
+
+export function formatBrandLine(value?: string) {
+  return value ? (BRAND_LINE_LABELS[value] ?? value.replace(/[._-]+/g, ' ')) : '-'
+}
+
+export function formatAccountLine(value?: string) {
+  return value ? (ACCOUNT_LINE_LABELS[value] ?? value.replace(/[._-]+/g, ' ')) : '-'
+}
+
 export function formatStructureType(value?: string) {
   return value ? (STRUCTURE_TYPE_LABELS[value] ?? value) : '-'
+}
+
+export function formatStructureTemplate(value?: string) {
+  return value ? (STRUCTURE_TEMPLATE_LABELS[value] ?? value.replace(/[._-]+/g, ' ')) : '-'
 }
 
 export function formatScenarioTemplate(value?: string) {

@@ -24,8 +24,8 @@ export type ConsultantSettingsConfig = {
 
 const internalConfig: ConsultantSettingsConfig = {
   mode: 'internal',
-  pageTitle: '顾问配置页',
-  pageNote: '内部模式展示完整顾问池与分配口径，用于业务侧核对领域、当前工作量与状态。',
+  pageTitle: '顾问配置',
+  pageNote: '用于查看每位顾问负责什么、当前多忙，以及更适合承接哪类事项。',
   consultants: [
     {
       consultant_id: 'consultant_guoshituan_main',
@@ -74,9 +74,9 @@ const internalConfig: ConsultantSettingsConfig = {
   ],
   ruleSummary: [
     '同一领域优先命中，当前工作量更低者优先。',
-    '顾问可兼任团长角色，展示与分配证据统一落在顾问编号。',
-    '外部合作方不直接分配顾问编号，线索场景先转业务接入口，非线索场景会被拦截。',
-    '仅咨询、仅内容、不可交付等保护规则继续生效，不覆盖系统模式、发布状态与紧急停止。',
+    '顾问可兼任团长角色，必要时会直接承接需要跟进的事项。',
+    '外部合作方不会直接承接顾问事项，线索会先转入业务跟进入口，非线索会被拦截。',
+    '仅咨询、仅内容、不可交付等保护规则继续生效，不会被当前运行方式覆盖。',
   ],
 }
 

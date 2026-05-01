@@ -13,7 +13,7 @@ import {
 } from './DashboardAutoTaskViews'
 import { AUTO_TASK_SCENARIO_TEMPLATES } from '../lib/autoTaskConfig'
 import { deriveAutoTaskViewData } from '../lib/autoTaskDerived'
-import { formatScenarioTemplate } from '../lib/autoTaskLabels'
+import { formatAccountLine, formatContentLine, formatScenarioTemplate, formatStructureTemplate } from '../lib/autoTaskLabels'
 import type {
   AccountType,
   AutoDecisionLogEntry,
@@ -538,13 +538,13 @@ export function AutoTaskSystemPanel() {
       <div className="scheduler-template-strip">
         <div className="scheduler-template-chips">
           <button type="button" className="scheduler-template-chip is-active">
-            <strong>内容学习记录</strong>
+            <strong>可复用内容经验</strong>
             <span>记录 {data?.learning_summary?.total_records ?? learningRecords.length} · 平均分 {(data?.learning_summary?.avg_learning_score ?? 0).toFixed(2)} · 高分条目 {(data?.learning_summary?.high_score_records ?? 0)}</span>
           </button>
           {learningRecords.slice(0, 3).map((record) => (
             <button key={record.key} type="button" className="scheduler-template-chip">
-              <strong>{record.structure_id}</strong>
-              <span>{record.content_line} / {record.account_line} / 评分 {record.learning_score.toFixed(2)}</span>
+              <strong>{formatStructureTemplate(record.structure_id)}</strong>
+              <span>{formatContentLine(record.content_line)} / {formatAccountLine(record.account_line)} / 评分 {record.learning_score.toFixed(2)}</span>
             </button>
           ))}
           <button type="button" className="scheduler-template-chip">
@@ -613,10 +613,10 @@ export function AutoTaskSystemPanel() {
 
       <div className="scheduler-view-switch" role="tablist" aria-label="调度视图切换">
         {[
-          { key: 'operations', label: '运营进展', note: '进度 / 风险 / 待人工' },
+          { key: 'operations', label: '运营概览', note: '进度 / 风险 / 待人工' },
           { key: 'execution', label: '执行进展', note: '协作者 / 排队 / 结果' },
           { key: 'routing', label: '分配去向', note: '判断规则 / 去向 / 拦截说明' },
-          { key: 'debug', label: '排障详情', note: '原始字段 / 排障' },
+          { key: 'debug', label: '详细记录', note: '原始记录 / 排障' },
         ].map((view) => (
           <button
             key={view.key}

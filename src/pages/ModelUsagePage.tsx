@@ -85,6 +85,10 @@ const formatTime = (value?: string) => {
 
 const formatTier = (value?: string) => {
   if (!value) return '暂未同步'
+  const normalized = value.toLowerCase()
+  if (normalized === 'default_claude_ai') return '标准档位'
+  if (normalized === 'pro') return '专业档位'
+  if (normalized === 'team') return '团队档位'
   return value.replace(/[_-]+/g, ' ')
 }
 
@@ -131,14 +135,23 @@ const formatModelList = (values: string[]) =>
 const formatModelUsageSource = (value?: ModelUsagePayload['source']) => {
   switch (value) {
     case 'local-openclaw':
-      return '本机实时数据'
+      return '已同步'
     case 'partial':
-      return '部分同步成功'
+      return '部分信息暂未同步'
     case 'unavailable':
-      return '当前不可用'
+      return '暂时无法读取'
     default:
       return '加载中'
   }
+}
+
+const formatWarningSummary = (value: string) => {
+  if (value.includes('openclaw models status unavailable')) return 'OpenClaw 模型状态暂未同步'
+  if (value.includes('claude history unavailable')) return 'Claude Code 最近记录暂未同步'
+  if (value.includes('claude sessions unavailable')) return 'Claude Code 会话状态暂未同步'
+  if (value.includes('claude state unavailable')) return 'Claude Code 账户状态暂未同步'
+  if (value.includes('model usage unavailable')) return '当前暂时无法读取用量数据'
+  return value
 }
 
 const pctTone = (value?: number) => {
@@ -260,9 +273,9 @@ export function ModelUsagePage() {
       <div className="model-usage-provider-grid">
         <section className="panel strong-card model-usage-hero">
           <div>
-            <span className="model-usage-kicker">Codex</span>
+            <span className="model-usage-kicker">Codex 调用余量</span>
             <strong className="model-usage-hero-value">{payload?.codex_usage?.five_hour_left_pct ?? '-'}%</strong>
-            <p>5 小时额度剩余 · 当前策略：{activeCodexOrder}</p>
+            <p>5 小时额度剩余 · 当前账号顺序：{activeCodexOrder}</p>
             <UsageMeter value={payload?.codex_usage?.five_hour_left_pct} />
           </div>
           <div className="model-usage-hero-side">
@@ -280,7 +293,7 @@ export function ModelUsagePage() {
 
         <section className="panel strong-card model-usage-hero model-usage-hero-claude">
           <div>
-            <span className="model-usage-kicker">Claude Code</span>
+            <span className="model-usage-kicker">Claude Code 活跃情况</span>
             <strong className="model-usage-hero-value">{formatNumber(claudeRecent?.event_count)}</strong>
             <p>近 {payload?.window_hours ?? 24} 小时本机活跃记录 · 组织档位：{formatTier(payload?.claude_code_usage?.organization_rate_limit_tier)}</p>
             <div className="model-usage-inline-meta">
@@ -326,7 +339,7 @@ export function ModelUsagePage() {
       <section className="panel strong-card">
         <div className="panel-header">
           <h3>Claude Code 使用状态</h3>
-          <span className="home-count">{payload?.claude_code_usage ? '本机 Claude' : '当前不可用'}</span>
+          <span className="home-count">{payload?.claude_code_usage ? '本机账号' : '当前不可用'}</span>
         </div>
         <div className="model-usage-agent-grid">
           <article className="model-usage-agent-card">
@@ -364,7 +377,7 @@ export function ModelUsagePage() {
             <article key={agent.id} className="model-usage-agent-card">
               <div className="model-usage-agent-head">
                 <strong>{agent.label}</strong>
-                <span>{agent.id}</span>
+                <span>{agent.id === 'main' ? '中枢位' : agent.id === 'builder' ? '研发位' : '协作者'}</span>
               </div>
               <p>当前模型：<b>{formatModelName(agent.configured_model)}</b></p>
               <p>备用模型：{formatModelList(agent.fallback_models)}</p>
@@ -378,7 +391,7 @@ export function ModelUsagePage() {
                   {agent.codex_usage_stats.map((stats) => (
                     <small key={stats.profile}>
                       {formatAccountLabel(stats.profile)} · 异常次数 {stats.error_count ?? 0}
-                      {stats.cooldown_reason ? ` · 暂停原因 ${stats.cooldown_reason}` : ''}
+                      {stats.cooldown_reason ? ` · 暂停原因 ${stats.cooldown_reason.replace(/[._-]+/g, ' ')}` : ''}
                       {stats.last_used ? ` · 最近使用 ${formatTime(stats.last_used)}` : ''}
                     </small>
                   ))}
@@ -407,7 +420,15 @@ export function ModelUsagePage() {
             {payload.warnings.map((warning) => (
               <article key={warning} className="consultant-evidence-card">
                 <strong>提示</strong>
-                <p>{warning}</p>
+                <p>{formatWarningSummary(warning)}</p>
+                <details className="scheduler-debug-block top-gap">
+                  <summary className="scheduler-task-result-head">
+                    <strong>查看原始提醒</strong>
+                  </summary>
+                  <div className="top-gap">
+                    <small>{warning}</small>
+                  </div>
+                </details>
               </article>
             ))}
           </div>

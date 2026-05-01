@@ -4,8 +4,10 @@ import type {
   TemplatePoolEntry,
 } from '../lib/autoTaskShared'
 import {
+  formatAccountLine,
   formatAccountType,
   formatAssetType,
+  formatBrandLine,
   formatBooleanDecision,
   formatContentVariant,
   formatCtaPolicy,
@@ -14,6 +16,7 @@ import {
   formatRouteResult,
   formatSourceProject,
   formatSourceType,
+  formatStructureTemplate,
   formatStructureType,
 } from '../lib/autoTaskLabels'
 
@@ -78,11 +81,11 @@ export function PublishCenterCard({
         <span>{entry.domain} · {formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
-        <div><span>品牌</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+        <div><span>品牌</span><p>{entry.brandDisplay || formatBrandLine(entry.brandLine) || '-'}</p></div>
         <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
-        <div><span>账号</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
+        <div><span>账号</span><p>{entry.accountDisplay || formatAccountLine(entry.accountLine) || '-'}</p></div>
         <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
-        <div><span>tier</span><p>{entry.tier || '-'}</p></div>
+        <div><span>账号层级</span><p>{entry.tier || '-'}</p></div>
         <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
         <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
         <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
@@ -91,7 +94,7 @@ export function PublishCenterCard({
         <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
         <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
         <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
-        <div><span>结构模板</span><p>{entry.result.structure_id || '-'}</p></div>
+        <div><span>结构模板</span><p>{formatStructureTemplate(entry.result.structure_id)}</p></div>
         <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
         <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
         <div><span>素材来源</span><p>{formatSourceType(entry.source?.source_type)}</p></div>
@@ -174,11 +177,11 @@ export function ArchiveCenterCard({
         <span>{formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
-        <div><span>品牌</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+        <div><span>品牌</span><p>{entry.brandDisplay || formatBrandLine(entry.brandLine) || '-'}</p></div>
         <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
-        <div><span>账号</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
+        <div><span>账号</span><p>{entry.accountDisplay || formatAccountLine(entry.accountLine) || '-'}</p></div>
         <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
-        <div><span>tier</span><p>{entry.tier || '-'}</p></div>
+        <div><span>账号层级</span><p>{entry.tier || '-'}</p></div>
         <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
         <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
         <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
@@ -187,7 +190,7 @@ export function ArchiveCenterCard({
         <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
         <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
         <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
-        <div><span>结构模板</span><p>{entry.result.structure_id || '-'}</p></div>
+        <div><span>结构模板</span><p>{formatStructureTemplate(entry.result.structure_id)}</p></div>
         <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
         <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
         <div><span>素材来源</span><p>{formatSourceType(entry.source?.source_type)}</p></div>

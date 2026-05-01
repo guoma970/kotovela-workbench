@@ -305,7 +305,8 @@ button,
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
 
@@ -346,6 +347,7 @@ button,
 .consultant-evidence-card small {
   margin: 6px 0 0;
   color: #b7c7e6;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 960px) {
@@ -895,8 +897,8 @@ button,
 
 .system-mode-bar-value {
   font-size: 0.86rem;
-  text-transform: uppercase;
   color: #f7fbff;
+  overflow-wrap: anywhere;
 }
 
 .system-mode-bar-divider {
@@ -909,6 +911,7 @@ button,
   font-weight: 700;
   position: relative;
   z-index: 1;
+  overflow-wrap: anywhere;
 }
 
 .system-mode-flag {
@@ -1241,6 +1244,12 @@ button,
 
   .control-project-line {
     grid-template-columns: minmax(0, 1fr) 72px 36px 48px;
+  }
+}
+
+@media (max-width: 520px) {
+  .control-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1703,12 +1712,19 @@ button,
   text-align: left;
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+
+.scheduler-template-chip strong,
+.scheduler-task-group-chip strong {
+  overflow-wrap: anywhere;
 }
 
 .scheduler-template-chip span,
 .scheduler-task-group-chip span {
   color: #8ea2c6;
   font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
 
 .scheduler-template-chip.is-active {
@@ -4824,6 +4840,7 @@ body.focus-overlay-open .panel:hover {
 .model-usage-agent-head strong,
 .model-usage-rank-row strong {
   color: #f8fbff;
+  overflow-wrap: anywhere;
 }
 
 .model-usage-agent-head span,

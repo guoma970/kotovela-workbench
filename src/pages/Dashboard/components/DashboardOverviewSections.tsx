@@ -50,9 +50,21 @@ export type ActionItem = {
 }
 
 const badgeLabel: Record<HomeStatus, string> = {
-  blocker: 'BLOCKER',
-  active: 'ACTIVE',
-  idle: 'IDLE',
+  blocker: '有卡点',
+  active: '进行中',
+  idle: '待命',
+}
+
+const systemModeLabel: Record<SystemModeValue, string> = {
+  dev: '开发联调',
+  test: '测试验证',
+  live: '正式运行',
+}
+
+const publishModeLabel: Record<PublishModeValue, string> = {
+  manual_only: '仅手动发布',
+  auto_disabled: '人工确认后发布',
+  semi_auto: '半自动发布',
 }
 
 const consultantStatusLabel: Record<string, string> = {
@@ -410,19 +422,19 @@ export function InternalControlSummary({
     <section className="control-summary panel strong-card">
       <div className={`system-mode-bar ${systemModeTone}`}>
         <div className="system-mode-bar-main">
-          <span className="system-mode-bar-label">系统模式</span>
-          <strong className="system-mode-bar-value">{systemMode}</strong>
+          <span className="system-mode-bar-label">当前运行方式</span>
+          <strong className="system-mode-bar-value">{systemModeLabel[systemMode]}</strong>
           <span className="system-mode-bar-divider" aria-hidden>
             /
           </span>
-          <span className="system-mode-bar-label">发布状态</span>
-          <strong className="system-mode-bar-value">{publishMode}</strong>
+          <span className="system-mode-bar-label">发布节奏</span>
+          <strong className="system-mode-bar-value">{publishModeLabel[publishMode]}</strong>
           <span className={`system-mode-flag ${forceStop ? 'is-on' : 'is-off'}`}>
             紧急停止：{forceStop ? '已开启' : '未开启'}
           </span>
         </div>
         <div className="system-mode-bar-side">
-          {systemMode === 'live' ? '正式模式 · 真实业务流量已开启' : '非正式环境，仅供联调与验证'}
+          {systemMode === 'live' ? '当前已接入正式业务流量' : '当前为验证环境，仅用于联调与确认'}
         </div>
       </div>
 

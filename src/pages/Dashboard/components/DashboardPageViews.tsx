@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Agent, Project, UpdateItem } from '../../../types'
-import { BRAND_NAME, INTERNAL_PRODUCT_TITLE } from '../../../config/brand'
+import { BRAND_NAME } from '../../../config/brand'
 import { brandAssets } from '../../../config/brandAssets'
 import {
   AuditLogPanel,
@@ -66,7 +66,7 @@ export function DashboardInternalView({
             <img className="page-brand-logo" src={brandAssets.logo} alt="" />
           </div>
           <div>
-            <p className="eyebrow">{INTERNAL_PRODUCT_TITLE}</p>
+            <p className="eyebrow">{BRAND_NAME}</p>
             <h2>业务驾驶舱</h2>
           </div>
         </div>
@@ -96,7 +96,7 @@ export function DashboardInternalView({
           <SectionList
             title="需处理"
             items={blockers}
-            emptyText="当前没有阻塞实例。"
+            emptyText="当前没有需要优先处理的事项。"
             getActions={blockerActions}
             statusLabels={internalStatusLabels}
             updatedLabel="更新于"
@@ -104,7 +104,7 @@ export function DashboardInternalView({
           <SectionList
             title="进行中"
             items={actives}
-            emptyText="当前没有进行中的实例。"
+            emptyText="当前没有正在推进的事项。"
             getActions={activeActions}
             statusLabels={internalStatusLabels}
             updatedLabel="更新于"

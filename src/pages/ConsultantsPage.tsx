@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { consultantSettingsConfig, type ConsultantRecord } from '../config/consultantSettings'
-import { APP_MODE, BRAND_NAME } from '../config/brand'
+import { APP_MODE } from '../config/brand'
 
 type BoardItem = {
   task_name: string
@@ -50,12 +50,12 @@ const defaultSystemMode: SystemModeState = {
 const consultantFieldLabels = {
   display_role: '角色展示名',
   name: '显示名称',
-  role: '系统角色',
-  domain: '领域',
+  role: '负责角色',
+  domain: '擅长方向',
   active_load: '当前工作量',
   status: '状态',
   account_type: '账号类型',
-  assignment_scope: '分配范围',
+  assignment_scope: '适用事项',
   note: '备注',
 } as const
 
@@ -79,6 +79,13 @@ const consultantRoleLabels: Record<string, string> = {
   heating_consultant: '地暖顾问',
   residential_consultant: '住宅顾问',
   business_consultant: '业务顾问',
+}
+
+const consultantDomainLabels: Record<string, string> = {
+  business: '业务跟进',
+  material_case: '材料案例',
+  floor_heating: '地暖系统',
+  layout_renovation: '户型改造',
 }
 
 const consultantRouteResultLabels: Record<string, string> = {
@@ -106,18 +113,49 @@ const consultantRouteTargetLabels: Record<string, string> = {
 
 const systemModeLabels: Record<string, string> = {
   dev: '开发模式',
+  test: '测试验证',
   staging: '预发模式',
+  live: '正式运行',
   production: '生产模式',
 }
 
 const publishModeLabels: Record<string, string> = {
   manual_only: '仅手动发布',
+  auto_disabled: '人工确认后发布',
+  semi_auto: '半自动发布',
   assisted: '人工确认后发布',
   auto: '自动发布',
 }
 
 function formatConsultantRole(role: string) {
   return consultantRoleLabels[role] ?? role
+}
+
+function formatConsultantDomain(value: string) {
+  return consultantDomainLabels[value] ?? value.replace(/[._-]+/g, ' ')
+}
+
+function formatAssignmentScope(value: string) {
+  return value
+    .split('/')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      if (consultantDomainLabels[item]) return consultantDomainLabels[item]
+      if (consultantAccountTypeLabels[item as keyof typeof consultantAccountTypeLabels]) return consultantAccountTypeLabels[item as keyof typeof consultantAccountTypeLabels]
+      return item
+        .replace(/official_account/gi, '官方账号')
+        .replace(/lead_router/gi, '线索分发')
+        .replace(/article lead/gi, '文章线索')
+        .replace(/customer_followup/gi, '客户跟进')
+        .replace(/residential/gi, '住宅咨询')
+        .replace(/guoshituan/gi, '果实团')
+        .replace(/kotoharo/gi, '言家')
+        .replace(/yanfami/gi, '言范家')
+        .replace(/demo/gi, '演示环境')
+        .replace(/[._-]+/g, ' ')
+    })
+    .join(' / ')
 }
 
 function formatSystemMode(mode: string) {
@@ -231,6 +269,7 @@ export function ConsultantsPage() {
     () =>
       board.filter((item) => item.account_type === 'external_partner').map((item) => ({
         task_name: item.task_name,
+        domain: item.domain ?? '-',
         route_result: item.route_result ?? '-',
         route_target: item.route_target ?? '-',
         consultant_id: item.consultant_id ?? '-',
@@ -280,15 +319,15 @@ export function ConsultantsPage() {
           <h2>{consultantSettingsConfig.pageTitle}</h2>
         </div>
         <p className="page-note">
-          {consultantSettingsConfig.pageNote} 当前品牌：<strong>{BRAND_NAME}</strong>
+          {consultantSettingsConfig.pageNote} 当前页面默认先展示业务结果与配置摘要，原始编号和内部口径折叠到下层。
         </p>
       </div>
 
       <section className="panel strong-card consultant-mode-strip">
         <div className="info-pairs">
-          <div className="context-strip"><span>应用模式</span><strong>{APP_MODE === 'internal' ? '内部版' : '开源版'}</strong></div>
-          <div className="context-strip"><span>系统模式</span><strong>{formatSystemMode(systemMode.systemMode)}</strong></div>
-          <div className="context-strip"><span>发布状态</span><strong>{formatPublishMode(systemMode.publishMode)}</strong></div>
+          <div className="context-strip"><span>当前环境</span><strong>{APP_MODE === 'internal' ? '内部版' : '开源版'}</strong></div>
+          <div className="context-strip"><span>运行方式</span><strong>{formatSystemMode(systemMode.systemMode)}</strong></div>
+          <div className="context-strip"><span>发布节奏</span><strong>{formatPublishMode(systemMode.publishMode)}</strong></div>
           <div className="context-strip"><span>紧急停止</span><strong>{systemMode.forceStop ? '已开启' : '未开启'}</strong></div>
           <div className="context-strip"><span>顾问数量</span><strong>{consultants.length}</strong></div>
           <div className="context-strip"><span>当前承载量</span><strong>{totalActiveLoad}</strong></div>
@@ -310,14 +349,16 @@ export function ConsultantsPage() {
             <h3>顾问配置</h3>
             <span className="home-count">{consultants.length}</span>
           </div>
-          <p className="page-note">当前页面支持查看和调整顾问分工、状态、账号类型、承载量与适用领域。</p>
+          <p className="page-note">先看每位顾问负责什么、当前多忙、适合承接哪些事项；如需排障，再展开原始编号和内部口径。</p>
           <div className="consultant-card-list">
             {consultants.map((item) => (
               <article key={item.consultant_id} className="consultant-card">
                 <div className="consultant-card-top">
                   <div>
                     <strong>{item.name}</strong>
-                    <small style={{ display: 'block', marginTop: 4, color: '#7f8ea3' }}>{item.consultant_id}</small>
+                    <small style={{ display: 'block', marginTop: 4, color: '#7f8ea3' }}>
+                      {formatConsultantRole(item.role)} · {formatConsultantDomain(item.domain)}
+                    </small>
                   </div>
                   <span className={`status-pill status-${item.status === 'online' ? 'active' : item.status === 'busy' ? 'blocked' : 'idle'}`}>
                     {consultantStatusLabels[item.status]}
@@ -334,11 +375,11 @@ export function ConsultantsPage() {
                   </label>
                   <label>
                     <span>{consultantFieldLabels.role}</span>
-                    <input value={item.role} onChange={(event) => updateConsultant(item.consultant_id, 'role', event.target.value)} />
+                    <input value={formatConsultantRole(item.role)} readOnly />
                   </label>
                   <label>
                     <span>{consultantFieldLabels.domain}</span>
-                    <input value={item.domain} onChange={(event) => updateConsultant(item.consultant_id, 'domain', event.target.value)} />
+                    <input value={formatConsultantDomain(item.domain)} readOnly />
                   </label>
                   <label>
                     <span>{consultantFieldLabels.active_load}</span>
@@ -364,13 +405,24 @@ export function ConsultantsPage() {
                   </label>
                   <label>
                     <span>{consultantFieldLabels.assignment_scope}</span>
-                    <input value={item.assignment_scope} onChange={(event) => updateConsultant(item.consultant_id, 'assignment_scope', event.target.value)} />
+                    <input value={formatAssignmentScope(item.assignment_scope)} readOnly />
                   </label>
                   <label>
                     <span>{consultantFieldLabels.note}</span>
                     <input value={item.note} onChange={(event) => updateConsultant(item.consultant_id, 'note', event.target.value)} />
                   </label>
                 </div>
+                <details className="scheduler-debug-block top-gap">
+                  <summary className="scheduler-task-result-head">
+                    <strong>查看原始顾问口径</strong>
+                  </summary>
+                  <div className="top-gap">
+                    <p>原始编号：{item.consultant_id}</p>
+                    <p>角色代码：{item.role}</p>
+                    <p>领域代码：{item.domain}</p>
+                    <p>适用范围代码：{item.assignment_scope}</p>
+                  </div>
+                </details>
               </article>
             ))}
           </div>
@@ -397,8 +449,8 @@ export function ConsultantsPage() {
             {consultantLoadSummary.map((item) => (
               <article key={item.consultantId} className="consultant-evidence-card">
                 <strong>{item.owner}</strong>
-                <p>顾问编号 {item.consultantId}</p>
-                <small>工作量 {item.active} · 总计 {item.total} · 领域 {item.domains.join(', ') || '-'}</small>
+                <p>当前工作量 {item.active} · 总计 {item.total}</p>
+                <small>主要方向：{item.domains.map((domain) => formatConsultantDomain(domain)).join(' / ') || '暂未同步'}</small>
               </article>
             ))}
             {!consultantLoadSummary.length ? <p className="empty-state">当前无顾问负载回写数据，保留配置态展示。</p> : null}
@@ -415,7 +467,7 @@ export function ConsultantsPage() {
               <article key={item.task_name} className="consultant-evidence-card">
                 <strong>{item.task_name}</strong>
                 <p>去向判断 {formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
-                <small>顾问编号 {item.consultant_id} · 合作方模式 {formatPartnerMode(item.partner_mode)}</small>
+                <small>合作方式：{formatPartnerMode(item.partner_mode)} · 处理方向：{formatConsultantDomain(item.domain ?? 'business')}</small>
               </article>
             ))}
           </div>
