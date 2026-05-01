@@ -3,6 +3,19 @@ import type {
   PublishCenterEntry,
   TemplatePoolEntry,
 } from '../lib/autoTaskShared'
+import {
+  formatAccountType,
+  formatAssetType,
+  formatBooleanDecision,
+  formatContentVariant,
+  formatCtaPolicy,
+  formatDistributionChannel,
+  formatRoleVersion,
+  formatRouteResult,
+  formatSourceProject,
+  formatSourceType,
+  formatStructureType,
+} from '../lib/autoTaskLabels'
 
 function getRecommendedTemplates(
   templates: TemplatePoolEntry[],
@@ -38,7 +51,7 @@ function TemplateRecommendations({
       {templates.length ? templates.map((template) => (
         <div className="scheduler-template-rec-item" key={template.template_id}>
           <strong>{template.source_task_name ?? template.template_id}</strong>
-          <small>use_count {template.use_count}</small>
+          <small>复用 {template.use_count} 次</small>
         </div>
       )) : <small>暂无</small>}
     </div>
@@ -62,32 +75,32 @@ export function PublishCenterCard({
     <article className="scheduler-result-item scheduler-center-card">
       <div className="scheduler-center-card-top">
         <strong>{entry.taskName}</strong>
-        <span>{entry.domain} · {entry.assetType} · {entry.contentVariant || '-'}</span>
+        <span>{entry.domain} · {formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
-        <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
-        <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
-        <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
-        <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
+        <div><span>品牌</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+        <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
+        <div><span>账号</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
+        <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
         <div><span>tier</span><p>{entry.tier || '-'}</p></div>
-        <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
-        <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
-        <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
-        <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
-        <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
-        <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
-        <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
-        <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
-        <div><span>structure_id</span><p>{entry.result.structure_id || '-'}</p></div>
-        <div><span>CTA policy</span><p>{entry.result.cta_policy || '-'}</p></div>
+        <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
+        <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
+        <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
+        <div><span>分发渠道</span><p>{formatDistributionChannel(entry.distributionChannel)}</p></div>
+        <div><span>内容形态</span><p>{formatContentVariant(entry.contentVariant)}</p></div>
+        <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
+        <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+        <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
+        <div><span>结构模板</span><p>{entry.result.structure_id || '-'}</p></div>
+        <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
         <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
-        <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
-        <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
-        <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
+        <div><span>素材来源</span><p>{formatSourceType(entry.source?.source_type)}</p></div>
+        <div><span>素材项目</span><p>{formatSourceProject(entry.source?.source_project)}</p></div>
+        <div><span>发布角色</span><p>{formatRoleVersion(entry.roleVersion)}</p></div>
         <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
         <div><span>推荐发布时间</span><p>{entry.result.recommend_publish_time || '-'}</p></div>
         <div><span>发布频率</span><p>{entry.result.recommend_frequency || '-'}</p></div>
-        <div><span>今日建议发</span><p>{typeof entry.result.publish_today === 'boolean' ? (entry.result.publish_today ? 'true' : 'false') : '-'}</p></div>
+        <div><span>今日建议发</span><p>{formatBooleanDecision(entry.result.publish_today)}</p></div>
         <div><span>建议标题</span><p>{entry.result.suggested_title || entry.result.title || '-'}</p></div>
         <div><span>首评建议</span><p>{entry.result.suggested_first_comment || '-'}</p></div>
         <div><span>互动问题</span><p>{entry.result.suggested_interaction_question || '-'}</p></div>
@@ -95,18 +108,18 @@ export function PublishCenterCard({
       </div>
       {entry.assetType === 'media' ? (
         <div className="scheduler-publish-grid">
-          <div><span>title</span><p>{entry.result.title || '-'}</p></div>
-          <div><span>hook</span><p>{entry.result.hook || '-'}</p></div>
-          <div><span>outline</span><p>{entry.result.outline?.join(' / ') || '-'}</p></div>
-          <div><span>script</span><p>{entry.result.script || '-'}</p></div>
-          <div><span>publish_text</span><p>{entry.result.publish_text || '-'}</p></div>
+          <div><span>标题</span><p>{entry.result.title || '-'}</p></div>
+          <div><span>开场钩子</span><p>{entry.result.hook || '-'}</p></div>
+          <div><span>提纲</span><p>{entry.result.outline?.join(' / ') || '-'}</p></div>
+          <div><span>正文脚本</span><p>{entry.result.script || '-'}</p></div>
+          <div><span>发布文案</span><p>{entry.result.publish_text || '-'}</p></div>
         </div>
       ) : null}
       {entry.contentVariant === 'article' ? (
         <div className="scheduler-publish-grid">
-          <div><span>structure</span><p>{entry.result.structure?.join(' / ') || entry.result.outline?.join(' / ') || '-'}</p></div>
-          <div><span>section_map</span><p>{Object.entries(entry.result.section_map || {}).map(([key, value]) => `${key}: ${value}`).join(' / ') || '-'}</p></div>
-          <div><span>full_article</span><p>{entry.result.full_article || entry.result.script || '-'}</p></div>
+          <div><span>文章结构</span><p>{entry.result.structure?.join(' / ') || entry.result.outline?.join(' / ') || '-'}</p></div>
+          <div><span>章节安排</span><p>{Object.entries(entry.result.section_map || {}).map(([key, value]) => `${key}: ${value}`).join(' / ') || '-'}</p></div>
+          <div><span>完整文章</span><p>{entry.result.full_article || entry.result.script || '-'}</p></div>
         </div>
       ) : null}
       {entry.assetType === 'business' ? (
@@ -158,28 +171,28 @@ export function ArchiveCenterCard({
     <article className="scheduler-result-item scheduler-center-card">
       <div className="scheduler-center-card-top">
         <strong>{entry.taskName}</strong>
-        <span>{entry.assetType} · {entry.contentVariant || '-'}</span>
+        <span>{formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
-        <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
-        <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
-        <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
-        <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
+        <div><span>品牌</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
+        <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
+        <div><span>账号</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
+        <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
         <div><span>tier</span><p>{entry.tier || '-'}</p></div>
-        <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
-        <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
-        <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
-        <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
-        <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
-        <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
-        <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
-        <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
-        <div><span>structure_id</span><p>{entry.result.structure_id || '-'}</p></div>
-        <div><span>CTA policy</span><p>{entry.result.cta_policy || '-'}</p></div>
+        <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
+        <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
+        <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
+        <div><span>分发渠道</span><p>{formatDistributionChannel(entry.distributionChannel)}</p></div>
+        <div><span>内容形态</span><p>{formatContentVariant(entry.contentVariant)}</p></div>
+        <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
+        <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+        <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
+        <div><span>结构模板</span><p>{entry.result.structure_id || '-'}</p></div>
+        <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
         <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
-        <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
-        <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
-        <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
+        <div><span>素材来源</span><p>{formatSourceType(entry.source?.source_type)}</p></div>
+        <div><span>素材项目</span><p>{formatSourceProject(entry.source?.source_project)}</p></div>
+        <div><span>发布角色</span><p>{formatRoleVersion(entry.roleVersion)}</p></div>
         <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
       </div>
       <p>{entry.result.content || entry.result.publish_text || '-'}</p>

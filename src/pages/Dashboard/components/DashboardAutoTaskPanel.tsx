@@ -13,6 +13,7 @@ import {
 } from './DashboardAutoTaskViews'
 import { AUTO_TASK_SCENARIO_TEMPLATES } from '../lib/autoTaskConfig'
 import { deriveAutoTaskViewData } from '../lib/autoTaskDerived'
+import { formatScenarioTemplate } from '../lib/autoTaskLabels'
 import type {
   AccountType,
   AutoDecisionLogEntry,
@@ -529,7 +530,7 @@ export function AutoTaskSystemPanel() {
       <div className="home-section-head scheduler-hub-head">
         <div>
           <h3>调度队列中枢</h3>
-          <p className="scheduler-hub-subtitle">基于 /api/tasks-board 的实时调度视图</p>
+          <p className="scheduler-hub-subtitle">自动任务系统的实时调度视图</p>
         </div>
         <span className="home-count">{data?.board?.length ?? 0}</span>
       </div>
@@ -537,19 +538,19 @@ export function AutoTaskSystemPanel() {
       <div className="scheduler-template-strip">
         <div className="scheduler-template-chips">
           <button type="button" className="scheduler-template-chip is-active">
-            <strong>Learning Loop</strong>
-            <span>records {data?.learning_summary?.total_records ?? learningRecords.length} · avg {(data?.learning_summary?.avg_learning_score ?? 0).toFixed(2)} · high {(data?.learning_summary?.high_score_records ?? 0)}</span>
+            <strong>学习回路</strong>
+            <span>记录 {data?.learning_summary?.total_records ?? learningRecords.length} · 平均分 {(data?.learning_summary?.avg_learning_score ?? 0).toFixed(2)} · 高分条目 {(data?.learning_summary?.high_score_records ?? 0)}</span>
           </button>
           {learningRecords.slice(0, 3).map((record) => (
             <button key={record.key} type="button" className="scheduler-template-chip">
               <strong>{record.structure_id}</strong>
-              <span>{record.content_line} / {record.account_line} / score {record.learning_score.toFixed(2)}</span>
+              <span>{record.content_line} / {record.account_line} / 评分 {record.learning_score.toFixed(2)}</span>
             </button>
           ))}
           <button type="button" className="scheduler-template-chip">
-            <strong>Business Funnel</strong>
+            <strong>业务漏斗</strong>
             <span>
-              leads {data?.business_summary?.total_leads ?? 0} · consultants {data?.business_summary?.assigned_consultants ?? 0} · converted {data?.business_summary?.converted ?? 0} · lost {data?.business_summary?.lost ?? 0} · attribution {data?.business_summary?.attributed ?? 0}
+              线索 {data?.business_summary?.total_leads ?? 0} · 顾问 {data?.business_summary?.assigned_consultants ?? 0} · 已转化 {data?.business_summary?.converted ?? 0} · 已流失 {data?.business_summary?.lost ?? 0} · 已归因 {data?.business_summary?.attributed ?? 0}
             </span>
           </button>
         </div>
@@ -572,7 +573,7 @@ export function AutoTaskSystemPanel() {
         <div className="scheduler-template-form">
           <select className="auto-task-input" value={activeTemplateKey} onChange={(e) => setActiveTemplateKey(e.target.value as typeof activeTemplateKey)} disabled={running}>
             {AUTO_TASK_SCENARIO_TEMPLATES.map((template) => (
-              <option key={template.key} value={template.key}>{template.label}</option>
+              <option key={template.key} value={template.key}>{formatScenarioTemplate(template.key)}</option>
             ))}
           </select>
           <button className="auto-task-run-btn" type="button" onClick={createScenarioTemplate} disabled={running}>
@@ -587,7 +588,7 @@ export function AutoTaskSystemPanel() {
               className={`scheduler-template-chip ${activeTemplateKey === template.key ? 'is-active' : ''}`}
               onClick={() => setActiveTemplateKey(template.key)}
             >
-              <strong>{template.label}</strong>
+              <strong>{formatScenarioTemplate(template.key)}</strong>
               <span>{template.description}</span>
             </button>
           ))}

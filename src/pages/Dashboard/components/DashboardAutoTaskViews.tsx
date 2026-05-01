@@ -13,6 +13,16 @@ import type {
   TaskNotificationItem,
   UserProfile,
 } from '../lib/autoTaskShared'
+import {
+  formatAccountType,
+  formatBooleanDecision,
+  formatDecisionAction,
+  formatPoolHealth,
+  formatPoolKey,
+  formatScenarioTemplate,
+  formatTaskStatus,
+  formatTaskTone,
+} from '../lib/autoTaskLabels'
 
 type TaskCardRenderer = (item: AutoTaskBoardItem, tone: TaskCardTone, index: number) => ReactNode
 
@@ -37,14 +47,14 @@ export function AutoTaskRoutingView({
           <table className="scheduler-routing-table">
             <thead>
               <tr>
-                <th>content_line</th>
-                <th>brand_line</th>
-                <th>account_line</th>
-                <th>account_type</th>
-                <th>tier</th>
-                <th>can_close_deal</th>
-                <th>route_target</th>
-                <th>tasks</th>
+                <th>内容线</th>
+                <th>品牌线</th>
+                <th>账号线</th>
+                <th>账号类型</th>
+                <th>层级</th>
+                <th>可否成交</th>
+                <th>路由目标</th>
+                <th>任务数</th>
               </tr>
             </thead>
             <tbody>
@@ -53,9 +63,9 @@ export function AutoTaskRoutingView({
                   <td>{row.content_line}</td>
                   <td>{row.brand_line}</td>
                   <td>{row.account_line}</td>
-                  <td>{row.account_type}</td>
+                  <td>{formatAccountType(row.account_type as AutoTaskBoardItem['account_type'])}</td>
                   <td>{row.tier}</td>
-                  <td>{row.can_close_deal}</td>
+                  <td>{row.can_close_deal === '-' ? '-' : formatBooleanDecision(row.can_close_deal === 'true')}</td>
                   <td>{row.route_target}</td>
                   <td>{row.count}</td>
                 </tr>
@@ -94,10 +104,10 @@ export function AutoTaskDebugProfileCard({ currentProfile }: { currentProfile: U
     <section className="scheduler-overview-card">
       <div className="scheduler-section-title">用户画像卡片</div>
       <div className="scheduler-task-result-content">
-        <div><span>user_id</span><strong>{currentProfile.user_id}</strong></div>
-        <div><span>tags</span><strong>{currentProfile.tags.join(' / ') || '-'}</strong></div>
-        <div><span>preferences</span><pre>{JSON.stringify(currentProfile.preferences, null, 2)}</pre></div>
-        <div><span>behavior_patterns</span><pre>{JSON.stringify(currentProfile.behavior_patterns, null, 2)}</pre></div>
+        <div><span>用户编号</span><strong>{currentProfile.user_id}</strong></div>
+        <div><span>标签</span><strong>{currentProfile.tags.join(' / ') || '-'}</strong></div>
+        <div><span>偏好设置</span><pre>{JSON.stringify(currentProfile.preferences, null, 2)}</pre></div>
+        <div><span>行为特征</span><pre>{JSON.stringify(currentProfile.behavior_patterns, null, 2)}</pre></div>
       </div>
     </section>
   )
@@ -160,12 +170,12 @@ export function AutoTaskDebugMainView({
               <article className="scheduler-parent-task-card" key={parent.id}>
                 <div className="scheduler-parent-task-top">
                   <strong>{parent.title}</strong>
-                  <span>{parent.template}</span>
+                  <span>{formatScenarioTemplate(parent.template)}</span>
                 </div>
                 <div className="scheduler-parent-task-meta">
                   <span>子任务 {parent.childCount}</span>
                   <span>进度 {parent.progress}%</span>
-                  <span>blocked {parent.blockedPoint}</span>
+                  <span>卡点 {parent.blockedPoint}</span>
                 </div>
                 <div className="scheduler-parent-task-domains">
                   {parent.domains.map((domain) => (
@@ -181,7 +191,7 @@ export function AutoTaskDebugMainView({
             {taskGroups.slice(0, 6).map((group) => (
               <div className="scheduler-task-group-chip" key={group.id}>
                 <strong>{group.label}</strong>
-                <span>{group.template} · {group.count} tasks · {group.domain} / {group.projectLine}</span>
+                <span>{formatScenarioTemplate(group.template)} · {group.count} 项任务 · {group.domain} / {group.projectLine}</span>
               </div>
             ))}
           </div>
@@ -195,45 +205,45 @@ export function AutoTaskDebugMainView({
               onClick={() => onSelectPool(pool.key)}
             >
               <div className="scheduler-pool-card-top">
-                <strong>{pool.label}</strong>
-                <span>{pool.health}</span>
+                <strong>{formatPoolKey(pool.key)}</strong>
+                <span>{formatPoolHealth(pool.health)}</span>
               </div>
               <div className="scheduler-pool-card-metrics">
                 <span>并发 {pool.running_count}/{pool.max_concurrency}</span>
-                <span>queue {pool.queue_count}</span>
+                <span>待排队 {pool.queue_count}</span>
               </div>
             </button>
           ))}
         </div>
         <div className="scheduler-overview-grid">
           <div className="scheduler-overview-metric is-concurrency"><span>并发数</span><strong>{currentConcurrency}/{maxConcurrency}</strong></div>
-          <div className="scheduler-overview-metric"><span>running_count</span><strong>{runningCount}</strong></div>
-          <div className="scheduler-overview-metric"><span>queue_count</span><strong>{queueCount}</strong></div>
-          <div className="scheduler-overview-metric is-warning"><span>blocked_count</span><strong>{blockedCount}</strong></div>
-          <div className="scheduler-overview-metric is-failed"><span>failed_count</span><strong>{failedCount}</strong></div>
-          <div className="scheduler-overview-metric is-warning"><span>abnormal_count</span><strong>{abnormalCount}</strong></div>
+          <div className="scheduler-overview-metric"><span>执行中</span><strong>{runningCount}</strong></div>
+          <div className="scheduler-overview-metric"><span>待调度</span><strong>{queueCount}</strong></div>
+          <div className="scheduler-overview-metric is-warning"><span>有卡点</span><strong>{blockedCount}</strong></div>
+          <div className="scheduler-overview-metric is-failed"><span>执行失败</span><strong>{failedCount}</strong></div>
+          <div className="scheduler-overview-metric is-warning"><span>异常提醒</span><strong>{abnormalCount}</strong></div>
         </div>
         <div className="scheduler-sync-line">{loading ? '调度状态: 刷新中' : '调度状态: 已同步'}</div>
       </section>
 
       <section className="scheduler-queue-card">
-        <div className="scheduler-section-title">调度队列 · {normalizedActivePool}</div>
+        <div className="scheduler-section-title">调度队列 · {formatPoolKey(normalizedActivePool)}</div>
         <div className="scheduler-queue-grid">
           <div className="scheduler-lane">
-            <div className="scheduler-lane-head"><h4>Running</h4><span>{runningTasks.length}</span></div>
-            <div className="scheduler-lane-list">{runningTasks.length ? runningTasks.map((item, index) => renderTaskCard(item, 'running', index)) : <div className="auto-task-empty">暂无 Running 任务</div>}</div>
+            <div className="scheduler-lane-head"><h4>{formatTaskTone('running')}</h4><span>{runningTasks.length}</span></div>
+            <div className="scheduler-lane-list">{runningTasks.length ? runningTasks.map((item, index) => renderTaskCard(item, 'running', index)) : <div className="auto-task-empty">暂无执行中任务</div>}</div>
           </div>
           <div className="scheduler-lane">
-            <div className="scheduler-lane-head"><h4>Queue</h4><span>{queuedTasks.length}</span></div>
-            <div className="scheduler-lane-list">{queuedTasks.length ? queuedTasks.map((item, index) => renderTaskCard(item, 'queue', index)) : <div className="auto-task-empty">暂无 Queue 任务</div>}</div>
+            <div className="scheduler-lane-head"><h4>{formatTaskTone('queue')}</h4><span>{queuedTasks.length}</span></div>
+            <div className="scheduler-lane-list">{queuedTasks.length ? queuedTasks.map((item, index) => renderTaskCard(item, 'queue', index)) : <div className="auto-task-empty">暂无待调度任务</div>}</div>
           </div>
           <div className="scheduler-lane">
-            <div className="scheduler-lane-head"><h4>Paused</h4><span>{pausedTasks.length}</span></div>
-            <div className="scheduler-lane-list">{pausedTasks.length ? pausedTasks.map((item, index) => renderTaskCard(item, 'paused', index)) : <div className="auto-task-empty">暂无 Paused 任务</div>}</div>
+            <div className="scheduler-lane-head"><h4>{formatTaskTone('paused')}</h4><span>{pausedTasks.length}</span></div>
+            <div className="scheduler-lane-list">{pausedTasks.length ? pausedTasks.map((item, index) => renderTaskCard(item, 'paused', index)) : <div className="auto-task-empty">暂无已暂停任务</div>}</div>
           </div>
           <div className="scheduler-lane">
-            <div className="scheduler-lane-head"><h4>Done</h4><span>{doneTasks.length}</span></div>
-            <div className="scheduler-lane-list">{doneTasks.length ? doneTasks.map((item, index) => renderTaskCard(item, 'done', index)) : <div className="auto-task-empty">暂无 Done 任务</div>}</div>
+            <div className="scheduler-lane-head"><h4>{formatTaskTone('done')}</h4><span>{doneTasks.length}</span></div>
+            <div className="scheduler-lane-list">{doneTasks.length ? doneTasks.map((item, index) => renderTaskCard(item, 'done', index)) : <div className="auto-task-empty">暂无已完成任务</div>}</div>
           </div>
         </div>
       </section>
@@ -244,11 +254,11 @@ export function AutoTaskDebugMainView({
           {recentDecisions.length ? recentDecisions.map((decision, index) => (
             <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
               <div className="scheduler-decision-top">
-                <strong>{decision.decision}</strong>
+                <strong>{formatDecisionAction(decision.decision)}</strong>
                 <span>{decision.timestamp}</span>
               </div>
               <p>{decision.taskName} · {decision.agent}</p>
-              <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
+              <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · 重试次数 ${decision.retryCount}` : ''}</small>
             </article>
           )) : <div className="auto-task-empty">暂无自动决策记录</div>}
         </div>
@@ -265,8 +275,8 @@ export function AutoTaskDebugMainView({
                   <strong>{item.task_name}</strong>
                   <span>{item.domain ?? '-'}</span>
                 </div>
-                <p>reason: {latestDecision?.reason ?? 'need_human'}</p>
-                <small>human_owner: {item.human_owner ?? '-'} · latest decision: {latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
+                <p>原因：{latestDecision?.reason ?? '待人工处理'}</p>
+                <small>负责人：{item.human_owner ?? '-'} · 最新判断：{latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
                 <div className="auto-task-actions scheduler-human-actions">
                   <button className="auto-task-row-btn" type="button" onClick={() => onManualControlTask(item.task_name, 'manual_done')} disabled={controlsDisabled}>已处理</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => onManualControlTask(item.task_name, 'manual_continue')} disabled={controlsDisabled}>继续执行</button>
@@ -325,7 +335,7 @@ export function AutoTaskDebugSidebar({
         {visibleNotifications.length ? visibleNotifications.map((notice) => (
           <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
             <strong>{notice.target_group}</strong>
-            <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\ntask_id：${notice.task_id ?? '-'}\ntask_name：${notice.task_name}\ndomain：${notice.domain}\nassigned_agent：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
+            <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\n任务编号：${notice.task_id ?? '-'}\n任务名称：${notice.task_name}\n领域：${notice.domain}\n执行协作者：${notice.assigned_agent}\n状态：${formatTaskStatus(notice.status)}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
             {notice.event_type === 'task_need_human' ? (
               <div className="auto-task-actions scheduler-human-actions">
                 <button className="auto-task-row-btn" type="button" onClick={() => onGroupNotificationAction(notice, 'done')} disabled={controlsDisabled}>已处理</button>
@@ -355,16 +365,16 @@ export function AutoTaskDebugSidebar({
         )) : <div className="auto-task-empty">暂无连续失败任务</div>}
       </div>
       <div className="scheduler-alert-group">
-        <h4>stuck 任务</h4>
+        <h4>卡住任务</h4>
         {stuckTasks.length ? stuckTasks.map((item, index) => (
           <div className="scheduler-alert-item is-warning" key={`stuck-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
-        )) : <div className="auto-task-empty">暂无 stuck 任务</div>}
+        )) : <div className="auto-task-empty">暂无卡住任务</div>}
       </div>
       <div className="scheduler-alert-group">
         <h4>异常任务</h4>
         {abnormalTasks.length ? abnormalTasks.map((item, index) => (
           <div className="scheduler-alert-item is-abnormal" key={`abnormal-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
-        )) : <div className="auto-task-empty">暂无 abnormal / attention 任务</div>}
+        )) : <div className="auto-task-empty">暂无异常或提醒任务</div>}
       </div>
       {systemAlerts.length > 0 ? (
         <div className="scheduler-alert-group">

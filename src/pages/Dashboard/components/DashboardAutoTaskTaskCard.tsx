@@ -1,5 +1,15 @@
 import { Fragment } from 'react'
 import type { AutoTaskBoardItem, TaskCardTone } from '../lib/autoTaskShared'
+import {
+  formatAccountType,
+  formatAutoAction,
+  formatPartnerMode,
+  formatPoolKey,
+  formatRiskLevel,
+  formatRouteResult,
+  formatScenarioTemplate,
+  formatTaskStatus,
+} from '../lib/autoTaskLabels'
 
 type ControlAction = 'pause' | 'resume' | 'cancel' | 'priority_up' | 'priority_down'
 type ManualAction = 'takeover' | 'assign' | 'ignore'
@@ -15,7 +25,7 @@ function getRouteChain(item: AutoTaskBoardItem) {
     item.content_line ?? '-',
     item.brand_display ?? item.brand_line ?? '-',
     item.account_display ?? item.account_line ?? '-',
-    item.route_result ?? '-',
+    formatRouteResult(item.route_result),
     item.route_target ?? '-',
   ]
 }
@@ -64,15 +74,15 @@ export function DashboardAutoTaskTaskCard({
   const routeChain = getRouteChain(item)
   const externalPartnerMode = getExternalPartnerMode(item)
   const flags = [
-    item.auto_generated ? 'auto_generated' : '',
+    item.auto_generated ? '自动生成' : '',
     item.trigger_source ? `trigger_${item.trigger_source}` : '',
     item.predicted_risk ? `risk_${item.predicted_risk}` : '',
-    item.predicted_block ? 'predicted_block' : '',
-    item.attention ? 'attention' : '',
-    item.stuck ? 'stuck' : '',
-    item.abnormal ? 'abnormal' : '',
-    item.need_human ? 'need_human' : '',
-    item.auto_action ? `auto_${item.auto_action}` : '',
+    item.predicted_block ? '预测有卡点' : '',
+    item.attention ? '需要关注' : '',
+    item.stuck ? '任务卡住' : '',
+    item.abnormal ? '发现异常' : '',
+    item.need_human ? '待人工处理' : '',
+    item.auto_action ? formatAutoAction(item.auto_action) : '',
   ].filter(Boolean)
   const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
   const blockReason = item.blocked_by?.length
@@ -95,13 +105,13 @@ export function DashboardAutoTaskTaskCard({
     <article className={`scheduler-task-card scheduler-task-card-${tone}`} key={`${tone}-${item.task_name}-${index}`}>
       <div className="scheduler-task-top">
         <strong>{item.task_name}</strong>
-        <span className={`scheduler-status scheduler-status-${item.status}`}>{item.status}</span>
+        <span className={`scheduler-status scheduler-status-${item.status}`}>{formatTaskStatus(item.status)}</span>
       </div>
       <div className="scheduler-task-meta-grid scheduler-task-business-grid">
         <span>任务名：{item.task_name}</span>
-        <span>当前状态：{item.status}</span>
+        <span>当前状态：{formatTaskStatus(item.status)}</span>
         <span>阻塞原因：{blockReason}</span>
-        <span>风险等级：{riskLabel}</span>
+        <span>风险等级：{formatRiskLevel(riskLabel)}</span>
         <span>建议动作：{suggestedAction}</span>
         <span>负责人：{item.human_owner ?? item.assigned_agent ?? item.agent}</span>
       </div>
@@ -109,15 +119,15 @@ export function DashboardAutoTaskTaskCard({
         <summary className="scheduler-task-result-head"><strong>展开详情 / 调试字段</strong></summary>
         <div className="scheduler-task-result-content">
           <div><span>agent</span><strong>{item.agent}</strong></div>
-          <div><span>pool</span><strong>{item.instance_pool ?? '-'}</strong></div>
-          <div><span>domain</span><strong>{item.domain ?? '-'}</strong></div>
-          <div><span>parent_task_id</span><strong>{item.parent_task_id ?? '-'}</strong></div>
-          <div><span>scenario_id</span><strong>{item.scenario_id ?? '-'}</strong></div>
-          <div><span>task_group</span><strong>{item.task_group_label ?? '-'}</strong></div>
-          <div><span>task_group_id</span><strong>{item.task_group_id ?? '-'}</strong></div>
-          <div><span>template_source</span><strong>{item.template_source ?? item.template_key ?? '-'}</strong></div>
-          <div><span>route_target</span><strong>{item.route_target ?? '-'}</strong></div>
-          <div><span>route_result</span><strong>{item.route_result ?? '-'}</strong></div>
+          <div><span>协作池</span><strong>{formatPoolKey(item.instance_pool)}</strong></div>
+          <div><span>领域</span><strong>{item.domain ?? '-'}</strong></div>
+          <div><span>父任务编号</span><strong>{item.parent_task_id ?? '-'}</strong></div>
+          <div><span>场景编号</span><strong>{item.scenario_id ?? '-'}</strong></div>
+          <div><span>任务组</span><strong>{item.task_group_label ?? '-'}</strong></div>
+          <div><span>任务组编号</span><strong>{item.task_group_id ?? '-'}</strong></div>
+          <div><span>模板来源</span><strong>{item.template_source ?? formatScenarioTemplate(item.template_key) ?? '-'}</strong></div>
+          <div><span>路由目标</span><strong>{item.route_target ?? '-'}</strong></div>
+          <div><span>路由结果</span><strong>{formatRouteResult(item.route_result)}</strong></div>
           <div><span>raw payload</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
           {item.decision_log?.length ? <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div> : null}
         </div>
@@ -143,7 +153,7 @@ export function DashboardAutoTaskTaskCard({
         </div>
         {externalPartnerMode ? (
           <div className="scheduler-partner-mode-row">
-            <span className={`scheduler-partner-mode is-${externalPartnerMode}`}>external_partner · {externalPartnerMode}</span>
+            <span className={`scheduler-partner-mode is-${externalPartnerMode}`}>外部合作方 · {formatPartnerMode(externalPartnerMode)}</span>
           </div>
         ) : null}
       </div>
@@ -189,7 +199,8 @@ export function DashboardAutoTaskTaskCard({
         <div className="scheduler-task-result-block">
           <div className="scheduler-task-result-head"><strong>自动决策</strong></div>
           <div className="scheduler-task-result-content">
-            <div><span>last_action</span><strong>{item.auto_action ?? '-'}</strong></div>
+            <div><span>最近动作</span><strong>{formatAutoAction(item.auto_action)}</strong></div>
+            <div><span>账号类型</span><strong>{formatAccountType(item.account_type)}</strong></div>
             <div><span>memory_hits</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
             <div><span>profile_tags</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
             <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
@@ -201,7 +212,7 @@ export function DashboardAutoTaskTaskCard({
                     <p>规则命中原因: {entry.rule_hit_reason ?? entry.reason}</p>
                     <p>白名单命中: {entry.whitelist_hit ?? '-'}</p>
                     <p>拦截原因: {entry.block_reason ?? '-'}</p>
-                    {entry.partner_mode ? <p>external_partner: {entry.partner_mode}</p> : null}
+                    {entry.partner_mode ? <p>外部合作模式: {formatPartnerMode(entry.partner_mode)}</p> : null}
                   </article>
                 ))}
               </div>
