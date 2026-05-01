@@ -7,6 +7,7 @@ import {
   formatPoolKey,
   formatRiskLevel,
   formatRouteResult,
+  formatRouteTarget,
   formatScenarioTemplate,
   formatTaskStatus,
 } from '../lib/autoTaskLabels'
@@ -126,35 +127,35 @@ export function DashboardAutoTaskTaskCard({
           <div><span>任务组</span><strong>{item.task_group_label ?? '-'}</strong></div>
           <div><span>任务组编号</span><strong>{item.task_group_id ?? '-'}</strong></div>
           <div><span>模板来源</span><strong>{item.template_source ?? formatScenarioTemplate(item.template_key) ?? '-'}</strong></div>
-          <div><span>路由目标</span><strong>{item.route_target ?? '-'}</strong></div>
-          <div><span>路由结果</span><strong>{formatRouteResult(item.route_result)}</strong></div>
+          <div><span>分配去向</span><strong>{formatRouteTarget(item.route_target)}</strong></div>
+          <div><span>去向判断</span><strong>{formatRouteResult(item.route_result)}</strong></div>
         </div>
         <details className="scheduler-task-result-block">
-          <summary className="scheduler-task-result-head"><strong>查看原始任务载荷</strong></summary>
+          <summary className="scheduler-task-result-head"><strong>查看原始记录</strong></summary>
           <div className="scheduler-task-result-content">
-            <div><span>原始任务载荷</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
+            <div><span>原始记录</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
           </div>
         </details>
         {item.decision_log?.length ? (
           <details className="scheduler-task-result-block">
-            <summary className="scheduler-task-result-head"><strong>查看原始决策日志</strong></summary>
+            <summary className="scheduler-task-result-head"><strong>查看原始处理日志</strong></summary>
             <div className="scheduler-task-result-content">
-              <div><span>原始决策日志</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
+              <div><span>原始处理日志</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
             </div>
           </details>
         ) : null}
       </details>
       {item.depends_on?.length ? (
         <div className="scheduler-task-result-block">
-          <div className="scheduler-task-result-head"><strong>依赖链路</strong></div>
+          <div className="scheduler-task-result-head"><strong>前后关系</strong></div>
           <div className="scheduler-task-result-content">
-            <div><span>depends_on</span><strong>{item.depends_on.join(' -> ')}</strong></div>
-            <div><span>blocked_by</span><strong>{item.blocked_by?.length ? item.blocked_by.join(', ') : '-'}</strong></div>
+            <div><span>前置事项</span><strong>{item.depends_on.join(' -> ')}</strong></div>
+            <div><span>卡点来源</span><strong>{item.blocked_by?.length ? item.blocked_by.join(', ') : '-'}</strong></div>
           </div>
         </div>
       ) : null}
       <div className="scheduler-task-result-block">
-        <div className="scheduler-task-result-head"><strong>路由链路</strong></div>
+        <div className="scheduler-task-result-head"><strong>去向链路</strong></div>
         <div className="scheduler-route-chain">
           {routeChain.map((segment, routeIndex) => (
             <Fragment key={`${item.task_name}-route-${routeIndex}`}>
@@ -209,21 +210,21 @@ export function DashboardAutoTaskTaskCard({
       ) : null}
       {item.decision_log?.length && showTechnicalDetails ? (
         <div className="scheduler-task-result-block">
-          <div className="scheduler-task-result-head"><strong>自动决策</strong></div>
+          <div className="scheduler-task-result-head"><strong>自动判断</strong></div>
           <div className="scheduler-task-result-content">
-            <div><span>最近动作</span><strong>{formatAutoAction(item.auto_action)}</strong></div>
+            <div><span>最近处理</span><strong>{formatAutoAction(item.auto_action)}</strong></div>
             <div><span>账号类型</span><strong>{formatAccountType(item.account_type)}</strong></div>
             <div><span>命中记忆</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
             <div><span>人设标签</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
-            <div><span>决策细节</span>
+            <div><span>判断细节</span>
               <div className="scheduler-decision-detail-list">
                 {item.decision_log.map((entry, entryIndex) => (
                   <article className="scheduler-decision-detail-card" key={`${item.task_name}-decision-${entryIndex}`}>
                     <strong>{formatAutoAction(entry.action as AutoTaskBoardItem['auto_action']) || entry.action}</strong>
-                    <p>规则命中原因: {entry.rule_hit_reason ?? entry.reason}</p>
-                    <p>白名单命中: {entry.whitelist_hit ?? '-'}</p>
-                    <p>拦截原因: {entry.block_reason ?? '-'}</p>
-                    {entry.partner_mode ? <p>外部合作模式: {formatPartnerMode(entry.partner_mode)}</p> : null}
+                    <p>命中原因：{entry.rule_hit_reason ?? entry.reason}</p>
+                    <p>放行规则：{entry.whitelist_hit ?? '-'}</p>
+                    <p>暂停原因：{entry.block_reason ?? '-'}</p>
+                    {entry.partner_mode ? <p>外部合作方式：{formatPartnerMode(entry.partner_mode)}</p> : null}
                   </article>
                 ))}
               </div>

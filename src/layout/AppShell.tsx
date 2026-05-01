@@ -13,14 +13,14 @@ const getNavItems = (isInternal: boolean) =>
         { group: '工作台', to: '/', step: 1, label: '总览', note: '系统状态 · 同步概览' },
         { group: '工作台', to: '/projects', step: 2, label: '项目', note: '项目组合 · 负责人 · 有卡点' },
         { group: '工作台', to: '/rooms', step: 3, label: '频道', note: '协作频道 · 关联协作者' },
-        { group: '工作台', to: '/tasks', step: 4, label: '任务', note: '执行队列 · 卡点优先' },
+        { group: '工作台', to: '/tasks', step: 4, label: '任务', note: '执行进展 · 卡点优先' },
         { group: '工作台', to: '/leads', step: 5, label: '待跟进', note: '跟进列表 · 状态归一' },
-        { group: '管理配置', to: '/scheduler', step: 6, label: '调度队列', note: '执行控制 · 队列调度' },
+        { group: '管理配置', to: '/scheduler', step: 6, label: '执行中枢', note: '执行推进 · 结果跟进' },
         { group: '管理配置', to: '/consultants', step: 7, label: '角色配置', note: '顾问配置 · 分配规则' },
         { group: '管理配置', to: '/model-usage', step: 8, label: '用量统计', note: '额度 · 用量 · 调用顺序' },
         { group: '管理配置', to: '/system-control', step: 9, label: '系统设置', note: '系统模式 · 安全规则' },
-        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: '执行验证', note: '匹配成功率 · 未匹配原因 · 关联成功率' },
-        { group: '协作者', to: '/agents', step: 11, label: '协作者状态', note: '协作者状态 · 路由分派' },
+        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: '执行验证', note: '关联结果 · 未关联原因 · 命中情况' },
+        { group: '协作者', to: '/agents', step: 11, label: '协作者状态', note: '协作者状态 · 分配去向' },
       ]
     : [
         { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
@@ -42,7 +42,7 @@ const getSyncMetaLabel = (
   lastSyncedAtMs: number | null,
 ) => {
   if (preferredDataSource !== 'openclaw') {
-    return '当前使用演示数据'
+    return '当前展示演示数据'
   }
 
   if (lastSyncedAtMs == null) {
@@ -50,7 +50,7 @@ const getSyncMetaLabel = (
   }
 
   if (isFallback) {
-    return `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 当前使用演示数据 · 自动刷新中`
+    return `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 当前展示演示数据 · 自动刷新中`
   }
 
   return `${formatLastSyncedAt(lastSyncedAtMs)} 更新 · 自动刷新中`
@@ -225,7 +225,7 @@ export function AppShell() {
               </p>
             ) : (
               <p className="brand-runtime-line">
-                Demo · {isFallback || activeDataSource === 'mock' ? '当前使用演示数据' : preferredDataSource === 'openclaw' ? '实时数据已连接' : '当前使用演示数据'}
+                演示版 · {isFallback || activeDataSource === 'mock' ? '当前展示演示数据' : preferredDataSource === 'openclaw' ? '实时数据已连接' : '当前展示演示数据'}
               </p>
             )}
           </div>

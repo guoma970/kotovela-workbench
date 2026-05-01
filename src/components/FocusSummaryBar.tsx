@@ -91,8 +91,8 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
   ).length
   const relatedSnapshot = [
     `${isInternal ? '项目' : 'Projects'} ${relationScope.projectIds.size}`,
-    `${isInternal ? '实例' : 'Agents'} ${relationScope.agentIds.size}`,
-    `${isInternal ? '房间' : 'Rooms'} ${relationScope.roomIds.size}`,
+    `${isInternal ? '协作者' : 'Agents'} ${relationScope.agentIds.size}`,
+    `${isInternal ? '频道' : 'Rooms'} ${relationScope.roomIds.size}`,
     `${isInternal ? '任务' : 'Tasks'} ${relationScope.taskIds.size}`,
   ].join(' · ')
   const primaryFocusPath =
@@ -129,7 +129,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
             {summary.label}：{summary.value}
           </h3>
           <p className="focus-summary-inline-meta">
-            {relatedSnapshot} · {isInternal ? '阻塞' : 'blocker'} {blockerCount}
+            {relatedSnapshot} · {isInternal ? '有卡点' : 'blocker'} {blockerCount}
           </p>
         </div>
         <div className="focus-summary-toolbar">
@@ -139,24 +139,24 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
               <strong>{relationScope.taskIds.size}</strong>
             </NavLink>
             <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/rooms', search: baseSearch }}>
-              <span>{isInternal ? '房间' : 'Rooms'}</span>
+              <span>{isInternal ? '频道' : 'Rooms'}</span>
               <strong>{relationScope.roomIds.size}</strong>
             </NavLink>
             <NavLink className="focus-metric focus-metric-link focus-metric-mini focus-metric-secondary" to={{ pathname: '/agents', search: baseSearch }}>
-              <span>{isInternal ? '实例' : 'Agents'}</span>
+              <span>{isInternal ? '协作者' : 'Agents'}</span>
               <strong>{relationScope.agentIds.size}</strong>
             </NavLink>
             <NavLink
               className="focus-metric focus-metric-link focus-metric-mini"
               to={{ pathname: '/tasks', search: withExtraSearch({ status: 'blocked' }) }}
             >
-              <span>{isInternal ? '阻塞' : 'blocker'}</span>
+              <span>{isInternal ? '有卡点' : 'blocker'}</span>
               <strong>{blockerCount}</strong>
             </NavLink>
           </div>
           <div className="focus-summary-header-actions">
             <NavLink className="ghost-button focus-header-button focus-header-link" to={{ pathname: primaryFocusPath, search: baseSearch }}>
-              {isInternal ? '打开对象页面' : 'Open object page'}
+              {isInternal ? '打开详情页' : 'Open object page'}
             </NavLink>
             <button
               type="button"
@@ -207,7 +207,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>{isInternal ? '实例' : 'Agents'}</span>
+                <span>{isInternal ? '协作者' : 'Agents'}</span>
                 <div className="focus-group-links">
                   {relationScope.agentIds.size ? (
                     [...relationScope.agentIds].map((id) => {
@@ -230,7 +230,7 @@ export function FocusSummaryBar({ search, pathname, onClear }: { search: string;
                 </div>
               </div>
               <div className="focus-group-block">
-                <span>{isInternal ? '房间' : 'Rooms'}</span>
+                <span>{isInternal ? '频道' : 'Rooms'}</span>
                 <div className="focus-group-links">
                   {relationScope.roomIds.size ? (
                     [...relationScope.roomIds].map((id) => {

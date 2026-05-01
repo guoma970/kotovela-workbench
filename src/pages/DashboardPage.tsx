@@ -80,7 +80,7 @@ export function DashboardPage() {
             disabled: !item.taskId,
           },
           {
-            label: '去房间',
+            label: '去频道',
             onClick: () => goFocus('/rooms', 'room', item.roomId),
             disabled: !item.roomId,
             quiet: true,
@@ -101,7 +101,7 @@ export function DashboardPage() {
             disabled: !item.taskId,
           },
           {
-            label: '实例详情',
+            label: '协作者详情',
             onClick: () => goFocus('/agents', 'agent', item.agentId),
             quiet: true,
           },
@@ -128,7 +128,7 @@ export function DashboardPage() {
     showInternalCockpit
       ? [
           {
-            label: '打开实例',
+            label: '打开协作者',
             onClick: () => goFocus('/agents', 'agent', item.agentId),
           },
         ]

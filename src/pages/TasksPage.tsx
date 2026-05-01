@@ -219,24 +219,24 @@ export function TasksPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">{isInternal ? '任务' : 'Tasks'}</p>
-          <h2>{isInternal ? '任务列表页' : 'Task List'}</h2>
+          <h2>{isInternal ? '任务看板' : 'Task List'}</h2>
         </div>
         <p className="page-note">
           {isInternal
-            ? 'internal / opensource 任务数据隔离，字段统一为 task_id / title / status / priority / owner / updated_at。'
+            ? '统一查看任务状态、负责人、更新时间和关联对象；内部版会优先同步真实记录。'
             : 'Task list with unified fields: task_id, title, status, priority, owner, updated_at.'}
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '任务队列' : 'Task Queue'}
+        heading={isInternal ? '任务列表' : 'Task Queue'}
         intro={isInternal ? '按状态查看当前任务结果、责任归属、卡点与执行记录。' : 'Track task status results by queue state.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
           value: effectiveTasks.filter((task) => task.status === column.key).length,
         }))}
-        internalHint={isInternal ? 'internal 模式优先读取 /api/tasks-board；opensource 模式仅使用 mock 任务。' : undefined}
+        internalHint={isInternal ? '内部版优先读取真实任务记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
 
       <div className="queue-grid">
@@ -352,11 +352,11 @@ export function TasksPage() {
       {isInternal ? (
         <section className="panel strong-card">
           <div className="panel-header">
-            <h3>决策记录 / 审计记录证据</h3>
+            <h3>处理记录与关联依据</h3>
             <span className="badge-count">{auditEntries.length}</span>
           </div>
           <p className="page-note">
-            decision_log 来自 <code>/api/tasks-board</code> 的任务调度结果，audit_log 来自 <code>/api/audit-log</code> 的动作记录，当前任务页只读展示，不改写现有 guardrails。
+            本页只读展示任务最近的处理记录和变更记录，方便核对责任人、处理原因与关联对象。
           </p>
           <div className="consultant-evidence-list">
             {effectiveTasks
@@ -409,7 +409,7 @@ export function TasksPage() {
                   </article>
                 )
               })}
-            {!effectiveTasks.some((task) => task.decision_log.length > 0) ? <p className="empty-state">暂无 decision_log 证据。</p> : null}
+            {!effectiveTasks.some((task) => task.decision_log.length > 0) ? <p className="empty-state">暂无处理记录。</p> : null}
           </div>
           <div className="consultant-evidence-list" style={{ marginTop: 12 }}>
             {auditEntries.map((entry) => (
@@ -433,7 +433,7 @@ export function TasksPage() {
                 />
               </article>
             ))}
-            {!auditEntries.length ? <p className="empty-state">暂无 audit_log 证据。</p> : null}
+            {!auditEntries.length ? <p className="empty-state">暂无变更记录。</p> : null}
           </div>
         </section>
       ) : null}

@@ -529,8 +529,8 @@ export function AutoTaskSystemPanel() {
     <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
       <div className="home-section-head scheduler-hub-head">
         <div>
-          <h3>调度队列中枢</h3>
-          <p className="scheduler-hub-subtitle">自动任务系统的实时调度视图</p>
+          <h3>执行中枢</h3>
+          <p className="scheduler-hub-subtitle">集中查看任务分配、执行进度、结果回报和待人工事项</p>
         </div>
         <span className="home-count">{data?.board?.length ?? 0}</span>
       </div>
@@ -538,7 +538,7 @@ export function AutoTaskSystemPanel() {
       <div className="scheduler-template-strip">
         <div className="scheduler-template-chips">
           <button type="button" className="scheduler-template-chip is-active">
-            <strong>学习回路</strong>
+            <strong>内容学习记录</strong>
             <span>记录 {data?.learning_summary?.total_records ?? learningRecords.length} · 平均分 {(data?.learning_summary?.avg_learning_score ?? 0).toFixed(2)} · 高分条目 {(data?.learning_summary?.high_score_records ?? 0)}</span>
           </button>
           {learningRecords.slice(0, 3).map((record) => (
@@ -548,7 +548,7 @@ export function AutoTaskSystemPanel() {
             </button>
           ))}
           <button type="button" className="scheduler-template-chip">
-            <strong>业务漏斗</strong>
+            <strong>跟进转化概览</strong>
             <span>
               线索 {data?.business_summary?.total_leads ?? 0} · 顾问 {data?.business_summary?.assigned_consultants ?? 0} · 已转化 {data?.business_summary?.converted ?? 0} · 已流失 {data?.business_summary?.lost ?? 0} · 已归因 {data?.business_summary?.attributed ?? 0}
             </span>
@@ -561,7 +561,7 @@ export function AutoTaskSystemPanel() {
           className="auto-task-input"
           value={taskInput}
           onChange={(e) => setTaskInput(e.target.value)}
-          placeholder="输入一句话任务，例如：实现注册页面"
+          placeholder="输入一句话事项，例如：整理注册页面"
           disabled={running}
         />
         <button className="auto-task-run-btn" type="button" onClick={runTask} disabled={running || !taskInput.trim()}>
@@ -577,7 +577,7 @@ export function AutoTaskSystemPanel() {
             ))}
           </select>
           <button className="auto-task-run-btn" type="button" onClick={createScenarioTemplate} disabled={running}>
-            {running && runningTaskName === activeTemplateKey ? '创建中...' : '从模板创建任务组'}
+            {running && runningTaskName === activeTemplateKey ? '创建中...' : '按模板创建任务组'}
           </button>
         </div>
         <div className="scheduler-template-chips">
@@ -597,10 +597,10 @@ export function AutoTaskSystemPanel() {
 
       {failedTask ? (
         <div className="auto-task-failed-box">
-          <div className="auto-task-failed-title">失败提示</div>
-          <div>任务: {failedTask.taskName}</div>
-          <div>status: {failedTask.status}</div>
-          <div>error: {failedTask.message}</div>
+          <div className="auto-task-failed-title">执行提醒</div>
+          <div>任务：{failedTask.taskName}</div>
+          <div>当前状态：{failedTask.status === 'failed' ? '执行失败' : failedTask.status}</div>
+          <div>原因：{failedTask.message}</div>
           <div>{failedTask.autoRetrying ? '正在自动重试' : '自动重试结束'}</div>
           <div>已重试次数: {autoRetryState?.retryCount ?? failedTask.retryCount}</div>
           <button className="auto-task-retry-btn" type="button" onClick={() => retryTask(failedTask.taskName)} disabled={running || !!autoRetryState}>
@@ -613,10 +613,10 @@ export function AutoTaskSystemPanel() {
 
       <div className="scheduler-view-switch" role="tablist" aria-label="调度视图切换">
         {[
-          { key: 'operations', label: '运营态', note: '进度 / 风险 / 待人工' },
-          { key: 'execution', label: '执行态', note: '实例池 / 队列 / 结果' },
-          { key: 'routing', label: '路由态', note: '决策表 / 链路 / 拦截解释' },
-          { key: 'debug', label: '调试态', note: '完整字段 / 排障' },
+          { key: 'operations', label: '运营进展', note: '进度 / 风险 / 待人工' },
+          { key: 'execution', label: '执行进展', note: '协作者 / 排队 / 结果' },
+          { key: 'routing', label: '分配去向', note: '判断规则 / 去向 / 拦截说明' },
+          { key: 'debug', label: '排障详情', note: '原始字段 / 排障' },
         ].map((view) => (
           <button
             key={view.key}

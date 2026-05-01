@@ -59,6 +59,16 @@ const ROUTE_RESULT_LABELS: Record<string, string> = {
   transfer: '转派',
 }
 
+const ROUTE_TARGET_LABELS: Record<string, string> = {
+  'business.lead_router': '业务跟进池',
+  'manual_review.required': '待人工复核',
+  builder: '研发池',
+  media: '内容池',
+  family: '家庭池',
+  business: '业务池',
+  personal: '个人池',
+}
+
 const CONTENT_VARIANT_LABELS: Record<string, string> = {
   short: '短内容',
   article: '文章',
@@ -160,6 +170,10 @@ export function formatAccountType(value?: AutoTaskBoardItem['account_type']) {
 
 export function formatRouteResult(value?: AutoTaskBoardItem['route_result']) {
   return value ? (ROUTE_RESULT_LABELS[value] ?? value) : '-'
+}
+
+export function formatRouteTarget(value?: string) {
+  return value ? (ROUTE_TARGET_LABELS[value] ?? value) : '-'
 }
 
 export function formatContentVariant(value?: AutoTaskBoardItem['content_variant']) {

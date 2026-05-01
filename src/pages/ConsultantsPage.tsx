@@ -93,6 +93,17 @@ const consultantPartnerModeLabels: Record<string, string> = {
   no_delivery: '暂停交付',
 }
 
+const consultantRouteTargetLabels: Record<string, string> = {
+  'business.lead_router': '业务跟进池',
+  'manual_review.required': '待人工复核',
+  family_pool: '家庭池',
+  media_pool: '内容池',
+  business_pool: '业务池',
+  individual_pool: '个人池',
+  brand_pool: '品牌池',
+  external_partner_pool: '外部合作池',
+}
+
 const systemModeLabels: Record<string, string> = {
   dev: '开发模式',
   staging: '预发模式',
@@ -123,6 +134,20 @@ function formatRouteResult(value?: string) {
 
 function formatPartnerMode(value?: string) {
   return value ? (consultantPartnerModeLabels[value] ?? value) : '-'
+}
+
+function formatRouteTarget(value?: string) {
+  if (!value || value === '-') return '暂未分配'
+  return consultantRouteTargetLabels[value] ?? value.replace(/[._-]+/g, ' ')
+}
+
+function formatDecisionSnippet(value?: string) {
+  if (!value) return '未补充说明'
+  return value
+    .replace(/consultant/gi, '顾问')
+    .replace(/external_partner/gi, '外部合作方')
+    .replace(/route/gi, '分配')
+    .replace(/rule_hit_reason/gi, '命中原因')
 }
 
 function normalizeSystemModeState(payload: unknown): SystemModeState {
@@ -252,7 +277,7 @@ export function ConsultantsPage() {
             : '开源版只保留安全的演示顾问样例，不暴露内部团长分配信息。'}
         </p>
         <div className="cross-link-row top-gap">
-          <Link className="inline-link-chip" to="/scheduler">查看调度证据</Link>
+          <Link className="inline-link-chip" to="/scheduler">查看执行记录</Link>
           <Link className="inline-link-chip" to="/">返回总览</Link>
         </div>
       </section>
@@ -263,7 +288,7 @@ export function ConsultantsPage() {
             <h3>顾问配置</h3>
             <span className="home-count">{consultants.length}</span>
           </div>
-          <p className="page-note">当前为最小可用配置页，支持顾问编号、显示名称、系统角色、状态、账号类型、当前工作量与领域信息的查看和本地编辑。</p>
+          <p className="page-note">当前页面支持查看和调整顾问分工、状态、账号类型、承载量与适用领域。</p>
           <div className="consultant-card-list">
             {consultants.map((item) => (
               <article key={item.consultant_id} className="consultant-card">
@@ -343,12 +368,12 @@ export function ConsultantsPage() {
             {assignmentEvidence.map((item) => (
               <article key={item.task_name} className="consultant-evidence-card">
                 <strong>{item.task_name}</strong>
-                <p>领域 {item.domain ?? '-'} · 顾问编号 {item.consultant_id ?? '-'} · 路由结果 {formatRouteResult(item.route_result)} → 路由目标 {item.route_target ?? '-'}</p>
+                <p>领域 {item.domain ?? '-'} · 顾问编号 {item.consultant_id ?? '-'} · 去向判断 {formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
                 <small>
                   {(item.decision_log ?? [])
                     .slice(-2)
-                    .map((entry) => `${entry.reason ?? entry.action ?? '-'} / ${entry.rule_hit_reason ?? entry.detail ?? '-'}`)
-                    .join('；') || '暂无决策记录'}
+                    .map((entry) => `${formatDecisionSnippet(entry.reason ?? entry.action)} / ${formatDecisionSnippet(entry.rule_hit_reason ?? entry.detail)}`)
+                    .join('；') || '暂无分配记录'}
                 </small>
                 {item.consultant_id === 'consultant_guoshituan_main' ? <small>角色证据：团长顾问可直接承接顾问线索</small> : null}
               </article>
@@ -358,7 +383,7 @@ export function ConsultantsPage() {
 
         <section className="panel strong-card consultant-load-panel">
           <div className="panel-header align-start">
-            <h3>工作台顾问负载摘要</h3>
+            <h3>顾问承载概览</h3>
             <span className="home-count">{consultantLoadSummary.length}</span>
           </div>
           <div className="consultant-evidence-list">
@@ -375,14 +400,14 @@ export function ConsultantsPage() {
 
         <section className="panel strong-card consultant-risk-panel">
           <div className="panel-header align-start">
-            <h3>外部合作方防误分配</h3>
+            <h3>外部合作方保护</h3>
             <span className="home-count">{externalPartnerEvidence.length}</span>
           </div>
           <div className="consultant-evidence-list">
             {externalPartnerEvidence.map((item) => (
               <article key={item.task_name} className="consultant-evidence-card">
                 <strong>{item.task_name}</strong>
-                <p>路由结果 {formatRouteResult(item.route_result)} → 路由目标 {item.route_target}</p>
+                <p>去向判断 {formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
                 <small>顾问编号 {item.consultant_id} · 合作方模式 {formatPartnerMode(item.partner_mode)}</small>
               </article>
             ))}
@@ -391,7 +416,7 @@ export function ConsultantsPage() {
 
         <section className="panel strong-card consultant-audit-panel">
           <div className="panel-header align-start">
-            <h3>分配与审计证据</h3>
+            <h3>分配记录与依据</h3>
             <span className="home-count">{auditEvidence.length}</span>
           </div>
           <div className="consultant-evidence-list">

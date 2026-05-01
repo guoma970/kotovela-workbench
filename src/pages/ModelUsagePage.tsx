@@ -131,9 +131,9 @@ const formatModelList = (values: string[]) =>
 const formatModelUsageSource = (value?: ModelUsagePayload['source']) => {
   switch (value) {
     case 'local-openclaw':
-      return '本机 OpenClaw'
+      return '本机实时数据'
     case 'partial':
-      return '部分数据'
+      return '部分同步成功'
     case 'unavailable':
       return '当前不可用'
     default:
@@ -254,20 +254,20 @@ export function ModelUsagePage() {
           <p className="eyebrow">Kotovela Hub</p>
           <h2>用量统计</h2>
         </div>
-        <p className="page-note">本页只读展示 OpenClaw 本机模型、Codex 调用顺序、Claude Code 账户信息与近 24 小时调用记录；账号默认脱敏展示，不显示敏感密钥。</p>
+        <p className="page-note">本页只读展示当前模型用量、账号先后顺序和近 24 小时调用记录；账号默认脱敏展示，不显示敏感信息。</p>
       </div>
 
       <div className="model-usage-provider-grid">
         <section className="panel strong-card model-usage-hero">
           <div>
-            <span className="model-usage-kicker">OpenAI Codex</span>
+            <span className="model-usage-kicker">Codex</span>
             <strong className="model-usage-hero-value">{payload?.codex_usage?.five_hour_left_pct ?? '-'}%</strong>
             <p>5 小时额度剩余 · 当前策略：{activeCodexOrder}</p>
             <UsageMeter value={payload?.codex_usage?.five_hour_left_pct} />
           </div>
           <div className="model-usage-hero-side">
             <span className={`model-usage-state ${pctTone(payload?.codex_usage?.five_hour_left_pct)}`}>
-              5h {payload?.codex_usage?.five_hour_left_pct ?? '-'}%
+              5 小时 {payload?.codex_usage?.five_hour_left_pct ?? '-'}%
             </span>
             <span className={`model-usage-state ${pctTone(payload?.codex_usage?.week_left_pct)}`}>
               周额度 {payload?.codex_usage?.week_left_pct ?? '-'}%
@@ -345,9 +345,9 @@ export function ModelUsagePage() {
               <strong>最近活跃度</strong>
               <span>近 {payload?.window_hours ?? 24} 小时</span>
             </div>
-            <p>历史记录：<b>{formatNumber(claudeRecent?.event_count)}</b></p>
+            <p>活跃记录数：<b>{formatNumber(claudeRecent?.event_count)}</b></p>
             <p>活跃会话数：<b>{formatNumber(claudeRecent?.session_count)}</b></p>
-            <p>已知本机会话：<b>{formatNumber(claudeRecent?.known_session_count)}</b>（活跃 {formatNumber(claudeRecent?.active_session_count)} / 空闲 {formatNumber(claudeRecent?.idle_session_count)}）</p>
+            <p>已识别本机会话：<b>{formatNumber(claudeRecent?.known_session_count)}</b>（活跃 {formatNumber(claudeRecent?.active_session_count)} / 空闲 {formatNumber(claudeRecent?.idle_session_count)}）</p>
             <p>最近记录：{formatTime(claudeRecent?.last_event_at)}</p>
             <p>最近会话：{formatTime(claudeRecent?.last_session_at)}</p>
           </article>
@@ -371,14 +371,14 @@ export function ModelUsagePage() {
               <p>账号顺序：{agent.codex_order.length ? agent.codex_order.map((item) => formatAccountLabel(item)).join(' → ') : '账号顺序暂未同步'}</p>
               <p>最近可用账号：{agent.codex_last_good ? formatAccountLabel(agent.codex_last_good) : '账号信息暂未同步'}</p>
               {agent.codex_session_overrides.length ? (
-                <p>会话覆盖：{agent.codex_session_overrides.map((item) => `${formatAccountLabel(item.profile)} × ${item.count}`).join(' / ')}</p>
+              <p>临时切换账号：{agent.codex_session_overrides.map((item) => `${formatAccountLabel(item.profile)} × ${item.count}`).join(' / ')}</p>
               ) : null}
               {agent.codex_usage_stats.length ? (
                 <div className="model-usage-profile-list">
                   {agent.codex_usage_stats.map((stats) => (
                     <small key={stats.profile}>
-                      {formatAccountLabel(stats.profile)} · 异常 {stats.error_count ?? 0}
-                      {stats.cooldown_reason ? ` · 冷却 ${stats.cooldown_reason}` : ''}
+                      {formatAccountLabel(stats.profile)} · 异常次数 {stats.error_count ?? 0}
+                      {stats.cooldown_reason ? ` · 暂停原因 ${stats.cooldown_reason}` : ''}
                       {stats.last_used ? ` · 最近使用 ${formatTime(stats.last_used)}` : ''}
                     </small>
                   ))}
@@ -390,17 +390,17 @@ export function ModelUsagePage() {
       </section>
 
       <div className="model-usage-rank-grid">
-        <UsageRankList title="按模型聚合" items={payload?.recent_usage.by_model ?? []} />
-        <UsageRankList title="按协作者聚合" items={payload?.recent_usage.by_agent ?? []} />
+        <UsageRankList title="按模型查看" items={payload?.recent_usage.by_model ?? []} />
+        <UsageRankList title="按协作者查看" items={payload?.recent_usage.by_agent ?? []} />
       </div>
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>数据源与告警</h3>
+          <h3>数据更新与提醒</h3>
           <span className="home-count">{formatModelUsageSource(payload?.source)}</span>
         </div>
         <p className="page-note">
-          更新时间：{formatTime(payload?.generated_at)}。Codex 百分比来自本机状态检查；用量数据来自近 24 小时会话记录；Claude Code 状态来自本机账户与会话元数据。
+          更新时间：{formatTime(payload?.generated_at)}。额度百分比来自本机状态检查；近 24 小时用量来自本机使用记录；Claude Code 状态来自本机账户与会话信息。
         </p>
         {payload?.warnings.length ? (
           <div className="consultant-evidence-list">

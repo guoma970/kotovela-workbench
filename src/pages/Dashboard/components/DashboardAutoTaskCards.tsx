@@ -58,7 +58,7 @@ export function AutoTaskSystemSummaryCard() {
   return (
     <section className="home-section panel strong-card auto-task-summary-card">
       <div className="home-section-head">
-        <h3>任务调度系统</h3>
+        <h3>执行系统概览</h3>
         <span className="home-count">{data?.total ?? 0}</span>
       </div>
       <div className="auto-task-overview">
@@ -76,7 +76,7 @@ export function AutoTaskSystemSummaryCard() {
         </div>
       </div>
       <button className="auto-task-go-btn" type="button" onClick={() => navigate('/scheduler')}>
-        进入 Scheduler 查看队列与待人工
+        进入执行中枢查看任务进度
       </button>
     </section>
   )
@@ -96,24 +96,24 @@ export function SystemTestResultPanel() {
 
   return (
     <section className="scheduler-system-test-panel" aria-label="系统测试结果">
-      <div className="scheduler-section-title">系统测试结果</div>
+      <div className="scheduler-section-title">运行自检结果</div>
       <div id="system-test-summary" className="scheduler-system-test-summary">
         <div className="scheduler-overview-grid">
           <div className="scheduler-overview-metric">
-            <span>total cases</span>
+            <span>检查项总数</span>
             <strong>{payload.summary.total_cases}</strong>
           </div>
           <div className="scheduler-overview-metric">
-            <span>pass</span>
+            <span>通过</span>
             <strong>{payload.summary.pass}</strong>
           </div>
           <div className="scheduler-overview-metric is-failed">
-            <span>fail</span>
+            <span>未通过</span>
             <strong>{payload.summary.fail}</strong>
           </div>
           <div className="scheduler-overview-metric is-warning">
-            <span>failed modules</span>
-            <strong>{payload.summary.failed_modules.join(' / ') || 'none'}</strong>
+            <span>受影响模块</span>
+            <strong>{payload.summary.failed_modules.join(' / ') || '无'}</strong>
           </div>
         </div>
       </div>
@@ -121,13 +121,13 @@ export function SystemTestResultPanel() {
         <table className="scheduler-routing-table scheduler-system-test-table">
           <thead>
             <tr>
-              <th>case_id</th>
-              <th>module</th>
-              <th>input</th>
-              <th>expected</th>
-              <th>actual</th>
-              <th>result</th>
-              <th>note</th>
+              <th>检查编号</th>
+              <th>模块</th>
+              <th>输入条件</th>
+              <th>预期结果</th>
+              <th>实际结果</th>
+              <th>结论</th>
+              <th>备注</th>
             </tr>
           </thead>
           <tbody>
@@ -138,7 +138,7 @@ export function SystemTestResultPanel() {
                 <td>{item.input}</td>
                 <td>{item.expected}</td>
                 <td>{item.actual}</td>
-                <td>{item.result}</td>
+                <td>{item.result === 'pass' ? '通过' : '未通过'}</td>
                 <td>{item.note || '-'}</td>
               </tr>
             ))}
@@ -149,11 +149,11 @@ export function SystemTestResultPanel() {
         <table className="scheduler-routing-table scheduler-system-test-table">
           <thead>
             <tr>
-              <th>id</th>
-              <th>severity</th>
-              <th>reproducible</th>
-              <th>suggestion</th>
-              <th>note</th>
+              <th>编号</th>
+              <th>级别</th>
+              <th>是否可复现</th>
+              <th>建议处理</th>
+              <th>备注</th>
             </tr>
           </thead>
           <tbody>

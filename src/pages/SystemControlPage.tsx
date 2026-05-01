@@ -34,6 +34,11 @@ const PUBLISH_MODE_LABELS: Record<PublishModeValue, string> = {
   semi_auto: '半自动发布',
 }
 
+const APP_MODE_LABELS: Record<string, string> = {
+  internal: '内部版',
+  opensource: '开源版',
+}
+
 const formatControlDetail = (value: string) =>
   value
     .replace(/system_mode/g, '系统模式')
@@ -114,7 +119,7 @@ export function SystemControlPage() {
           <p className="eyebrow">系统设置</p>
           <h2>系统设置</h2>
         </div>
-        <p className="page-note">最小可用控制台，展示并控制系统模式、发布状态、紧急停止、安全提醒与负载状态。</p>
+        <p className="page-note">统一查看当前运行方式、发布口径、紧急停止和安全保护设置。</p>
       </div>
 
       <section className={`panel strong-card system-mode-bar ${state.system_mode === 'live' ? 'is-live' : state.system_mode === 'test' ? 'is-test' : 'is-dev'}`}>
@@ -132,8 +137,8 @@ export function SystemControlPage() {
 
       <section className="panel strong-card consultant-editor-panel">
         <div className="panel-header align-start">
-          <h3>控制面板</h3>
-          <span className="home-count">应用模式 {state.app_mode}</span>
+          <h3>运行设置</h3>
+          <span className="home-count">应用模式 {APP_MODE_LABELS[state.app_mode] ?? state.app_mode}</span>
         </div>
         <div className="consultant-form-grid">
           <label>
@@ -192,7 +197,7 @@ export function SystemControlPage() {
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>决策记录 / 操作记录证据</h3>
+          <h3>系统变更记录</h3>
           <span className="badge-count">{auditEntries.length}</span>
         </div>
         <div className="consultant-evidence-list">

@@ -1,18 +1,18 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 
 const demoPath = [
-  { to: '/', label: 'Dashboard', note: '当前聚焦：总览（中枢状态）' },
-  { to: '/projects', label: 'Projects', note: '当前聚焦：项目地图（跟踪与承接）' },
-  { to: '/rooms', label: 'Rooms', note: '当前聚焦：协作通道（执行牵引）' },
-  { to: '/tasks', label: 'Tasks', note: '当前聚焦：任务流水（阻塞与待办）' },
-  { to: '/agents', label: 'Agents', note: '当前聚焦：实例状态（指挥与分派）' },
+  { to: '/', label: '总览', note: '当前聚焦：全局状态（中枢概览）' },
+  { to: '/projects', label: '项目', note: '当前聚焦：项目推进（跟踪与承接）' },
+  { to: '/rooms', label: '频道', note: '当前聚焦：协作频道（执行牵引）' },
+  { to: '/tasks', label: '任务', note: '当前聚焦：任务进展（有卡点与待办）' },
+  { to: '/agents', label: '协作者', note: '当前聚焦：协作者状态（指挥与分配）' },
 ]
 
 export function DemoPathBar({ mode = 'inline' }: { mode?: 'inline' | 'sidebar' }) {
   const location = useLocation()
   const activeIndex = demoPath.findIndex((item) => item.to === location.pathname)
 
-  const currentPathText = location.pathname === '/' ? 'Dashboard' : location.pathname.replace('/', '')
+  const currentPathText = location.pathname === '/' ? '总览' : location.pathname.replace('/', '')
 
   if (mode === 'sidebar') {
     return (
@@ -21,7 +21,7 @@ export function DemoPathBar({ mode = 'inline' }: { mode?: 'inline' | 'sidebar' }
           <p className="eyebrow">使用路径</p>
           <strong>{currentPathText}</strong>
         </div>
-        <p className="demo-sidebar-note">先看总览，再顺着项目、房间、任务、实例一路追进去。</p>
+        <p className="demo-sidebar-note">先看总览，再顺着项目、频道、任务、协作者一路追进去。</p>
         <div className="demo-sidebar-links">
           {demoPath.map((item, index) => {
             const isActive = index === activeIndex
@@ -50,10 +50,10 @@ export function DemoPathBar({ mode = 'inline' }: { mode?: 'inline' | 'sidebar' }
     <section className="panel demo-path">
       <div className="demo-path-header">
         <div>
-          <p className="eyebrow">演示路径</p>
-          <h3>一条 5 步演示线：{currentPathText}</h3>
+          <p className="eyebrow">查看路径</p>
+          <h3>一条 5 步查看线：{currentPathText}</h3>
         </div>
-        <p className="page-note">默认按照 Dashboard → Projects → Rooms → Tasks → Agents 展示核心信息链路。</p>
+        <p className="page-note">默认按照 总览 → 项目 → 频道 → 任务 → 协作者 展示核心信息链路。</p>
       </div>
       <div className="demo-path-steps">
         {demoPath.map((item, index) => {
@@ -83,7 +83,7 @@ export function DemoPathBar({ mode = 'inline' }: { mode?: 'inline' | 'sidebar' }
           </Link>
         ) : (
           <Link to="/" className="inline-link-chip">
-            重新从头演示：Dashboard
+            重新从头查看：总览
           </Link>
         )}
         <span className="soft-tag">未接真实 API，仅用于原型演示</span>

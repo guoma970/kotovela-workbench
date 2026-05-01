@@ -212,18 +212,18 @@ export function LeadsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">{isInternal ? '待跟进' : 'Leads'}</p>
-          <h2>{isInternal ? '线索列表页' : 'Lead List'}</h2>
+          <h2>{isInternal ? '待跟进看板' : 'Lead List'}</h2>
         </div>
         <p className="page-note">
           {isInternal
-            ? 'internal / opensource 数据源隔离，字段统一为 lead_id / name / source / status / owner / updated_at。'
+            ? '统一查看待跟进事项的来源、负责人、当前状态和最近更新时间；内部版会优先同步真实记录。'
             : 'Mode-isolated lead list with unified fields: lead_id, name, source, status, owner, updated_at.'}
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '线索队列' : 'Lead Queue'}
-        intro={isInternal ? '统一状态口径后查看线索来源、负责人、跟进状态与回链证据。' : 'Track leads with normalized status labels.'}
+        heading={isInternal ? '待跟进列表' : 'Lead Queue'}
+        intro={isInternal ? '统一状态口径后查看来源、负责人、跟进状态和关联依据。' : 'Track leads with normalized status labels.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -231,14 +231,14 @@ export function LeadsPage() {
         }))}
         actions={[
           { label: isInternal ? '进入总览' : 'Go to Dashboard', to: { pathname: '/' } },
-          { label: isInternal ? '进入 Scheduler' : 'Go to Scheduler', to: { pathname: '/scheduler' } },
+          { label: isInternal ? '进入执行中枢' : 'Go to Scheduler', to: { pathname: '/scheduler' } },
         ]}
-        internalHint={isInternal ? 'internal 模式优先读取 /api/leads；opensource 模式仅使用 mock leads。' : undefined}
+        internalHint={isInternal ? '内部版优先读取真实待跟进记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
 
       <section className="panel strong-card queue-column">
         <div className="panel-header">
-          <h3>{isInternal ? '当前线索列表结果' : 'Current Leads'}</h3>
+          <h3>{isInternal ? '当前待跟进列表' : 'Current Leads'}</h3>
           <span className="badge-count">{effectiveLeads.length}</span>
         </div>
         <div className="queue-list">
@@ -264,7 +264,7 @@ export function LeadsPage() {
                 <div className="queue-meta dense-meta"><span>{isInternal ? '状态' : 'status'}: {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}</span></div>
                 <div className="queue-meta dense-meta"><span>{isInternal ? '负责人' : 'owner'}: {lead.owner}</span></div>
                 <div className="queue-meta dense-meta"><span>{isInternal ? '更新时间' : 'updated_at'}: {lead.updated_at}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '数据模式' : 'mode'}: {lead.source_mode}</span></div>
+                <div className="queue-meta dense-meta"><span>{isInternal ? '展示口径' : 'mode'}: {lead.source_mode}</span></div>
                 {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
                   <div className="relation-stack" style={{ marginTop: 12 }}>
                     <div>
@@ -332,11 +332,11 @@ export function LeadsPage() {
       {isInternal ? (
         <section className="panel strong-card">
           <div className="panel-header">
-            <h3>决策记录 / 审计记录证据</h3>
+            <h3>处理记录与关联依据</h3>
             <span className="badge-count">{auditEntries.length}</span>
           </div>
           <p className="page-note">
-            decision_log 来自 <code>/api/leads</code> 回传的线索决策轨迹，audit_log 来自 <code>/api/audit-log</code> 的动作记录，当前线索页只读展示。
+            本页只读展示待跟进事项最近的处理记录和变更记录，方便核对责任人、处理原因与关联对象。
           </p>
           <div className="consultant-evidence-list">
             {effectiveLeads
@@ -408,7 +408,7 @@ export function LeadsPage() {
                   </article>
                 )
               })}
-            {!effectiveLeads.some((lead) => lead.decision_log.length > 0) ? <p className="empty-state">暂无 decision_log 证据。</p> : null}
+            {!effectiveLeads.some((lead) => lead.decision_log.length > 0) ? <p className="empty-state">暂无处理记录。</p> : null}
           </div>
           <div className="consultant-evidence-list" style={{ marginTop: 12 }}>
             {auditEntries.map((entry) => (
@@ -432,7 +432,7 @@ export function LeadsPage() {
                 />
               </article>
             ))}
-            {!auditEntries.length ? <p className="empty-state">暂无 audit_log 证据。</p> : null}
+            {!auditEntries.length ? <p className="empty-state">暂无变更记录。</p> : null}
           </div>
         </section>
       ) : null}
