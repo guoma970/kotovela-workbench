@@ -116,9 +116,9 @@ export function DashboardAutoTaskTaskCard({
         <span>负责人：{item.human_owner ?? item.assigned_agent ?? item.agent}</span>
       </div>
       <details className="scheduler-task-result-block" open={showTechnicalDetails}>
-        <summary className="scheduler-task-result-head"><strong>展开详情 / 调试字段</strong></summary>
+        <summary className="scheduler-task-result-head"><strong>业务详情</strong></summary>
         <div className="scheduler-task-result-content">
-          <div><span>agent</span><strong>{item.agent}</strong></div>
+          <div><span>执行协作者</span><strong>{item.agent}</strong></div>
           <div><span>协作池</span><strong>{formatPoolKey(item.instance_pool)}</strong></div>
           <div><span>领域</span><strong>{item.domain ?? '-'}</strong></div>
           <div><span>父任务编号</span><strong>{item.parent_task_id ?? '-'}</strong></div>
@@ -128,9 +128,21 @@ export function DashboardAutoTaskTaskCard({
           <div><span>模板来源</span><strong>{item.template_source ?? formatScenarioTemplate(item.template_key) ?? '-'}</strong></div>
           <div><span>路由目标</span><strong>{item.route_target ?? '-'}</strong></div>
           <div><span>路由结果</span><strong>{formatRouteResult(item.route_result)}</strong></div>
-          <div><span>raw payload</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
-          {item.decision_log?.length ? <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div> : null}
         </div>
+        <details className="scheduler-task-result-block">
+          <summary className="scheduler-task-result-head"><strong>查看原始任务载荷</strong></summary>
+          <div className="scheduler-task-result-content">
+            <div><span>原始任务载荷</span><pre>{JSON.stringify({ ...item, result: item.result ? '[result folded]' : undefined }, null, 2)}</pre></div>
+          </div>
+        </details>
+        {item.decision_log?.length ? (
+          <details className="scheduler-task-result-block">
+            <summary className="scheduler-task-result-head"><strong>查看原始决策日志</strong></summary>
+            <div className="scheduler-task-result-content">
+              <div><span>原始决策日志</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
+            </div>
+          </details>
+        ) : null}
       </details>
       {item.depends_on?.length ? (
         <div className="scheduler-task-result-block">
@@ -189,8 +201,8 @@ export function DashboardAutoTaskTaskCard({
           </div>
           {expanded ? (
             <div className="scheduler-task-result-content">
-              <div><span>type</span><strong>{item.result.type}</strong></div>
-              <div><span>content</span><pre>{item.result.content}</pre></div>
+              <div><span>结果类型</span><strong>{item.result.type}</strong></div>
+              <div><span>结果内容</span><pre>{item.result.content}</pre></div>
             </div>
           ) : null}
         </div>
@@ -201,14 +213,13 @@ export function DashboardAutoTaskTaskCard({
           <div className="scheduler-task-result-content">
             <div><span>最近动作</span><strong>{formatAutoAction(item.auto_action)}</strong></div>
             <div><span>账号类型</span><strong>{formatAccountType(item.account_type)}</strong></div>
-            <div><span>memory_hits</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
-            <div><span>profile_tags</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
-            <div><span>decision_log</span><pre>{item.decision_log.map((entry) => formatDecisionLogEntry(entry)).join('\n')}</pre></div>
-            <div><span>decision_detail</span>
+            <div><span>命中记忆</span><strong>{item.memory_hits?.join(', ') || '-'}</strong></div>
+            <div><span>人设标签</span><strong>{item.profile_tags?.join(', ') || '-'}</strong></div>
+            <div><span>决策细节</span>
               <div className="scheduler-decision-detail-list">
                 {item.decision_log.map((entry, entryIndex) => (
                   <article className="scheduler-decision-detail-card" key={`${item.task_name}-decision-${entryIndex}`}>
-                    <strong>{entry.action}</strong>
+                    <strong>{formatAutoAction(entry.action as AutoTaskBoardItem['auto_action']) || entry.action}</strong>
                     <p>规则命中原因: {entry.rule_hit_reason ?? entry.reason}</p>
                     <p>白名单命中: {entry.whitelist_hit ?? '-'}</p>
                     <p>拦截原因: {entry.block_reason ?? '-'}</p>

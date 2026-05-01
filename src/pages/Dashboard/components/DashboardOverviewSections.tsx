@@ -55,6 +55,40 @@ const badgeLabel: Record<HomeStatus, string> = {
   idle: 'IDLE',
 }
 
+const consultantStatusLabel: Record<string, string> = {
+  online: '在线',
+  busy: '繁忙',
+  offline: '离线',
+}
+
+const consultantAccountTypeLabel: Record<string, string> = {
+  owned: '自有账号',
+  brand: '品牌账号',
+  ip: 'IP账号',
+  external_partner: '外部合作方',
+  demo: '演示账号',
+}
+
+const consultantRoleLabel: Record<string, string> = {
+  group_leader_consultant: '团长顾问',
+  material_consultant: '材料顾问',
+  heating_consultant: '地暖顾问',
+  residential_consultant: '住宅顾问',
+  business_consultant: '业务顾问',
+}
+
+function formatConsultantStatus(value: string) {
+  return consultantStatusLabel[value] ?? value
+}
+
+function formatConsultantAccountType(value: string) {
+  return consultantAccountTypeLabel[value] ?? value
+}
+
+function formatConsultantRole(value: string) {
+  return consultantRoleLabel[value] ?? value
+}
+
 const buildProjectSnapshots = (projects: Project[]): ProjectSnapshot[] => {
   const snapshots = new Map<string, ProjectSnapshot>()
   for (const project of projects) {
@@ -243,13 +277,13 @@ export function ConsultantConfigSummaryCard() {
             <article key={item.consultant_id} className="audit-log-item consultant-evidence-card">
               <div className="audit-log-item-top">
                 <strong>{item.name}</strong>
-                <span>{item.status}</span>
+                <span>{formatConsultantStatus(item.status)}</span>
               </div>
               <p>
-                {item.role} · {item.account_type} · {item.domain}
+                {formatConsultantRole(item.role)} · {formatConsultantAccountType(item.account_type)} · {item.domain}
               </p>
               <small>
-                {item.consultant_id} · active_load {item.active_load}
+                顾问编号 {item.consultant_id} · 当前工作量 {item.active_load}
               </small>
               {isInternal ? (
                 <EvidenceObjectLinks
@@ -276,8 +310,8 @@ export function ConsultantConfigSummaryCard() {
         })}
       </div>
       <div className="cross-link-row top-gap">
-        <span className="inline-link-chip">app_mode {consultantSettingsConfig.mode}</span>
-        <span className="inline-link-chip">active consultants {activeCount}</span>
+        <span className="inline-link-chip">应用模式 {consultantSettingsConfig.mode === 'internal' ? '内部版' : '开源版'}</span>
+        <span className="inline-link-chip">活跃顾问 {activeCount}</span>
       </div>
     </section>
   )
@@ -373,7 +407,7 @@ export function InternalControlSummary({
           <h2 className="control-summary-heading">中控总览</h2>
           <p className="control-summary-health">{healthLine}</p>
           <p className="control-summary-sub">
-            上方：各项目整体进度（阻塞多的优先）；下方：按实例看谁在做，并汇总该实例名下的任务完成情况。
+            上方：各项目整体进度（卡点多的优先）；下方：按协作者看谁在推进，并汇总该协作者名下的任务完成情况。
           </p>
         </div>
         <div className="control-summary-meta">

@@ -81,6 +81,18 @@ const consultantRoleLabels: Record<string, string> = {
   business_consultant: '业务顾问',
 }
 
+const consultantRouteResultLabels: Record<string, string> = {
+  direct: '直达',
+  blocked: '拦截',
+  transfer: '转派',
+}
+
+const consultantPartnerModeLabels: Record<string, string> = {
+  content_only: '仅内容协作',
+  consult_only: '仅咨询协作',
+  no_delivery: '暂停交付',
+}
+
 const systemModeLabels: Record<string, string> = {
   dev: '开发模式',
   staging: '预发模式',
@@ -103,6 +115,14 @@ function formatSystemMode(mode: string) {
 
 function formatPublishMode(mode: string) {
   return publishModeLabels[mode] ?? mode
+}
+
+function formatRouteResult(value?: string) {
+  return value ? (consultantRouteResultLabels[value] ?? value) : '-'
+}
+
+function formatPartnerMode(value?: string) {
+  return value ? (consultantPartnerModeLabels[value] ?? value) : '-'
 }
 
 function normalizeSystemModeState(payload: unknown): SystemModeState {
@@ -229,11 +249,11 @@ export function ConsultantsPage() {
         <p className="page-note top-gap">
           {APP_MODE === 'internal'
             ? '当前口径已支持“顾问可兼任团长”，团长顾问可以直接承接线索分发。'
-            : 'Open-source mode only keeps mock-safe consultant samples and does not expose internal group leader assignments.'}
+            : '开源版只保留安全的演示顾问样例，不暴露内部团长分配信息。'}
         </p>
         <div className="cross-link-row top-gap">
           <Link className="inline-link-chip" to="/scheduler">查看调度证据</Link>
-          <Link className="inline-link-chip" to="/">{APP_MODE === 'internal' ? '返回总览' : 'Back to Dashboard'}</Link>
+          <Link className="inline-link-chip" to="/">返回总览</Link>
         </div>
       </section>
 
@@ -323,14 +343,14 @@ export function ConsultantsPage() {
             {assignmentEvidence.map((item) => (
               <article key={item.task_name} className="consultant-evidence-card">
                 <strong>{item.task_name}</strong>
-                <p>领域 {item.domain ?? '-'} · 顾问ID {item.consultant_id ?? '-'} · 路由结果 {item.route_result ?? '-'} → 路由目标 {item.route_target ?? '-'}</p>
+                <p>领域 {item.domain ?? '-'} · 顾问编号 {item.consultant_id ?? '-'} · 路由结果 {formatRouteResult(item.route_result)} → 路由目标 {item.route_target ?? '-'}</p>
                 <small>
                   {(item.decision_log ?? [])
                     .slice(-2)
                     .map((entry) => `${entry.reason ?? entry.action ?? '-'} / ${entry.rule_hit_reason ?? entry.detail ?? '-'}`)
                     .join('；') || '暂无决策记录'}
                 </small>
-                {item.consultant_id === 'consultant_guoshituan_main' ? <small>角色证据：团长顾问可直接承接顾问编号</small> : null}
+                {item.consultant_id === 'consultant_guoshituan_main' ? <small>角色证据：团长顾问可直接承接顾问线索</small> : null}
               </article>
             ))}
           </div>
@@ -345,7 +365,7 @@ export function ConsultantsPage() {
             {consultantLoadSummary.map((item) => (
               <article key={item.consultantId} className="consultant-evidence-card">
                 <strong>{item.owner}</strong>
-                <p>{item.consultantId}</p>
+                <p>顾问编号 {item.consultantId}</p>
                 <small>工作量 {item.active} · 总计 {item.total} · 领域 {item.domains.join(', ') || '-'}</small>
               </article>
             ))}
@@ -362,8 +382,8 @@ export function ConsultantsPage() {
             {externalPartnerEvidence.map((item) => (
               <article key={item.task_name} className="consultant-evidence-card">
                 <strong>{item.task_name}</strong>
-                <p>路由结果 {item.route_result} → 路由目标 {item.route_target}</p>
-                <small>顾问ID {item.consultant_id} · 合作方模式 {item.partner_mode}</small>
+                <p>路由结果 {formatRouteResult(item.route_result)} → 路由目标 {item.route_target}</p>
+                <small>顾问编号 {item.consultant_id} · 合作方模式 {formatPartnerMode(item.partner_mode)}</small>
               </article>
             ))}
           </div>
