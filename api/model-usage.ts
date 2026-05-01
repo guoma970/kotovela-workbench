@@ -1,8 +1,36 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { fetchModelUsagePayload } from '../server/modelUsage.js'
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+const configuredAllowedOrigin = process.env.ALLOWED_ORIGIN?.trim()
+
+const isLocalHostHeader = (host: string) =>
+  host.includes('localhost') ||
+  host.startsWith('127.0.0.1') ||
+  host.startsWith('0.0.0.0') ||
+  host.startsWith('[::1]') ||
+  /^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?$/.test(host)
+
+const resolveAllowedOrigin = (req: VercelRequest) => {
+  if (configuredAllowedOrigin) return configuredAllowedOrigin
+  const host = req.headers.host?.trim()
+  if (!host) return undefined
+  const protocol = isLocalHostHeader(host) ? 'http' : 'https'
+  return `${protocol}://${host}`
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const allowedOrigin = resolveAllowedOrigin(req)
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET')
+  res.setHeader('Vary', 'Origin, Host')
   res.setHeader('Cache-Control', 'no-store, max-age=0')
+
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET')
+    return res.status(405).end()
+  }
 
   try {
     const payload = await fetchModelUsagePayload()

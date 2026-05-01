@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type UsageBucket = {
   key: string
@@ -93,6 +93,19 @@ const formatFlag = (value?: boolean, truthy = '开启', falsy = '关闭') => {
   return value ? truthy : falsy
 }
 
+const formatModelUsageSource = (value?: ModelUsagePayload['source']) => {
+  switch (value) {
+    case 'local-openclaw':
+      return '本机 OpenClaw'
+    case 'partial':
+      return '部分数据'
+    case 'unavailable':
+      return '当前不可用'
+    default:
+      return '加载中'
+  }
+}
+
 const pctTone = (value?: number) => {
   if (typeof value !== 'number') return 'is-unknown'
   if (value <= 15) return 'is-critical'
@@ -123,7 +136,7 @@ function UsageRankList({ title, items }: { title: string; items: UsageBucket[] }
             <article key={item.key} className="model-usage-rank-row">
               <div>
                 <strong>{item.label || item.key}</strong>
-                <small>{item.messageCount} 条 assistant usage · cache read {formatNumber(item.cacheRead)}</small>
+                <small>{item.messageCount} 条用量记录 · 缓存命中 {formatNumber(item.cacheRead)}</small>
               </div>
               <div className="model-usage-rank-value">
                 <span>{formatNumber(item.totalTokens)}</span>
@@ -143,26 +156,43 @@ export function ModelUsagePage() {
   const [payload, setPayload] = useState<ModelUsagePayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const activeRequestRef = useRef(0)
+  const activeAbortRef = useRef<AbortController | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const requestId = activeRequestRef.current + 1
+    activeRequestRef.current = requestId
+    activeAbortRef.current?.abort()
+    const abortController = new AbortController()
+    activeAbortRef.current = abortController
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/model-usage', { cache: 'no-store' })
+      const response = await fetch('/api/model-usage', { cache: 'no-store', signal: abortController.signal })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      setPayload(await response.json() as ModelUsagePayload)
+      const nextPayload = await response.json() as ModelUsagePayload
+      if (requestId !== activeRequestRef.current) return
+      setPayload(nextPayload)
     } catch (err) {
+      if (abortController.signal.aborted || requestId !== activeRequestRef.current) return
       setError(err instanceof Error ? err.message : '模型额度加载失败')
     } finally {
-      setLoading(false)
+      if (requestId === activeRequestRef.current) {
+        setLoading(false)
+      }
     }
-  }
+  }, [])
 
   useEffect(() => {
-    load()
-    const timer = window.setInterval(load, 60_000)
-    return () => window.clearInterval(timer)
-  }, [])
+    void load()
+    const timer = window.setInterval(() => {
+      void load()
+    }, 60_000)
+    return () => {
+      window.clearInterval(timer)
+      activeAbortRef.current?.abort()
+    }
+  }, [load])
 
   const activeCodexOrder = useMemo(() => {
     const main = payload?.agents.find((agent) => agent.id === 'main')
@@ -214,13 +244,13 @@ export function ModelUsagePage() {
           </div>
           <div className="model-usage-hero-side">
             <span className={`model-usage-state ${payload?.claude_code_usage?.has_extra_usage_enabled ? 'is-healthy' : 'is-warning'}`}>
-              Extra usage {formatFlag(payload?.claude_code_usage?.has_extra_usage_enabled, 'on', 'off')}
+              附加额度 {formatFlag(payload?.claude_code_usage?.has_extra_usage_enabled, '已开启', '未开启')}
             </span>
             <span className="model-usage-state">
-              {formatNumber(claudeRecent?.known_session_count)} sessions
+              {formatNumber(claudeRecent?.known_session_count)} 本机会话
             </span>
             <span className="model-usage-state">
-              {formatNumber(payload?.claude_code_usage?.project_count)} projects
+              {formatNumber(payload?.claude_code_usage?.project_count)} 个项目
             </span>
           </div>
         </section>
@@ -234,15 +264,15 @@ export function ModelUsagePage() {
           <strong className="stat-value">{formatNumber(payload?.recent_usage.totalTokens)}</strong>
         </article>
         <article className="stat-card strong-card">
-          <span className="stat-label">input / output</span>
+          <span className="stat-label">输入 / 输出</span>
           <strong className="stat-value">{formatNumber(payload?.recent_usage.input)} / {formatNumber(payload?.recent_usage.output)}</strong>
         </article>
         <article className="stat-card strong-card">
-          <span className="stat-label">cache read</span>
+          <span className="stat-label">缓存命中</span>
           <strong className="stat-value">{formatNumber(payload?.recent_usage.cacheRead)}</strong>
         </article>
         <article className="stat-card strong-card">
-          <span className="stat-label">usage messages</span>
+          <span className="stat-label">记录条数</span>
           <strong className="stat-value">{formatNumber(payload?.recent_usage.messageCount)}</strong>
         </article>
       </div>
@@ -250,7 +280,7 @@ export function ModelUsagePage() {
       <section className="panel strong-card">
         <div className="panel-header">
           <h3>Claude Code 本机额度线索</h3>
-          <span className="home-count">{payload?.claude_code_usage ? 'local-claude' : 'unavailable'}</span>
+          <span className="home-count">{payload?.claude_code_usage ? '本机 Claude' : '当前不可用'}</span>
         </div>
         <div className="model-usage-agent-grid">
           <article className="model-usage-agent-card">
@@ -260,7 +290,7 @@ export function ModelUsagePage() {
             </div>
             <p>组织档位：<b>{formatTier(payload?.claude_code_usage?.organization_rate_limit_tier)}</b></p>
             <p>个人档位：<b>{formatTier(payload?.claude_code_usage?.user_rate_limit_tier)}</b></p>
-            <p>Extra usage：<b>{formatFlag(payload?.claude_code_usage?.has_extra_usage_enabled, '已开启', '未开启')}</b></p>
+            <p>附加额度：<b>{formatFlag(payload?.claude_code_usage?.has_extra_usage_enabled, '已开启', '未开启')}</b></p>
             <p>限额提醒：<b>{formatFlag(payload?.claude_code_usage?.usage_limit_notifications_enabled, '已开启', '未开启')}</b></p>
             <p>关闭原因：{payload?.claude_code_usage?.extra_usage_disabled_reason || '-'}</p>
           </article>
@@ -291,9 +321,9 @@ export function ModelUsagePage() {
                 <span>{agent.id}</span>
               </div>
               <p>当前模型：<b>{agent.configured_model || '-'}</b></p>
-              <p>Fallback：{agent.fallback_models.length ? agent.fallback_models.join(' / ') : '-'}</p>
+              <p>备用模型：{agent.fallback_models.length ? agent.fallback_models.join(' / ') : '-'}</p>
               <p>Codex 顺序：{agent.codex_order.length ? agent.codex_order.join(' → ') : '-'}</p>
-              <p>lastGood：{agent.codex_last_good || '-'}</p>
+              <p>最近可用：{agent.codex_last_good || '-'}</p>
               {agent.codex_session_overrides.length ? (
                 <p>会话覆盖：{agent.codex_session_overrides.map((item) => `${item.profile} × ${item.count}`).join(' / ')}</p>
               ) : null}
@@ -301,9 +331,9 @@ export function ModelUsagePage() {
                 <div className="model-usage-profile-list">
                   {agent.codex_usage_stats.map((stats) => (
                     <small key={stats.profile}>
-                      {stats.profile} · errors {stats.error_count ?? 0}
-                      {stats.cooldown_reason ? ` · cooldown ${stats.cooldown_reason}` : ''}
-                      {stats.last_used ? ` · last ${formatTime(stats.last_used)}` : ''}
+                      {stats.profile} · 错误 {stats.error_count ?? 0}
+                      {stats.cooldown_reason ? ` · 冷却 ${stats.cooldown_reason}` : ''}
+                      {stats.last_used ? ` · 最近使用 ${formatTime(stats.last_used)}` : ''}
                     </small>
                   ))}
                 </div>
@@ -315,22 +345,22 @@ export function ModelUsagePage() {
 
       <div className="model-usage-rank-grid">
         <UsageRankList title="按模型聚合" items={payload?.recent_usage.by_model ?? []} />
-        <UsageRankList title="按实例聚合" items={payload?.recent_usage.by_agent ?? []} />
+        <UsageRankList title="按协作者聚合" items={payload?.recent_usage.by_agent ?? []} />
       </div>
 
       <section className="panel strong-card">
         <div className="panel-header">
           <h3>数据源与告警</h3>
-          <span className="home-count">{payload?.source ?? 'loading'}</span>
+          <span className="home-count">{formatModelUsageSource(payload?.source)}</span>
         </div>
         <p className="page-note">
-          更新时间：{formatTime(payload?.generated_at)}。Codex 百分比来自 `openclaw models status`，用量数据来自本机近 24 小时会话记录；Claude Code 线索来自本机 `.claude.json`、`history.jsonl` 与 `sessions` 元数据。
+          更新时间：{formatTime(payload?.generated_at)}。Codex 百分比来自 `openclaw models status`，用量数据来自本机近 24 小时会话记录；Claude Code 线索来自本机账户与会话元数据。
         </p>
         {payload?.warnings.length ? (
           <div className="consultant-evidence-list">
             {payload.warnings.map((warning) => (
               <article key={warning} className="consultant-evidence-card">
-                <strong>warning</strong>
+                <strong>提示</strong>
                 <p>{warning}</p>
               </article>
             ))}

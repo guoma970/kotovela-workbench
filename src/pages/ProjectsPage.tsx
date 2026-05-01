@@ -59,11 +59,11 @@ export function ProjectsPage() {
           { label: showCockpitDetail ? '项目' : 'Projects', value: projects.length, to: { pathname: '/projects' } },
           { label: showCockpitDetail ? '活跃项目' : 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
           { label: showCockpitDetail ? '有卡点总数' : 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
-          { label: showCockpitDetail ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: showCockpitDetail ? '频道' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
         ]}
         actions={[
           { label: showCockpitDetail ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
-          { label: showCockpitDetail ? '进入房间' : 'Go to rooms', to: { pathname: '/rooms' } },
+          { label: showCockpitDetail ? '进入频道' : 'Go to rooms', to: { pathname: '/rooms' } },
           { label: showCockpitDetail ? '查看协作者' : 'Go to agents', to: { pathname: '/agents' } },
         ]}
         internalHint={
@@ -167,7 +167,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">{showCockpitDetail ? '房间' : 'Rooms'}</span>
+                  <span className="section-label">{showCockpitDetail ? '频道' : 'Rooms'}</span>
                   <div className="object-row top-gap">
                     {linkedRooms.length > 0 ? (
                       linkedRooms.map((room) => (

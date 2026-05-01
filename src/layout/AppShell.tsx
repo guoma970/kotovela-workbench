@@ -50,7 +50,7 @@ export function AppShell() {
   const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
-    mode === 'internal' ? '内部驾驶舱 · 实例状态与项目跟进' : brandConfig.subtitleZh
+    mode === 'internal' ? '内部驾驶舱 · 协作者状态与项目跟进' : brandConfig.subtitleZh
   /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
     mode === 'internal' ? null : brandConfig.taglineEn

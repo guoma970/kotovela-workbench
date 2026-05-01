@@ -248,7 +248,10 @@ export function ConsultantsPage() {
             {consultants.map((item) => (
               <article key={item.consultant_id} className="consultant-card">
                 <div className="consultant-card-top">
-                  <strong>{item.consultant_id}</strong>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <small style={{ display: 'block', marginTop: 4, color: '#7f8ea3' }}>{item.consultant_id}</small>
+                  </div>
                   <span className={`status-pill status-${item.status === 'online' ? 'active' : item.status === 'busy' ? 'blocked' : 'idle'}`}>
                     {consultantStatusLabels[item.status]}
                   </span>

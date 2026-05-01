@@ -110,6 +110,17 @@ export function OfficeInstancesProvider({
     }
   }, [fallbackAgents, fallbackProjects, fallbackRooms, fallbackTasks, preferredDataSource, applyMockSnapshot])
 
+  const handleFetchError = useCallback((fetchError: unknown) => {
+    if (runtimeConfig.fallbackToMock) {
+      const fallbackMessage = 'OpenClaw 接口不可用，已自动回退到 Mock 数据'
+      applyMockSnapshot()
+      return { lastSyncedAtMs: null, error: fallbackMessage }
+    }
+    return {
+      error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+    }
+  }, [applyMockSnapshot])
+
   const { error, hasBootstrapped, isLoading, lastSyncedAtMs, refresh } = usePollingFetch({
     enabled: true,
     pollingEnabled: pollingEnabled && preferredDataSource === 'openclaw',
@@ -118,16 +129,7 @@ export function OfficeInstancesProvider({
     staleMs: runtimeConfig.staleMs,
     initialHasBootstrapped: runtimeConfig.preferredDataSource === 'mock',
     fetcher: fetchData,
-    onError: (fetchError) => {
-      if (runtimeConfig.fallbackToMock) {
-        const fallbackMessage = 'OpenClaw 接口不可用，已自动回退到 Mock 数据'
-        applyMockSnapshot()
-        return { lastSyncedAtMs: null, error: fallbackMessage }
-      }
-      return {
-        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-      }
-    },
+    onError: handleFetchError,
   })
 
   const isInternalOpenclawBootstrap =

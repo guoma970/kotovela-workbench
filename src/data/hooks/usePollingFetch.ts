@@ -12,8 +12,8 @@ type PollingFetchOptions = {
   visibilityRefreshEnabled: boolean
   staleMs: number
   initialHasBootstrapped?: boolean
-  fetcher: (signal: AbortSignal) => Promise<PollingFetchResult | void>
-  onError?: (error: unknown) => PollingFetchResult | void
+  fetcher: (signal: AbortSignal) => Promise<PollingFetchResult>
+  onError?: (error: unknown) => PollingFetchResult
 }
 
 export function usePollingFetch({
@@ -35,8 +35,7 @@ export function usePollingFetch({
   const activeRequestRef = useRef(0)
   const activeAbortRef = useRef<AbortController | null>(null)
 
-  const applyResult = useCallback((result?: PollingFetchResult | void) => {
-    if (!result) return
+  const applyResult = useCallback((result: PollingFetchResult) => {
     if (Object.prototype.hasOwnProperty.call(result, 'lastSyncedAtMs')) {
       setLastSyncedAtMs(result.lastSyncedAtMs ?? null)
       if (typeof result.lastSyncedAtMs === 'number') {
@@ -50,6 +49,7 @@ export function usePollingFetch({
 
   const runFetch = useCallback(async () => {
     if (!enabled) {
+      setLastSyncedAtMs(null)
       setHasBootstrapped(true)
       return
     }
@@ -70,7 +70,7 @@ export function usePollingFetch({
     } catch (fetchError) {
       if (abortController.signal.aborted || requestId !== activeRequestRef.current) return
       const handled = onError?.(fetchError)
-      if (handled) {
+      if (handled !== undefined) {
         applyResult(handled)
       } else {
         setError(fetchError instanceof Error ? fetchError.message : String(fetchError))

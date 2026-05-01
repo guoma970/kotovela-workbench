@@ -5,11 +5,11 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-const OPENCLAW_BIN = '/Users/ztl/.npm-global/bin/openclaw'
-const OPENCLAW_HOME = '/Users/ztl/.openclaw'
+const USER_HOME = process.env.HOME ?? ''
+const OPENCLAW_BIN = process.env.OPENCLAW_BIN?.trim() || (USER_HOME ? path.join(USER_HOME, '.npm-global/bin/openclaw') : 'openclaw')
+const OPENCLAW_HOME = process.env.OPENCLAW_HOME?.trim() || (USER_HOME ? path.join(USER_HOME, '.openclaw') : '.openclaw')
 const OPENCLAW_CONFIG_FILE = path.join(OPENCLAW_HOME, 'openclaw.json')
 const AGENTS_ROOT = path.join(OPENCLAW_HOME, 'agents')
-const USER_HOME = process.env.HOME ?? ''
 const CLAUDE_HOME = path.join(USER_HOME, '.claude')
 const CLAUDE_STATE_FILE = path.join(USER_HOME, '.claude.json')
 const CLAUDE_HISTORY_FILE = path.join(CLAUDE_HOME, 'history.jsonl')
@@ -180,7 +180,7 @@ const upsertBucket = (buckets: Map<string, ModelUsageBucket>, key: string, label
 const readOpenClawStatus = async (warnings: string[]) => {
   try {
     const { stdout } = await execFileAsync(OPENCLAW_BIN, ['models', 'status', '--agent', 'main'], {
-      timeout: 15_000,
+      timeout: 8_000,
       maxBuffer: 1024 * 1024,
     })
     const rawLine = stdout.split('\n').find((line) => line.includes('openai-codex usage:'))?.trim()
@@ -443,9 +443,22 @@ export async function fetchModelUsagePayload(): Promise<ModelUsagePayload> {
     collectRecentUsage(agentIds, warnings),
   ])
 
+  const hasAgentRuntimeSignals = agents.some(
+    (agent) =>
+      Boolean(agent.configured_model) ||
+      agent.fallback_models.length > 0 ||
+      agent.codex_profiles.length > 0 ||
+      agent.codex_order.length > 0 ||
+      agent.codex_session_overrides.length > 0 ||
+      agent.codex_usage_stats.length > 0,
+  )
+  const hasUsageSignals = recentUsage.totalTokens > 0 || recentUsage.messageCount > 0
+  const hasAnySignals = Boolean(codexUsage) || Boolean(claudeCodeUsage) || hasAgentRuntimeSignals || hasUsageSignals
+  const source: ModelUsagePayload['source'] = !hasAnySignals ? 'unavailable' : warnings.length > 0 ? 'partial' : 'local-openclaw'
+
   return {
     generated_at: new Date().toISOString(),
-    source: warnings.some((warning) => warning.includes('openclaw models status unavailable')) ? 'partial' : 'local-openclaw',
+    source,
     window_hours: WINDOW_HOURS,
     codex_usage: codexUsage
       ? {
