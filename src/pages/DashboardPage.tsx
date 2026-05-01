@@ -5,7 +5,7 @@ import { createFocusSearch } from '../lib/workbenchLinking'
 import type { UpdateItem } from '../types'
 import type { ActionItem, HomeItem } from './Dashboard/components/DashboardOverviewSections'
 import { DashboardInternalView, DashboardPublicView } from './Dashboard/components/DashboardPageViews'
-import { AutoTaskSystemSummaryCard } from './Dashboard/components/DashboardAutoTaskPanel'
+import { AutoTaskSystemSummaryCard } from './Dashboard/components/DashboardAutoTaskCards'
 import { useSystemMode } from './Dashboard/hooks/useSystemMode'
 import { buildHomeItems, formatAgentTaskLine } from './Dashboard/lib/homeItems'
 
