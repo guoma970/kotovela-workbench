@@ -10,10 +10,25 @@ const isLocalHostHeader = (host: string) =>
   host.startsWith('[::1]') ||
   /^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?$/.test(host)
 
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin
+  } catch {
+    return undefined
+  }
+}
+
 const resolveAllowedOrigin = (req: VercelRequest) => {
   if (configuredAllowedOrigin) return configuredAllowedOrigin
   const host = req.headers.host?.trim()
   if (!host) return undefined
+  const requestOrigin = typeof req.headers.origin === 'string' ? normalizeOrigin(req.headers.origin.trim()) : undefined
+  if (requestOrigin) {
+    const originHost = new URL(requestOrigin).host
+    if (originHost === host) return requestOrigin
+    return undefined
+  }
+  if (!isLocalHostHeader(host)) return undefined
   const protocol = isLocalHostHeader(host) ? 'http' : 'https'
   return `${protocol}://${host}`
 }

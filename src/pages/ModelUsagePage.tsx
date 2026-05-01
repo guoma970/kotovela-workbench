@@ -224,7 +224,7 @@ export function ModelUsagePage() {
               5h {payload?.codex_usage?.five_hour_left_pct ?? '-'}%
             </span>
             <span className={`model-usage-state ${pctTone(payload?.codex_usage?.week_left_pct)}`}>
-              Week {payload?.codex_usage?.week_left_pct ?? '-'}%
+              周额度 {payload?.codex_usage?.week_left_pct ?? '-'}%
             </span>
             <button className="auto-task-go-btn" type="button" onClick={load} disabled={loading}>
               {loading ? '刷新中' : '刷新'}
