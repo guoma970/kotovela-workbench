@@ -81,6 +81,32 @@ const TASK_PRIORITY_LABEL_ZH: Record<string, string> = {
   unknown: '未标注优先级',
 }
 
+const TASK_ACTION_LABELS: Record<string, string> = {
+  consultant_assigned: '已完成分配',
+  priority_up: '已提高优先级',
+  priority_down: '已降低优先级',
+  pause: '已暂停',
+  resume: '已恢复处理',
+  retry: '已重新尝试',
+  transfer: '已转派',
+  direct: '直接处理',
+  manual_review: '转人工处理',
+}
+
+const formatTaskLogText = (value?: string, fallback = '未补充说明') => {
+  if (!value || value === '-') return fallback
+  if (TASK_ACTION_LABELS[value]) return TASK_ACTION_LABELS[value]
+  return value
+    .replace(/consultant_assigned/gi, '已完成分配')
+    .replace(/manual_review.required/gi, '待人工复核')
+    .replace(/business.lead_router/gi, '业务跟进池')
+    .replace(/route_target/gi, '处理去向')
+    .replace(/route_result/gi, '处理结果')
+    .replace(/decision_log/gi, '处理记录')
+    .replace(/audit_log/gi, '变更记录')
+    .replace(/[._-]+/g, ' ')
+}
+
 const normalizeStatus = (status?: string, needHuman?: boolean): TaskBoardStatus => {
   if (needHuman) return 'need_human'
   const normalized = String(status ?? '').toLowerCase()
@@ -352,11 +378,13 @@ export function TasksPage() {
       {isInternal ? (
         <section className="panel strong-card">
           <div className="panel-header">
-            <h3>处理记录与关联依据</h3>
-            <span className="badge-count">{auditEntries.length}</span>
+            <h3>最近处理动态</h3>
+            <span className="badge-count">
+              {effectiveTasks.reduce((sum, task) => sum + Math.min(task.decision_log.length, 2), 0)}
+            </span>
           </div>
           <p className="page-note">
-            本页只读展示任务最近的处理记录和变更记录，方便核对责任人、处理原因与关联对象。
+            先看最近发生了什么、为什么这样处理；如需排障，再展开原始说明和变更记录。
           </p>
           <div className="consultant-evidence-list">
             {effectiveTasks
@@ -381,60 +409,74 @@ export function TasksPage() {
                 }
                 return (
                   <article key={key} className="consultant-evidence-card">
-                    <strong>{entry.action}</strong>
-                    <p>{entry.reason} · {entry.detail}</p>
-                    <small>{task.task_id} · {entry.timestamp}</small>
-                    <EvidenceObjectLinks
-                      textParts={[task.title, task.task_id, entry.reason, entry.detail]}
-                      signalParts={[
-                        task.project_line ? `project_line=${task.project_line}` : undefined,
-                        task.source_line ? `source_line=${task.source_line}` : undefined,
-                        task.account_line ? `account_line=${task.account_line}` : undefined,
-                        task.content_line ? `content_line=${task.content_line}` : undefined,
-                        task.consultant_id ? `consultant_id=${task.consultant_id}` : undefined,
-                        task.attribution ? `attribution=${task.attribution.source}/${task.attribution.medium}/${task.attribution.campaign}` : undefined,
-                        task.attribution?.content,
-                      ]}
-                      currentSearch={linking.currentSearch}
-                      projects={projects}
-                      agents={agents}
-                      rooms={rooms}
-                      tasks={tasks}
-                      projectId={project?.id}
-                      agentId={agent?.id}
-                      roomId={linkedRoom?.id}
-                      taskId={taskRecord?.id}
-                      routingHints={routingHints}
-                    />
+                    <strong>{task.title}</strong>
+                    <p>最近处理：{formatTaskLogText(entry.action, '已记录处理动作')}</p>
+                    <small>原因：{formatTaskLogText(entry.reason)} · {entry.timestamp}</small>
+                    <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
+                      <summary className="scheduler-task-result-head">
+                        <strong>查看处理依据</strong>
+                      </summary>
+                      <div className="top-gap">
+                        <p>处理说明：{formatTaskLogText(entry.detail)}</p>
+                        <p>任务编号：{task.task_id}</p>
+                        <EvidenceObjectLinks
+                          textParts={[task.title, task.task_id, entry.reason, entry.detail]}
+                          signalParts={[
+                            task.project_line ? `project_line=${task.project_line}` : undefined,
+                            task.source_line ? `source_line=${task.source_line}` : undefined,
+                            task.account_line ? `account_line=${task.account_line}` : undefined,
+                            task.content_line ? `content_line=${task.content_line}` : undefined,
+                            task.consultant_id ? `consultant_id=${task.consultant_id}` : undefined,
+                            task.attribution ? `attribution=${task.attribution.source}/${task.attribution.medium}/${task.attribution.campaign}` : undefined,
+                            task.attribution?.content,
+                          ]}
+                          currentSearch={linking.currentSearch}
+                          projects={projects}
+                          agents={agents}
+                          rooms={rooms}
+                          tasks={tasks}
+                          projectId={project?.id}
+                          agentId={agent?.id}
+                          roomId={linkedRoom?.id}
+                          taskId={taskRecord?.id}
+                          routingHints={routingHints}
+                        />
+                      </div>
+                    </details>
                   </article>
                 )
               })}
             {!effectiveTasks.some((task) => task.decision_log.length > 0) ? <p className="empty-state">暂无处理记录。</p> : null}
           </div>
-          <div className="consultant-evidence-list" style={{ marginTop: 12 }}>
-            {auditEntries.map((entry) => (
-              <article key={entry.id} className="consultant-evidence-card">
-                <strong>{entry.action}</strong>
-                <p>{entry.target}</p>
-                <small>{entry.result} · {entry.time}</small>
-                <EvidenceObjectLinks
-                  textParts={[entry.action, entry.target, entry.result]}
-                  signalParts={[entry.actor, entry.target, entry.result]}
-                  currentSearch={linking.currentSearch}
-                  projects={projects}
-                  agents={agents}
-                  rooms={rooms}
-                  tasks={tasks}
-                  routingHints={{
-                    agentSignals: [entry.actor].filter((value): value is string => Boolean(value)),
-                    roomSignals: [entry.target],
-                    taskSignals: [entry.target, entry.result],
-                  }}
-                />
-              </article>
-            ))}
-            {!auditEntries.length ? <p className="empty-state">暂无变更记录。</p> : null}
-          </div>
+          <details className="scheduler-debug-block top-gap">
+            <summary className="scheduler-task-result-head">
+              <strong>查看变更记录（排障用）</strong>
+            </summary>
+            <div className="consultant-evidence-list top-gap">
+              {auditEntries.map((entry) => (
+                <article key={entry.id} className="consultant-evidence-card">
+                  <strong>{formatTaskLogText(entry.action, '已记录变更')}</strong>
+                  <p>{formatTaskLogText(entry.target, '涉及对象已记录')}</p>
+                  <small>{formatTaskLogText(entry.result, '结果已记录')} · {entry.time}</small>
+                  <EvidenceObjectLinks
+                    textParts={[entry.action, entry.target, entry.result]}
+                    signalParts={[entry.actor, entry.target, entry.result]}
+                    currentSearch={linking.currentSearch}
+                    projects={projects}
+                    agents={agents}
+                    rooms={rooms}
+                    tasks={tasks}
+                    routingHints={{
+                      agentSignals: [entry.actor].filter((value): value is string => Boolean(value)),
+                      roomSignals: [entry.target],
+                      taskSignals: [entry.target, entry.result],
+                    }}
+                  />
+                </article>
+              ))}
+              {!auditEntries.length ? <p className="empty-state">暂无变更记录。</p> : null}
+            </div>
+          </details>
         </section>
       ) : null}
     </section>

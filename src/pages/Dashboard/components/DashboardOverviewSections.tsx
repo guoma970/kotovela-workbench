@@ -89,6 +89,23 @@ function formatConsultantRole(value: string) {
   return consultantRoleLabel[value] ?? value
 }
 
+function formatAuditAction(value: string) {
+  return value
+    .replace(/consultant_assigned/gi, '已完成分配')
+    .replace(/system_mode/gi, '系统设置调整')
+    .replace(/publish_mode/gi, '发布状态调整')
+    .replace(/force_stop/gi, '紧急停止调整')
+    .replace(/guardrails/gi, '安全规则调整')
+    .replace(/[._-]+/g, ' ')
+}
+
+function formatAuditResult(value: string) {
+  return value
+    .replace(/assigned to/gi, '已分配给')
+    .replace(/consultant/gi, '顾问')
+    .replace(/[._-]+/g, ' ')
+}
+
 const buildProjectSnapshots = (projects: Project[]): ProjectSnapshot[] => {
   const snapshots = new Map<string, ProjectSnapshot>()
   for (const project of projects) {
@@ -167,7 +184,7 @@ export function AuditLogPanel() {
   return (
     <section className="home-section panel strong-card audit-log-panel">
       <div className="home-section-head">
-        <h3>操作日志面板</h3>
+        <h3>最近系统动态</h3>
         <span className="home-count">{entries.length}</span>
       </div>
       {entries.length ? (
@@ -197,33 +214,40 @@ export function AuditLogPanel() {
             return (
               <article key={entry.id} className="audit-log-item consultant-evidence-card">
                 <div className="audit-log-item-top">
-                  <strong>{entry.action}</strong>
+                  <strong>{formatAuditAction(entry.action)}</strong>
                   <span>{entry.time}</span>
                 </div>
-                <p>{entry.target}</p>
+                <p>最近处理对象：{entry.target}</p>
                 <small>
-                  {entry.user} · {entry.result}
+                  {entry.user} · {formatAuditResult(entry.result)}
                 </small>
                 {isInternal ? (
-                  <EvidenceObjectLinks
-                    textParts={[entry.action, entry.target, entry.result]}
-                    signalParts={[entry.user, entry.target, entry.result]}
-                    currentSearch={linking.currentSearch}
-                    projects={projects}
-                    agents={agents}
-                    rooms={rooms}
-                    tasks={tasks}
-                    projectId={relatedProject?.id}
-                    agentId={relatedAgent?.id}
-                    roomId={relatedRoom?.id}
-                    taskId={relatedTask?.id}
-                    routingHints={{
-                      projectSignals: [entry.target, entry.result],
-                      agentSignals: [entry.user],
-                      roomSignals: [entry.target],
-                      taskSignals: [entry.action, entry.target],
-                    }}
-                  />
+                  <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
+                    <summary className="scheduler-task-result-head">
+                      <strong>查看原始记录</strong>
+                    </summary>
+                    <div className="top-gap">
+                      <EvidenceObjectLinks
+                        textParts={[entry.action, entry.target, entry.result]}
+                        signalParts={[entry.user, entry.target, entry.result]}
+                        currentSearch={linking.currentSearch}
+                        projects={projects}
+                        agents={agents}
+                        rooms={rooms}
+                        tasks={tasks}
+                        projectId={relatedProject?.id}
+                        agentId={relatedAgent?.id}
+                        roomId={relatedRoom?.id}
+                        taskId={relatedTask?.id}
+                        routingHints={{
+                          projectSignals: [entry.target, entry.result],
+                          agentSignals: [entry.user],
+                          roomSignals: [entry.target],
+                          taskSignals: [entry.action, entry.target],
+                        }}
+                      />
+                    </div>
+                  </details>
                 ) : null}
               </article>
             )

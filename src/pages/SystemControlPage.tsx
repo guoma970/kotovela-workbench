@@ -50,6 +50,13 @@ const formatControlDetail = (value: string) =>
     .replace(/=true/g, '=已开启')
     .replace(/=false/g, '=未开启')
 
+const formatControlAction = (value: string) =>
+  formatControlDetail(value)
+    .replace(/system mode/gi, '系统模式调整')
+    .replace(/publish mode/gi, '发布状态调整')
+    .replace(/force stop/gi, '紧急停止调整')
+    .replace(/live guardrails/gi, '安全规则调整')
+
 export function SystemControlPage() {
   const { projects, agents, rooms, tasks } = useOfficeInstances()
   const linking = useWorkbenchLinking({ projects, agents, rooms, tasks })
@@ -197,54 +204,70 @@ export function SystemControlPage() {
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>系统变更记录</h3>
+          <h3>最近系统调整</h3>
           <span className="badge-count">{auditEntries.length}</span>
         </div>
+        <p className="page-note">先看最近改了什么、为什么改；如需排障，再展开原始记录。</p>
         <div className="consultant-evidence-list">
           {state.decision_log.slice(0, 6).map((entry, index) => (
             <article key={`${entry.timestamp}-${index}`} className="consultant-evidence-card">
-              <strong>{formatControlDetail(entry.action)}</strong>
-              <p>{formatControlDetail(entry.reason)} · {formatControlDetail(entry.detail)}</p>
+              <strong>{formatControlAction(entry.action)}</strong>
+              <p>{formatControlDetail(entry.reason)}</p>
               <small>{entry.actor || '-'} · {entry.timestamp}</small>
-              <EvidenceObjectLinks
-                textParts={[entry.action, entry.reason, entry.detail, entry.actor]}
-                signalParts={[entry.detail, entry.actor]}
-                currentSearch={linking.currentSearch}
-                projects={projects}
-                agents={agents}
-                rooms={rooms}
-                tasks={tasks}
-                routingHints={{
-                  agentSignals: [entry.actor],
-                  roomSignals: [entry.reason, entry.detail],
-                  taskSignals: [entry.action, entry.reason],
-                }}
-              />
-            </article>
-          ))}
-          {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry) => (
-            <article key={entry.id} className="consultant-evidence-card">
-              <strong>{formatControlDetail(entry.action)}</strong>
-              <p>{entry.target}</p>
-              <small>{formatControlDetail(entry.result)} · {entry.time}</small>
-              <EvidenceObjectLinks
-                textParts={[entry.action, entry.target, entry.result]}
-                signalParts={[entry.user, entry.target, entry.result]}
-                currentSearch={linking.currentSearch}
-                projects={projects}
-                agents={agents}
-                rooms={rooms}
-                tasks={tasks}
-                routingHints={{
-                  agentSignals: [entry.user],
-                  roomSignals: [entry.target, entry.result],
-                  taskSignals: [entry.action],
-                }}
-              />
+              <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
+                <summary className="scheduler-task-result-head">
+                  <strong>查看原始记录</strong>
+                </summary>
+                <div className="top-gap">
+                  <p>详细说明：{formatControlDetail(entry.detail)}</p>
+                  <EvidenceObjectLinks
+                    textParts={[entry.action, entry.reason, entry.detail, entry.actor]}
+                    signalParts={[entry.detail, entry.actor]}
+                    currentSearch={linking.currentSearch}
+                    projects={projects}
+                    agents={agents}
+                    rooms={rooms}
+                    tasks={tasks}
+                    routingHints={{
+                      agentSignals: [entry.actor],
+                      roomSignals: [entry.reason, entry.detail],
+                      taskSignals: [entry.action, entry.reason],
+                    }}
+                  />
+                </div>
+              </details>
             </article>
           ))}
           {!state.decision_log.length ? <p className="empty-state">还没有操作记录。</p> : null}
         </div>
+        <details className="scheduler-debug-block top-gap">
+          <summary className="scheduler-task-result-head">
+            <strong>查看原始变更记录（排障用）</strong>
+          </summary>
+          <div className="consultant-evidence-list top-gap">
+            {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry) => (
+              <article key={entry.id} className="consultant-evidence-card">
+                <strong>{formatControlAction(entry.action)}</strong>
+                <p>{entry.target}</p>
+                <small>{formatControlDetail(entry.result)} · {entry.time}</small>
+                <EvidenceObjectLinks
+                  textParts={[entry.action, entry.target, entry.result]}
+                  signalParts={[entry.user, entry.target, entry.result]}
+                  currentSearch={linking.currentSearch}
+                  projects={projects}
+                  agents={agents}
+                  rooms={rooms}
+                  tasks={tasks}
+                  routingHints={{
+                    agentSignals: [entry.user],
+                    roomSignals: [entry.target, entry.result],
+                    taskSignals: [entry.action],
+                  }}
+                />
+              </article>
+            ))}
+          </div>
+        </details>
       </section>
     </section>
   )

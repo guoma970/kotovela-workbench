@@ -150,6 +150,24 @@ function formatDecisionSnippet(value?: string) {
     .replace(/rule_hit_reason/gi, '命中原因')
 }
 
+function formatAssignmentAction(value?: string) {
+  if (!value || value === '-') return '已记录分配动作'
+  return value
+    .replace(/consultant_assigned/gi, '已完成顾问分配')
+    .replace(/manual_review/gi, '已转人工复核')
+    .replace(/priority_up/gi, '已提高优先级')
+    .replace(/priority_down/gi, '已降低优先级')
+    .replace(/[._-]+/g, ' ')
+}
+
+function formatAuditResult(value?: string) {
+  if (!value || value === '-') return '已记录结果'
+  return value
+    .replace(/assigned to/gi, '已分配给')
+    .replace(/consultant/gi, '顾问')
+    .replace(/[._-]+/g, ' ')
+}
+
 function normalizeSystemModeState(payload: unknown): SystemModeState {
   if (!payload || typeof payload !== 'object') return defaultSystemMode
   const data = payload as Record<string, unknown>
@@ -234,6 +252,10 @@ export function ConsultantsPage() {
 
   const auditEvidence = auditEntries.filter((entry) => entry.action.includes('consultant')).slice(0, 6)
   const totalActiveLoad = consultants.reduce((sum, item) => sum + item.active_load, 0)
+  const consultantNameById = useMemo(
+    () => new Map(consultants.map((item) => [item.consultant_id, item.name])),
+    [consultants],
+  )
 
   const updateConsultant = (consultantId: string, key: keyof ConsultantRecord, value: string) => {
     setConsultants((current) =>
@@ -364,21 +386,6 @@ export function ConsultantsPage() {
               <li key={rule}>{rule}</li>
             ))}
           </ul>
-          <div className="consultant-evidence-list">
-            {assignmentEvidence.map((item) => (
-              <article key={item.task_name} className="consultant-evidence-card">
-                <strong>{item.task_name}</strong>
-                <p>领域 {item.domain ?? '-'} · 顾问编号 {item.consultant_id ?? '-'} · 去向判断 {formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
-                <small>
-                  {(item.decision_log ?? [])
-                    .slice(-2)
-                    .map((entry) => `${formatDecisionSnippet(entry.reason ?? entry.action)} / ${formatDecisionSnippet(entry.rule_hit_reason ?? entry.detail)}`)
-                    .join('；') || '暂无分配记录'}
-                </small>
-                {item.consultant_id === 'consultant_guoshituan_main' ? <small>角色证据：团长顾问可直接承接顾问线索</small> : null}
-              </article>
-            ))}
-          </div>
         </section>
 
         <section className="panel strong-card consultant-load-panel">
@@ -416,18 +423,55 @@ export function ConsultantsPage() {
 
         <section className="panel strong-card consultant-audit-panel">
           <div className="panel-header align-start">
-            <h3>分配记录与依据</h3>
-            <span className="home-count">{auditEvidence.length}</span>
+            <h3>最近分配结果</h3>
+            <span className="home-count">{assignmentEvidence.length}</span>
           </div>
+          <p className="page-note">先看最近有哪些事项被分给了谁，以及这样分配的原因；原始记录折叠到下层，排障时再展开。</p>
           <div className="consultant-evidence-list">
-            {auditEvidence.map((entry) => (
-              <article key={entry.id} className="consultant-evidence-card">
-                <strong>{entry.action}</strong>
-                <p>{entry.target}</p>
-                <small>{entry.user} · {entry.result} · {entry.time}</small>
-              </article>
-            ))}
+            {assignmentEvidence.map((item) => {
+              const lastEntry = [...(item.decision_log ?? [])].slice(-1)[0]
+              const consultantName = item.consultant_id ? consultantNameById.get(item.consultant_id) ?? item.consultant_id : '待确认'
+              return (
+                <article key={item.task_name} className="consultant-evidence-card">
+                  <strong>{item.task_name}</strong>
+                  <p>已分给：{consultantName}</p>
+                  <small>原因：{formatDecisionSnippet(lastEntry?.rule_hit_reason ?? lastEntry?.reason ?? lastEntry?.detail)}</small>
+                  <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
+                    <summary className="scheduler-task-result-head">
+                      <strong>查看原始分配依据</strong>
+                    </summary>
+                    <div className="top-gap">
+                      <p>领域：{item.domain ?? '未标注'} · 去向判断：{formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
+                      <p>顾问编号：{item.consultant_id ?? '暂未同步'}</p>
+                      <small>
+                        {(item.decision_log ?? [])
+                          .slice(-2)
+                          .map((entry) => `${formatAssignmentAction(entry.action)} · ${formatDecisionSnippet(entry.reason ?? entry.detail)} · ${formatDecisionSnippet(entry.rule_hit_reason)}`)
+                          .join('；') || '暂无原始分配记录'}
+                      </small>
+                    </div>
+                  </details>
+                  {item.consultant_id === 'consultant_guoshituan_main' ? <small>补充说明：团长顾问可直接承接顾问线索。</small> : null}
+                </article>
+              )
+            })}
+            {!assignmentEvidence.length ? <p className="empty-state">最近还没有新的分配结果。</p> : null}
           </div>
+          <details className="scheduler-debug-block top-gap">
+            <summary className="scheduler-task-result-head">
+              <strong>查看原始分配记录（排障用）</strong>
+            </summary>
+            <div className="consultant-evidence-list top-gap">
+              {auditEvidence.map((entry) => (
+                <article key={entry.id} className="consultant-evidence-card">
+                  <strong>{formatAssignmentAction(entry.action)}</strong>
+                  <p>{entry.target}</p>
+                  <small>{entry.user} · {formatAuditResult(entry.result)} · {entry.time}</small>
+                </article>
+              ))}
+              {!auditEvidence.length ? <p className="empty-state">暂无原始分配记录。</p> : null}
+            </div>
+          </details>
         </section>
       </div>
     </section>
