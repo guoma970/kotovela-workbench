@@ -1,5 +1,15 @@
 import { Fragment, useEffect, useState } from 'react'
 import { SystemTestResultPanel } from './DashboardAutoTaskCards'
+import {
+  AutoTaskExecutionView,
+  AutoTaskOperationsView,
+} from './DashboardAutoTaskOpsViews'
+import {
+  AutoTaskDebugMainView,
+  AutoTaskDebugProfileCard,
+  AutoTaskDebugSidebar,
+  AutoTaskRoutingView,
+} from './DashboardAutoTaskViews'
 
 type AutoTaskHistoryEntry = {
   action: string
@@ -42,7 +52,7 @@ type AutoDecisionLogEntry = {
   partner_mode?: 'content_only' | 'consult_only' | 'no_delivery'
 }
 
-type TemplatePoolEntry = {
+export type TemplatePoolEntry = {
   template_id: string
   domain: string
   asset_type: 'script' | 'reply' | 'plan' | 'generic'
@@ -54,7 +64,7 @@ type TemplatePoolEntry = {
   updated_at: string
 }
 
-type UserProfile = {
+export type UserProfile = {
   user_id: string
   tags: string[]
   preferences: Record<string, unknown>
@@ -75,7 +85,7 @@ type RouteResult = 'direct' | 'blocked' | 'transfer'
 
 type ExternalPartnerMode = 'content_only' | 'consult_only' | 'no_delivery'
 
-type AutoTaskBoardItem = {
+export type AutoTaskBoardItem = {
   task_name: string
   agent: string
   parent_task_id?: string
@@ -412,7 +422,7 @@ function getExternalPartnerMode(item: AutoTaskBoardItem): ExternalPartnerMode | 
   return item.domain === 'media' ? 'content_only' : 'no_delivery'
 }
 
-type PublishCenterEntry = {
+export type PublishCenterEntry = {
   taskName: string
   domain: string
   assetType: 'media' | 'business' | 'family' | 'generic'
@@ -436,7 +446,7 @@ type PublishCenterEntry = {
   result: NonNullable<AutoTaskBoardItem['result']>
 }
 
-type ArchiveCenterEntry = {
+export type ArchiveCenterEntry = {
   taskName: string
   domain: string
   assetType: 'media' | 'business' | 'family' | 'generic'
@@ -529,18 +539,7 @@ function buildArchiveCenterEntries(board: AutoTaskBoardItem[]): ArchiveCenterEnt
     }))
 }
 
-function getRecommendedTemplates(templates: TemplatePoolEntry[], domain: string, assetType: PublishCenterEntry['assetType']) {
-  const expectedAssetType = assetType === 'media' ? 'script' : assetType === 'business' ? 'reply' : assetType === 'family' ? 'plan' : 'generic'
-  return templates
-    .filter((template) => template.domain === domain && template.asset_type === expectedAssetType)
-    .sort((a, b) => {
-      if (b.use_count !== a.use_count) return b.use_count - a.use_count
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    })
-    .slice(0, 2)
-}
-
-type TaskNotificationItem = {
+export type TaskNotificationItem = {
   id: string
   event_type: 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
   task_id?: string
@@ -862,8 +861,10 @@ export function AutoTaskSystemPanel() {
   const runningTasks = poolBoard.filter((item) => ['doing', 'running'].includes(item.status))
   const queuedTasks = poolBoard.filter((item) => ['todo', 'queued', 'queue', 'pending', 'preparing'].includes(item.status))
   const blockedTasks = queuedTasks.filter((item) => (item.blocked_by?.length ?? 0) > 0)
+  const blockedPoolTasks = poolBoard.filter((item) => item.status === 'blocked' || (item.blocked_by?.length ?? 0) > 0 || item.predicted_block)
   const pausedTasks = poolBoard.filter((item) => ['paused', 'pause'].includes(item.status))
   const doneTasks = poolBoard.filter((item) => ['success', 'done', 'cancelled', 'failed'].includes(item.status))
+  const needHumanPoolTasks = poolBoard.filter((item) => item.need_human)
   const failedTasks = sortedBoard.filter((item) => item.status === 'failed')
   const abnormalTasks = sortedBoard.filter((item) => item.abnormal || item.attention)
   const stuckTasks = sortedBoard.filter((item) => item.stuck)
@@ -1407,641 +1408,97 @@ export function AutoTaskSystemPanel() {
       <div className="scheduler-hub-layout">
         <div className="scheduler-hub-main">
           {activeView === 'operations' ? (
-            <>
-              <section className="scheduler-overview-card">
-                <div className="scheduler-section-title">主任务 / 场景任务组进度</div>
-                {parentTaskViews.length ? (
-                  <div className="scheduler-parent-task-list">
-                    {parentTaskViews.slice(0, 6).map((parent) => (
-                      <article className="scheduler-parent-task-card" key={parent.id}>
-                        <div className="scheduler-parent-task-top">
-                          <strong>{parent.title}</strong>
-                          <span>{parent.template}</span>
-                        </div>
-                        <div className="scheduler-parent-task-meta">
-                          <span>子任务 {parent.childCount}</span>
-                          <span>进度 {parent.progress}%</span>
-                          <span>阻塞点 {parent.blockedPoint}</span>
-                        </div>
-                        <div className="scheduler-parent-task-domains">
-                          {parent.domains.map((domain) => (
-                            <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{domain}</span>
-                          ))}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                ) : <div className="auto-task-empty">暂无主任务进度</div>}
-                {taskGroups.length ? (
-                  <div className="scheduler-task-groups">
-                    {taskGroups.slice(0, 6).map((group) => (
-                      <div className="scheduler-task-group-chip" key={group.id}>
-                        <strong>{group.label}</strong>
-                        <span>{group.template} · {group.count} tasks · {group.domain} / {group.projectLine}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </section>
-
-              <section className="scheduler-overview-card">
-                <div className="scheduler-section-title">运营摘要</div>
-                <div className="scheduler-overview-grid scheduler-overview-grid-ops">
-                  <div className="scheduler-overview-metric"><span>今日 auto_generated</span><strong>{todayAutoGeneratedTasks.length}</strong></div>
-                  <div className="scheduler-overview-metric is-warning"><span>predicted_risk</span><strong>{riskSummary.predictedHigh}</strong></div>
-                  <div className="scheduler-overview-metric is-warning"><span>need_human</span><strong>{riskSummary.needHuman}</strong></div>
-                  <div className="scheduler-overview-metric is-failed"><span>blocked</span><strong>{riskSummary.blocked}</strong></div>
-                  <div className="scheduler-overview-metric is-warning"><span>external_blocked</span><strong>{riskSummary.externalBlocked}</strong></div>
-                  <div className="scheduler-overview-metric"><span>lead_transferred</span><strong>{riskSummary.leadTransferred}</strong></div>
-                  <div className="scheduler-overview-metric is-concurrency"><span>同步状态</span><strong>{loading ? '刷新中' : '已同步'}</strong></div>
-                </div>
-                <div className="scheduler-summary-grid">
-                  <div className="scheduler-decisions-card">
-                    <div className="scheduler-section-title">各 domain 负载摘要</div>
-                    <div className="scheduler-decision-list">
-                      {domainLoadSummary.length ? domainLoadSummary.map((entry) => (
-                        <article className="scheduler-decision-item" key={entry.domain}>
-                          <div className="scheduler-decision-top"><strong>{entry.domain}</strong><span>{entry.total} tasks</span></div>
-                          <p>running {entry.running} · queued {entry.queued}</p>
-                          <small>blocked {entry.blocked} · need_human {entry.needHuman}</small>
-                        </article>
-                      )) : <div className="auto-task-empty">暂无 domain 负载数据</div>}
-                    </div>
-                  </div>
-                  <section className="scheduler-decisions-card scheduler-pending-human-card">
-                    <div className="scheduler-section-title">待人工处理摘要</div>
-                    <div className="scheduler-decision-list">
-                      {humanPendingTasks.length ? humanPendingTasks.slice(0, 8).map((item, index) => {
-                        const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
-                        return (
-                          <article className="scheduler-decision-item scheduler-human-item" key={`${item.task_name}-ops-human-${index}`}>
-                            <div className="scheduler-decision-top"><strong>{item.task_name}</strong><span>{item.domain ?? '-'}</span></div>
-                            <p>{latestDecision?.reason ?? 'need_human'}</p>
-                            <small>{item.human_owner ?? '-'} · {latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
-                          </article>
-                        )
-                      }) : <div className="auto-task-empty">暂无待人工处理任务</div>}
-                    </div>
-                  </section>
-                </div>
-                <div className="scheduler-summary-grid">
-                  <section className="scheduler-decisions-card">
-                    <div className="scheduler-section-title">顾问负载 / 转化率</div>
-                    <div className="scheduler-decision-list">
-                      {consultantSummary.length ? consultantSummary.map((entry) => (
-                        <article className="scheduler-decision-item" key={entry.consultantId}>
-                          <div className="scheduler-decision-top"><strong>{entry.owner}</strong><span>{entry.consultantId}</span></div>
-                          <p>active_load {entry.activeLoad} · total {entry.total}</p>
-                          <small>conversion_rate {entry.conversionRate}%</small>
-                        </article>
-                      )) : <div className="auto-task-empty">暂无顾问负载数据</div>}
-                    </div>
-                  </section>
-                  <section className="scheduler-decisions-card">
-                    <div className="scheduler-section-title">改派记录</div>
-                    <div className="scheduler-decision-list">
-                      {reassignmentRecords.length ? reassignmentRecords.map((item) => (
-                        <article className="scheduler-decision-item" key={`${item.lead_id}-${item.reassigned_at}`}>
-                          <div className="scheduler-decision-top"><strong>{item.task_name}</strong><span>{item.reassigned_at ?? '-'}</span></div>
-                          <p>{item.consultant_id ?? '-'} → {item.reassigned_to ?? '-'}</p>
-                          <small>{item.reassigned_reason ?? '-'}</small>
-                        </article>
-                      )) : <div className="auto-task-empty">暂无改派记录</div>}
-                    </div>
-                  </section>
-                </div>
-              </section>
-            </>
+            <AutoTaskOperationsView
+              parentTaskViews={parentTaskViews}
+              taskGroups={taskGroups}
+              todayAutoGeneratedCount={todayAutoGeneratedTasks.length}
+              riskSummary={riskSummary}
+              loading={loading}
+              domainLoadSummary={domainLoadSummary}
+              humanPendingTasks={humanPendingTasks}
+              consultantSummary={consultantSummary}
+              reassignmentRecords={reassignmentRecords}
+            />
           ) : null}
 
           {activeView === 'execution' ? (
-            <>
-              <section className="scheduler-overview-card">
-                <div className="scheduler-section-title">当前实例池任务</div>
-                <div className="scheduler-pool-overview">
-                  {poolTabs.map((pool) => (
-                    <button
-                      key={pool.key}
-                      type="button"
-                      className={`scheduler-pool-card ${normalizedActivePool === pool.key ? 'is-active' : ''} is-${pool.health}`}
-                      onClick={() => setActivePool(pool.key)}
-                    >
-                      <div className="scheduler-pool-card-top"><strong>{pool.label}</strong><span>{pool.health}</span></div>
-                      <div className="scheduler-pool-card-metrics"><span>并发 {pool.running_count}/{pool.max_concurrency}</span><span>queue {pool.queue_count}</span></div>
-                    </button>
-                  ))}
-                </div>
-                <div className="scheduler-overview-grid">
-                  <div className="scheduler-overview-metric is-concurrency"><span>running</span><strong>{executionStatusSummary.running}</strong></div>
-                  <div className="scheduler-overview-metric"><span>queued</span><strong>{executionStatusSummary.queued}</strong></div>
-                  <div className="scheduler-overview-metric is-failed"><span>blocked</span><strong>{executionStatusSummary.blocked}</strong></div>
-                  <div className="scheduler-overview-metric is-warning"><span>need_human</span><strong>{executionStatusSummary.needHuman}</strong></div>
-                  <div className="scheduler-overview-metric"><span>pool</span><strong>{normalizedActivePool}</strong></div>
-                </div>
-              </section>
-
-              <section className="scheduler-queue-card">
-                <div className="scheduler-section-title">调度队列 · {normalizedActivePool}</div>
-                <div className="scheduler-queue-grid">
-                  <div className="scheduler-lane">
-                    <div className="scheduler-lane-head"><h4>Running</h4><span>{runningTasks.length}</span></div>
-                    <div className="scheduler-lane-list">{runningTasks.length ? runningTasks.map((item, index) => renderTaskCard(item, 'running', index)) : <div className="auto-task-empty">暂无 Running 任务</div>}</div>
-                  </div>
-                  <div className="scheduler-lane">
-                    <div className="scheduler-lane-head"><h4>Queued</h4><span>{queuedTasks.length}</span></div>
-                    <div className="scheduler-lane-list">{queuedTasks.length ? queuedTasks.map((item, index) => renderTaskCard(item, 'queue', index)) : <div className="auto-task-empty">暂无 Queued 任务</div>}</div>
-                  </div>
-                  <div className="scheduler-lane">
-                    <div className="scheduler-lane-head"><h4>Blocked</h4><span>{executionStatusSummary.blocked}</span></div>
-                    <div className="scheduler-lane-list">{poolBoard.filter((item) => item.status === 'blocked' || (item.blocked_by?.length ?? 0) > 0 || item.predicted_block).length ? poolBoard.filter((item) => item.status === 'blocked' || (item.blocked_by?.length ?? 0) > 0 || item.predicted_block).map((item, index) => renderTaskCard(item, 'paused', index)) : <div className="auto-task-empty">暂无 Blocked 任务</div>}</div>
-                  </div>
-                  <div className="scheduler-lane">
-                    <div className="scheduler-lane-head"><h4>Need Human</h4><span>{executionStatusSummary.needHuman}</span></div>
-                    <div className="scheduler-lane-list">{poolBoard.filter((item) => item.need_human).length ? poolBoard.filter((item) => item.need_human).map((item, index) => renderTaskCard(item, 'done', index)) : <div className="auto-task-empty">暂无 Need Human 任务</div>}</div>
-                  </div>
-                </div>
-              </section>
-
-              <div className="scheduler-summary-grid">
-                <section className="scheduler-decisions-card">
-                  <div className="scheduler-section-title">最近决策</div>
-                  <div className="scheduler-decision-list">
-                    {recentDecisions.length ? recentDecisions.map((decision, index) => (
-                      <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
-                        <div className="scheduler-decision-top"><strong>{decision.decision}</strong><span>{decision.timestamp}</span></div>
-                        <p>{decision.taskName} · {decision.agent}</p>
-                        <small>{decision.reason} · {decision.detail}</small>
-                      </article>
-                    )) : <div className="auto-task-empty">暂无自动决策记录</div>}
-                  </div>
-                </section>
-                <section className="scheduler-alert-card">
-                  <div className="scheduler-section-title">当前执行结果</div>
-                  <div className="scheduler-alert-group">
-                    {recentResults.length ? recentResults.map((entry, index) => (
-                      <div className="scheduler-result-item" key={`${entry.task_name}-execution-${index}`}>
-                        <strong>{entry.task_name}</strong>
-                        <p>{entry.result.content}</p>
-                        <small>{entry.updated_at ?? '-'}</small>
-                      </div>
-                    )) : <div className="auto-task-empty">暂无结果</div>}
-                  </div>
-                </section>
-              </div>
-
-              <div className="scheduler-summary-grid scheduler-centers-grid">
-                <section className="scheduler-alert-card">
-                  <div className="scheduler-section-title">发布中心</div>
-                  <div className="scheduler-alert-group">
-                    {publishSourceGroups.length ? publishSourceGroups.map(([sourceKey, entries], groupIndex) => (
-                      <section className="scheduler-archive-group" key={`${sourceKey}-${groupIndex}`}>
-                        <div className="scheduler-archive-group-head">
-                          <strong>{sourceKey}</strong>
-                          <span>{entries.length} 个版本</span>
-                        </div>
-                        <div className="scheduler-alert-group">
-                    {entries.map((entry, index) => (
-                      (() => {
-                        const recommendedTemplates = getRecommendedTemplates(templatePool, entry.domain, entry.assetType)
-                        return (
-                      <article className="scheduler-result-item scheduler-center-card" key={`${entry.taskName}-publish-${index}`}>
-                        <div className="scheduler-center-card-top">
-                          <strong>{entry.taskName}</strong>
-                          <span>{entry.domain} · {entry.assetType} · {entry.contentVariant || '-'}</span>
-                        </div>
-                        <div className="scheduler-publish-grid">
-                          <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
-                          <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
-                          <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
-                          <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
-                          <div><span>tier</span><p>{entry.tier || '-'}</p></div>
-                          <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
-                          <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
-                          <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
-                          <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
-                          <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
-                          <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
-                          <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
-                          <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
-                          <div><span>structure_id</span><p>{entry.result.structure_id || '-'}</p></div>
-                          <div><span>CTA policy</span><p>{entry.result.cta_policy || '-'}</p></div>
-                          <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
-                          <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
-                          <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
-                          <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
-                          <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
-                          <div><span>推荐发布时间</span><p>{entry.result.recommend_publish_time || '-'}</p></div>
-                          <div><span>发布频率</span><p>{entry.result.recommend_frequency || '-'}</p></div>
-                          <div><span>今日建议发</span><p>{typeof entry.result.publish_today === 'boolean' ? (entry.result.publish_today ? 'true' : 'false') : '-'}</p></div>
-                          <div><span>建议标题</span><p>{entry.result.suggested_title || entry.result.title || '-'}</p></div>
-                          <div><span>首评建议</span><p>{entry.result.suggested_first_comment || '-'}</p></div>
-                          <div><span>互动问题</span><p>{entry.result.suggested_interaction_question || '-'}</p></div>
-                          <div><span>风控提示</span><p>{entry.result.publish_risk_warning?.join(' / ') || '无'}</p></div>
-                        </div>
-                        {entry.assetType === 'media' ? (
-                          <div className="scheduler-publish-grid">
-                            <div><span>title</span><p>{entry.result.title || '-'}</p></div>
-                            <div><span>hook</span><p>{entry.result.hook || '-'}</p></div>
-                            <div><span>outline</span><p>{entry.result.outline?.join(' / ') || '-'}</p></div>
-                            <div><span>script</span><p>{entry.result.script || '-'}</p></div>
-                            <div><span>publish_text</span><p>{entry.result.publish_text || '-'}</p></div>
-                          </div>
-                        ) : null}
-                        {entry.contentVariant === 'article' ? (
-                          <div className="scheduler-publish-grid">
-                            <div><span>structure</span><p>{entry.result.structure?.join(' / ') || entry.result.outline?.join(' / ') || '-'}</p></div>
-                            <div><span>section_map</span><p>{Object.entries(entry.result.section_map || {}).map(([key, value]) => `${key}: ${value}`).join(' / ') || '-'}</p></div>
-                            <div><span>full_article</span><p>{entry.result.full_article || entry.result.script || '-'}</p></div>
-                          </div>
-                        ) : null}
-                        {entry.assetType === 'business' ? (
-                          <div className="scheduler-publish-grid">
-                            <div><span>摘要</span><p>{entry.result.content || entry.result.title || '-'}</p></div>
-                            <div><span>跟进建议</span><p>{entry.result.publish_text || entry.result.hook || '-'}</p></div>
-                          </div>
-                        ) : null}
-                        {entry.assetType === 'family' ? (
-                          <div className="scheduler-publish-grid">
-                            <div><span>学习计划</span><p>{entry.result.outline?.join(' / ') || entry.result.content || '-'}</p></div>
-                            <div><span>提醒文案</span><p>{entry.result.publish_text || entry.result.hook || '-'}</p></div>
-                          </div>
-                        ) : null}
-                        {entry.assetType === 'generic' ? (
-                          <div className="scheduler-publish-grid">
-                            <div><span>摘要</span><p>{entry.result.content || '-'}</p></div>
-                          </div>
-                        ) : null}
-                        <div className="scheduler-center-actions">
-                          <button className="auto-task-row-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(entry.result.publish_text || entry.result.content || '') }}>
-                            复制可发布内容
-                          </button>
-                          <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(entry.taskName, 'mark_manual_published')}>
-                            {controlLoadingTask === `${entry.taskName}:mark_manual_published` ? '记录中...' : '人工已发布'}
-                          </button>
-                          <small>{entry.updatedAt ?? '-'}</small>
-                        </div>
-                        {entry.result.manual_published_at ? <small>已由 {entry.result.manual_published_by || '-'} 于 {entry.result.manual_published_at} 记录人工发布</small> : null}
-                        <div className="scheduler-template-recommendations">
-                          <span>推荐相似模板</span>
-                          {recommendedTemplates.length ? recommendedTemplates.map((template) => (
-                            <div className="scheduler-template-rec-item" key={template.template_id}>
-                              <strong>{template.source_task_name ?? template.template_id}</strong>
-                              <small>use_count {template.use_count}</small>
-                            </div>
-                          )) : <small>暂无</small>}
-                        </div>
-                      </article>
-                        )
-                      })()
-                    ))}
-                        </div>
-                      </section>
-                    )) : <div className="auto-task-empty">暂无可发布结果</div>}
-                  </div>
-                </section>
-
-                <section className="scheduler-alert-card">
-                  <div className="scheduler-section-title">结果沉淀中心</div>
-                  <div className="scheduler-task-groups">
-                    {archiveContentLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`content-${line}`}><strong>content_line</strong><span>{line} · {entries.length} 条</span></div>)}
-                    {archiveAccountLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`account-${line}`}><strong>account_display</strong><span>{entries[0]?.accountDisplay || line} · {entries.length} 条</span></div>)}
-                  </div>
-                  <div className="scheduler-task-groups">
-                    {archiveStructureGroups.map((entry) => (
-                      <div className="scheduler-task-group-chip" key={`structure-${entry.structureId}`}>
-                        <strong>structure_id</strong>
-                        <span>{entry.structureId} · use_count {entry.count} · top_account {entry.topAccount?.[0] || '-'} ({entry.topAccount?.[1] || 0})</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="scheduler-archive-groups">
-                    {archiveDomainGroups.length ? archiveDomainGroups.map(([domain, entries]) => (
-                      <section className="scheduler-archive-group" key={domain}>
-                        <div className="scheduler-archive-group-head">
-                          <strong>{domain}</strong>
-                          <span>{entries.length} 条</span>
-                        </div>
-                        <div className="scheduler-alert-group">
-                          {entries.map((entry, index) => (
-                            (() => {
-                              const recommendedTemplates = getRecommendedTemplates(templatePool, domain, entry.assetType)
-                              return (
-                            <article className="scheduler-result-item scheduler-center-card" key={`${entry.taskName}-archive-${index}`}>
-                              <div className="scheduler-center-card-top">
-                                <strong>{entry.taskName}</strong>
-                                <span>{entry.assetType} · {entry.contentVariant || '-'}</span>
-                              </div>
-                              <div className="scheduler-publish-grid">
-                                <div><span>brand_display</span><p>{entry.brandDisplay || entry.brandLine || '-'}</p></div>
-                                <div><span>mcn_display</span><p>{entry.mcnDisplay || '-'}</p></div>
-                                <div><span>account_display</span><p>{entry.accountDisplay || entry.accountLine || '-'}</p></div>
-                                <div><span>account_type</span><p>{entry.accountType || '-'}</p></div>
-                                <div><span>tier</span><p>{entry.tier || '-'}</p></div>
-                                <div><span>route_result</span><p>{entry.routeResult || '-'}</p></div>
-                                <div><span>route_target</span><p>{entry.routeTarget || '-'}</p></div>
-                                <div><span>can_close_deal</span><p>{typeof entry.canCloseDeal === 'boolean' ? String(entry.canCloseDeal) : '-'}</p></div>
-                                <div><span>distribution_channel</span><p>{entry.distributionChannel || '-'}</p></div>
-                                <div><span>content_variant</span><p>{entry.contentVariant || '-'}</p></div>
-                                <div><span>source_line</span><p>{entry.sourceLine || '-'}</p></div>
-                                <div><span>persona</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
-                                <div><span>structure_type</span><p>{entry.result.structure_type || '-'}</p></div>
-                                <div><span>structure_id</span><p>{entry.result.structure_id || '-'}</p></div>
-                                <div><span>CTA policy</span><p>{entry.result.cta_policy || '-'}</p></div>
-                                <div><span>骨架摘要</span><p>{entry.result.structure_summary || Object.keys(entry.result.section_map || {}).join(' / ') || '-'}</p></div>
-                                <div><span>source_type</span><p>{entry.source?.source_type || '-'}</p></div>
-                                <div><span>source_project</span><p>{entry.source?.source_project || '-'}</p></div>
-                                <div><span>role_version</span><p>{entry.roleVersion || '-'}</p></div>
-                                <div><span>章节标题</span><p>{entry.source?.chapter_title || '-'}</p></div>
-                              </div>
-                              <p>{entry.result.content || entry.result.publish_text || '-'}</p>
-                              <div className="scheduler-center-actions">
-                                <button className="auto-task-row-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(JSON.stringify(entry.result, null, 2)) }}>
-                                  复制
-                                </button>
-                                <button className="auto-task-row-btn" type="button" onClick={() => markTemplateSource(entry.taskName)}>
-                                  {controlLoadingTask === `${entry.taskName}:mark_template_source` ? '标记中...' : '标记为模板来源'}
-                                </button>
-                                <small>{entry.updatedAt ?? '-'}</small>
-                              </div>
-                              <div className="scheduler-template-recommendations">
-                                <span>推荐相似模板</span>
-                                {recommendedTemplates.length ? recommendedTemplates.map((template) => (
-                                  <div className="scheduler-template-rec-item" key={template.template_id}>
-                                    <strong>{template.source_task_name ?? template.template_id}</strong>
-                                    <small>use_count {template.use_count}</small>
-                                  </div>
-                                )) : <small>暂无</small>}
-                              </div>
-                            </article>
-                              )
-                            })()
-                          ))}
-                        </div>
-                      </section>
-                    )) : <div className="auto-task-empty">暂无可沉淀结果</div>}
-                  </div>
-                </section>
-              </div>
-            </>
+            <AutoTaskExecutionView
+              poolTabs={poolTabs}
+              normalizedActivePool={normalizedActivePool}
+              onSelectPool={setActivePool}
+              executionStatusSummary={executionStatusSummary}
+              runningTasks={runningTasks}
+              queuedTasks={queuedTasks}
+              blockedPoolTasks={blockedPoolTasks}
+              needHumanPoolTasks={needHumanPoolTasks}
+              renderTaskCard={renderTaskCard}
+              recentDecisions={recentDecisions}
+              recentResults={recentResults}
+              publishSourceGroups={publishSourceGroups}
+              templatePool={templatePool}
+              controlLoadingTask={controlLoadingTask}
+              onManualControlTask={manualControlTask}
+              archiveContentLineGroups={archiveContentLineGroups}
+              archiveAccountLineGroups={archiveAccountLineGroups}
+              archiveStructureGroups={archiveStructureGroups}
+              archiveDomainGroups={archiveDomainGroups}
+              onMarkTemplateSource={markTemplateSource}
+            />
           ) : null}
 
           {activeView === 'routing' ? (
-            <>
-              <section className="scheduler-overview-card">
-                <div className="scheduler-section-title">内容归属决策表</div>
-                <div className="scheduler-routing-table-wrap">
-                  <table className="scheduler-routing-table">
-                    <thead>
-                      <tr>
-                        <th>content_line</th>
-                        <th>brand_line</th>
-                        <th>account_line</th>
-                        <th>account_type</th>
-                        <th>tier</th>
-                        <th>can_close_deal</th>
-                        <th>route_target</th>
-                        <th>tasks</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {routingDecisionTable.map((row) => (
-                        <tr key={row.key}>
-                          <td>{row.content_line}</td>
-                          <td>{row.brand_line}</td>
-                          <td>{row.account_line}</td>
-                          <td>{row.account_type}</td>
-                          <td>{row.tier}</td>
-                          <td>{row.can_close_deal}</td>
-                          <td>{row.route_target}</td>
-                          <td>{row.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section className="scheduler-queue-card">
-                <div className="scheduler-section-title">任务路由可视化</div>
-                <div className="scheduler-route-card-list">
-                  {routeFocusedTasks.length ? routeFocusedTasks.map((item, index) => renderTaskCard(item, item.route_result === 'blocked' ? 'paused' : item.route_result === 'transfer' ? 'done' : 'queue', index)) : <div className="auto-task-empty">暂无路由数据</div>}
-                </div>
-              </section>
-            </>
-          ) : null}
-
-          {activeView === 'debug' && currentProfile ? (
-            <section className="scheduler-overview-card">
-              <div className="scheduler-section-title">用户画像卡片</div>
-              <div className="scheduler-task-result-content">
-                <div><span>user_id</span><strong>{currentProfile.user_id}</strong></div>
-                <div><span>tags</span><strong>{currentProfile.tags.join(' / ') || '-'}</strong></div>
-                <div><span>preferences</span><pre>{JSON.stringify(currentProfile.preferences, null, 2)}</pre></div>
-                <div><span>behavior_patterns</span><pre>{JSON.stringify(currentProfile.behavior_patterns, null, 2)}</pre></div>
-              </div>
-            </section>
+            <AutoTaskRoutingView
+              routingDecisionTable={routingDecisionTable}
+              routeFocusedTasks={routeFocusedTasks}
+              renderTaskCard={renderTaskCard}
+            />
           ) : null}
 
           {activeView === 'debug' ? (
-          <>
-          <section className="scheduler-overview-card">
-            <div className="scheduler-section-title">调度概览</div>
-            {parentTaskViews.length ? (
-              <div className="scheduler-parent-task-list">
-                {parentTaskViews.slice(0, 6).map((parent) => (
-                  <article className="scheduler-parent-task-card" key={parent.id}>
-                    <div className="scheduler-parent-task-top">
-                      <strong>{parent.title}</strong>
-                      <span>{parent.template}</span>
-                    </div>
-                    <div className="scheduler-parent-task-meta">
-                      <span>子任务 {parent.childCount}</span>
-                      <span>进度 {parent.progress}%</span>
-                      <span>blocked {parent.blockedPoint}</span>
-                    </div>
-                    <div className="scheduler-parent-task-domains">
-                      {parent.domains.map((domain) => (
-                        <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{domain}</span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-            {taskGroups.length ? (
-              <div className="scheduler-task-groups">
-                {taskGroups.slice(0, 6).map((group) => (
-                  <div className="scheduler-task-group-chip" key={group.id}>
-                    <strong>{group.label}</strong>
-                    <span>{group.template} · {group.count} tasks · {group.domain} / {group.projectLine}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="scheduler-pool-overview">
-              {poolTabs.map((pool) => (
-                <button
-                  key={pool.key}
-                  type="button"
-                  className={`scheduler-pool-card ${normalizedActivePool === pool.key ? 'is-active' : ''} is-${pool.health}`}
-                  onClick={() => setActivePool(pool.key)}
-                >
-                  <div className="scheduler-pool-card-top">
-                    <strong>{pool.label}</strong>
-                    <span>{pool.health}</span>
-                  </div>
-                  <div className="scheduler-pool-card-metrics">
-                    <span>并发 {pool.running_count}/{pool.max_concurrency}</span>
-                    <span>queue {pool.queue_count}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="scheduler-overview-grid">
-              <div className="scheduler-overview-metric is-concurrency"><span>并发数</span><strong>{currentConcurrency}/{maxConcurrency}</strong></div>
-              <div className="scheduler-overview-metric"><span>running_count</span><strong>{runningCount}</strong></div>
-              <div className="scheduler-overview-metric"><span>queue_count</span><strong>{queueCount}</strong></div>
-              <div className="scheduler-overview-metric is-warning"><span>blocked_count</span><strong>{blockedTasks.length}</strong></div>
-              <div className="scheduler-overview-metric is-failed"><span>failed_count</span><strong>{failedCount}</strong></div>
-              <div className="scheduler-overview-metric is-warning"><span>abnormal_count</span><strong>{abnormalCount}</strong></div>
-            </div>
-            <div className="scheduler-sync-line">{loading ? '调度状态: 刷新中' : '调度状态: 已同步'}</div>
-          </section>
-
-          <section className="scheduler-queue-card">
-            <div className="scheduler-section-title">调度队列 · {normalizedActivePool}</div>
-            <div className="scheduler-queue-grid">
-              <div className="scheduler-lane">
-                <div className="scheduler-lane-head"><h4>Running</h4><span>{runningTasks.length}</span></div>
-                <div className="scheduler-lane-list">{runningTasks.length ? runningTasks.map((item, index) => renderTaskCard(item, 'running', index)) : <div className="auto-task-empty">暂无 Running 任务</div>}</div>
-              </div>
-              <div className="scheduler-lane">
-                <div className="scheduler-lane-head"><h4>Queue</h4><span>{queuedTasks.length}</span></div>
-                <div className="scheduler-lane-list">{queuedTasks.length ? queuedTasks.map((item, index) => renderTaskCard(item, 'queue', index)) : <div className="auto-task-empty">暂无 Queue 任务</div>}</div>
-              </div>
-              <div className="scheduler-lane">
-                <div className="scheduler-lane-head"><h4>Paused</h4><span>{pausedTasks.length}</span></div>
-                <div className="scheduler-lane-list">{pausedTasks.length ? pausedTasks.map((item, index) => renderTaskCard(item, 'paused', index)) : <div className="auto-task-empty">暂无 Paused 任务</div>}</div>
-              </div>
-              <div className="scheduler-lane">
-                <div className="scheduler-lane-head"><h4>Done</h4><span>{doneTasks.length}</span></div>
-                <div className="scheduler-lane-list">{doneTasks.length ? doneTasks.map((item, index) => renderTaskCard(item, 'done', index)) : <div className="auto-task-empty">暂无 Done 任务</div>}</div>
-              </div>
-            </div>
-          </section>
-
-          <section className="scheduler-decisions-card">
-            <div className="scheduler-section-title">最近决策</div>
-            <div className="scheduler-decision-list">
-              {recentDecisions.length ? recentDecisions.map((decision, index) => (
-                <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
-                  <div className="scheduler-decision-top">
-                    <strong>{decision.decision}</strong>
-                    <span>{decision.timestamp}</span>
-                  </div>
-                  <p>{decision.taskName} · {decision.agent}</p>
-                  <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · retry_count ${decision.retryCount}` : ''}</small>
-                </article>
-              )) : <div className="auto-task-empty">暂无自动决策记录</div>}
-            </div>
-          </section>
-
-          <section className="scheduler-decisions-card scheduler-pending-human-card">
-            <div className="scheduler-section-title">待人工处理</div>
-            <div className="scheduler-decision-list">
-              {humanPendingTasks.length ? humanPendingTasks.map((item, index) => {
-                const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
-                return (
-                  <article className="scheduler-decision-item scheduler-human-item" key={`${item.task_name}-human-${index}`}>
-                    <div className="scheduler-decision-top">
-                      <strong>{item.task_name}</strong>
-                      <span>{item.domain ?? '-'}</span>
-                    </div>
-                    <p>reason: {latestDecision?.reason ?? 'need_human'}</p>
-                    <small>human_owner: {item.human_owner ?? '-'} · latest decision: {latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
-                    <div className="auto-task-actions scheduler-human-actions">
-                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'manual_done')} disabled={running || !!autoRetryState || !!controlLoadingTask}>已处理</button>
-                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'manual_continue')} disabled={running || !!autoRetryState || !!controlLoadingTask}>继续执行</button>
-                      <button className="auto-task-row-btn" type="button" onClick={() => manualControlTask(item.task_name, 'assign')} disabled={running || !!autoRetryState || !!controlLoadingTask}>转人工</button>
-                    </div>
-                  </article>
-                )
-              }) : <div className="auto-task-empty">暂无待人工处理任务</div>}
-            </div>
-          </section>
-          </>
+            <>
+              <AutoTaskDebugProfileCard currentProfile={currentProfile} />
+              <AutoTaskDebugMainView
+                parentTaskViews={parentTaskViews}
+                taskGroups={taskGroups}
+                poolTabs={poolTabs}
+                normalizedActivePool={normalizedActivePool}
+                onSelectPool={setActivePool}
+                currentConcurrency={currentConcurrency}
+                maxConcurrency={maxConcurrency}
+                runningCount={runningCount}
+                queueCount={queueCount}
+                blockedCount={blockedTasks.length}
+                failedCount={failedCount}
+                abnormalCount={abnormalCount}
+                loading={loading}
+                runningTasks={runningTasks}
+                queuedTasks={queuedTasks}
+                pausedTasks={pausedTasks}
+                doneTasks={doneTasks}
+                renderTaskCard={renderTaskCard}
+                recentDecisions={recentDecisions}
+                humanPendingTasks={humanPendingTasks}
+                onManualControlTask={manualControlTask}
+                controlsDisabled={running || !!autoRetryState || !!controlLoadingTask}
+              />
+            </>
           ) : null}
         </div>
 
         {activeView === 'debug' ? (
-        <aside className="scheduler-alert-card">
-          <div className="scheduler-section-title">群通知回执</div>
-          <div className="scheduler-notice-tabs" role="tablist" aria-label="群通知域名切换">
-            {notificationTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                className={`scheduler-notice-tab ${activeNoticeDomain === tab.key ? 'is-active' : ''}`}
-                onClick={() => setActiveNoticeDomain(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="scheduler-alert-group">
-            {visibleNotifications.length ? visibleNotifications.map((notice) => (
-              <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
-                <strong>{notice.target_group}</strong>
-                <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\ntask_id：${notice.task_id ?? '-'}\ntask_name：${notice.task_name}\ndomain：${notice.domain}\nassigned_agent：${notice.assigned_agent}\n状态：${notice.status}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
-                {notice.event_type === 'task_need_human' ? (
-                  <div className="auto-task-actions scheduler-human-actions">
-                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'done')} disabled={running || !!autoRetryState || !!controlLoadingTask}>已处理</button>
-                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'continue')} disabled={running || !!autoRetryState || !!controlLoadingTask}>继续执行</button>
-                    <button className="auto-task-row-btn" type="button" onClick={() => groupNotificationAction(notice, 'transfer')} disabled={running || !!autoRetryState || !!controlLoadingTask}>转人工</button>
-                  </div>
-                ) : null}
-                <small>{notice.task_id ?? '-'} · {notice.project_line ?? '-'} · {notice.notify_mode ?? '-'} · {notice.target_group_id ?? '-'} · {notice.delivery} · {notice.created_at}</small>
-              </div>
-            )) : <div className="auto-task-empty">暂无通知回执</div>}
-          </div>
-          <div className="scheduler-section-title">最近结果</div>
-          <div className="scheduler-alert-group">
-            {recentResults.length ? recentResults.map((entry, index) => (
-              <div className="scheduler-result-item" key={`${entry.task_name}-${index}`}>
-                <strong>{entry.task_name}</strong>
-                <p>{entry.result.content}</p>
-                <small>{entry.updated_at ?? '-'}</small>
-              </div>
-            )) : <div className="auto-task-empty">暂无结果</div>}
-          </div>
-          <div className="scheduler-section-title">系统告警</div>
-          <div className="scheduler-alert-group">
-            <h4>连续失败任务</h4>
-            {continuousFailedTasks.length ? continuousFailedTasks.map((item, index) => (
-              <div className="scheduler-alert-item is-critical" key={`failed-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
-            )) : <div className="auto-task-empty">暂无连续失败任务</div>}
-          </div>
-          <div className="scheduler-alert-group">
-            <h4>stuck 任务</h4>
-            {stuckTasks.length ? stuckTasks.map((item, index) => (
-              <div className="scheduler-alert-item is-warning" key={`stuck-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
-            )) : <div className="auto-task-empty">暂无 stuck 任务</div>}
-          </div>
-          <div className="scheduler-alert-group">
-            <h4>异常任务</h4>
-            {abnormalTasks.length ? abnormalTasks.map((item, index) => (
-              <div className="scheduler-alert-item is-abnormal" key={`abnormal-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
-            )) : <div className="auto-task-empty">暂无 abnormal / attention 任务</div>}
-          </div>
-          {(data?.system_alerts?.length ?? 0) > 0 ? (
-            <div className="scheduler-alert-group">
-              <h4>系统级告警</h4>
-              {data?.system_alerts?.map((alert, index) => (
-                <div className={`scheduler-alert-item is-${alert.level}`} key={`sys-alert-${index}`}>{alert.task_name || '-'} · {alert.agent || '-'} · {alert.reason}</div>
-              ))}
-            </div>
-          ) : null}
-        </aside>
+          <AutoTaskDebugSidebar
+            notificationTabs={notificationTabs}
+            activeNoticeDomain={activeNoticeDomain}
+            onSelectNoticeDomain={setActiveNoticeDomain}
+            visibleNotifications={visibleNotifications}
+            controlsDisabled={running || !!autoRetryState || !!controlLoadingTask}
+            onGroupNotificationAction={groupNotificationAction}
+            recentResults={recentResults}
+            continuousFailedTasks={continuousFailedTasks}
+            stuckTasks={stuckTasks}
+            abnormalTasks={abnormalTasks}
+            systemAlerts={data?.system_alerts ?? []}
+          />
         ) : null}
       </div>
 
