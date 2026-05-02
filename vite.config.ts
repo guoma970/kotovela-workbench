@@ -31,7 +31,7 @@ type TaskNotificationRecord = {
   message: string
 }
 
-const PROJECT_ROOT = path.resolve(process.env.OPENCLAW_PROJECT_ROOT ?? process.cwd())
+const PROJECT_ROOT = path.resolve(process.env.PROJECT_ROOT ?? process.env.OPENCLAW_PROJECT_ROOT ?? process.cwd())
 const OPENCLAW_RUNNER_ROOT = path.resolve(
   process.env.OPENCLAW_RUNNER_ROOT ?? path.join(PROJECT_ROOT, 'data', 'openclaw-runner'),
 )

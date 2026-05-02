@@ -20,9 +20,27 @@ const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({
   viewport: { width: 1512, height: 982 },
   deviceScaleFactor: 1.5,
+  colorScheme: 'dark',
 })
 
 const summary = []
+
+for (const scheme of ['dark', 'light']) {
+  await page.emulateMedia({ colorScheme: scheme })
+  await page.goto(new URL('/', baseUrl).toString(), { waitUntil: 'networkidle' })
+  await page.waitForSelector('.main-content', { timeout: 15000 })
+  await page.waitForTimeout(600)
+  const schemeTarget = path.join(outDir, `DEV-SEC-01-05-dashboard-${scheme}.png`)
+  await page.screenshot({ path: schemeTarget, fullPage: true })
+  summary.push({
+    route: '/',
+    file: path.basename(schemeTarget),
+    title: await page.title(),
+    colorScheme: scheme,
+  })
+}
+
+await page.emulateMedia({ colorScheme: 'dark' })
 
 for (const shot of pageShots) {
   await page.goto(new URL(shot.route, baseUrl).toString(), { waitUntil: 'networkidle' })

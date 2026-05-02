@@ -25,3 +25,9 @@ dist-ssr
 .vercel
 .env*.local
 .tmp/
+
+# Local evidence / runtime artifacts (not for public repo release)
+.evidence/
+server/data/audit-log.json
+server/data/*.runtime.json
+public/system-test-results.json

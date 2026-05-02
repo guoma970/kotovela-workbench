@@ -2,6 +2,7 @@ import { exec as execCommand } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { z } from 'zod'
 
 export const OFFICE_TARGET_KEYS = ['main', 'builder', 'media', 'family', 'business', 'personal'] as const
 
@@ -16,8 +17,8 @@ export const OFFICE_ROLE_MAP: Record<string, string> = {
 }
 
 const OFFICE_PROJECT_RELATED_MAP: Record<string, string> = {
-  main: '言町科技工作台研发群',
-  builder: '言町科技工作台研发群',
+  main: 'KOTOVELAHUB研发群',
+  builder: 'KOTOVELAHUB研发群',
   media: '内容创作协同项目',
   family: '家庭事务协同项目',
   business: '业务增长协同项目',
@@ -25,10 +26,11 @@ const OFFICE_PROJECT_RELATED_MAP: Record<string, string> = {
 }
 
 const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
-  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
-  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
-  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
-  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
+  demo_kotovela_hub_research_chat: 'Kotovela Hub Demo 研发群',
+  demo_workbench_legacy_chat: 'Kotovela Workbench Demo 历史群',
+  demo_builder_chat: 'Builder Demo 协作群',
+  demo_family_chat: 'Family Demo 协作群',
+  demo_business_chat: 'Business Demo 协作群',
 }
 
 type SessionItem = {
@@ -65,6 +67,32 @@ type OfficeSnapshotPayload = {
   source?: string
   instances?: ReturnType<typeof buildFallbackSession>[]
 }
+
+const officeSnapshotInstanceSchema = z
+  .object({
+    key: z.enum(OFFICE_TARGET_KEYS),
+    name: z.string(),
+    role: z.string(),
+    status: z.string(),
+    task: z.string(),
+    updatedAt: z.string(),
+    ageMs: z.union([z.number().finite().nonnegative(), z.string()]).optional(),
+    ageText: z.string().optional(),
+    sessionKeyRaw: z.string().optional(),
+    kind: z.string().optional(),
+    model: z.string().optional(),
+    currentTask: z.string().optional(),
+    projectRelated: z.string().optional(),
+  })
+  .strict()
+
+const officeSnapshotPayloadSchema = z
+  .object({
+    generatedAt: z.string().optional(),
+    source: z.string().optional(),
+    instances: z.array(officeSnapshotInstanceSchema).optional(),
+  })
+  .strict()
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url))
 const snapshotPath = path.resolve(serverDir, '../data/office-instances.snapshot.json')
@@ -278,49 +306,95 @@ const commandToOfficeResponse = async (): Promise<ReturnType<typeof buildFallbac
 const readSnapshotPayload = async (): Promise<OfficeSnapshotPayload | null> => {
   try {
     const raw = await readFile(snapshotPath, 'utf8')
-    const parsed = JSON.parse(raw) as OfficeSnapshotPayload
-    return parsed && typeof parsed === 'object' ? parsed : null
+    return officeSnapshotPayloadSchema.parse(JSON.parse(raw)) as OfficeSnapshotPayload
   } catch {
     return null
   }
 }
 
+const snapshotAgeToCurrentMs = (
+  snapshotGeneratedAt: string | undefined,
+  rawAgeMs: unknown,
+  now: number,
+): number | undefined => {
+  const baseAge = toMs(rawAgeMs)
+  if (baseAge === undefined) {
+    return undefined
+  }
+
+  const generatedAtMs = snapshotGeneratedAt ? Date.parse(snapshotGeneratedAt) : Number.NaN
+  if (!Number.isFinite(generatedAtMs)) {
+    return Math.max(0, baseAge)
+  }
+
+  return Math.max(0, now - generatedAtMs + baseAge)
+}
+
 export const fetchOfficeInstancesPayload = async () => {
   const sessions = await commandToOfficeResponse()
-  const snapshot = sessions.length === 0 ? await readSnapshotPayload() : null
+  const snapshot = await readSnapshotPayload()
   const now = Date.now()
-  const sourceItems = sessions.length > 0 ? sessions : Array.isArray(snapshot?.instances) ? snapshot.instances : []
-  const normalized = sourceItems.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
-  const activeKeys =
-    sessions.length > 0
-      ? [...new Set(normalized.map((item) => item.key).filter((k): k is (typeof OFFICE_TARGET_KEYS)[number] => Boolean(k)))]
-      : OFFICE_TARGET_KEYS
+  const liveNormalized = sessions.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
+  const snapshotNormalized = Array.isArray(snapshot?.instances)
+    ? snapshot.instances.filter((item) => OFFICE_TARGET_KEYS.includes(item.key as (typeof OFFICE_TARGET_KEYS)[number]))
+    : []
+  const liveMap = new Map(
+    liveNormalized
+      .filter((item): item is (typeof liveNormalized)[number] & { key: (typeof OFFICE_TARGET_KEYS)[number] } =>
+        Boolean(item.key),
+      )
+      .map((item) => [item.key, item]),
+  )
+  const snapshotMap = new Map(
+    snapshotNormalized
+      .filter((item): item is (typeof snapshotNormalized)[number] & { key: (typeof OFFICE_TARGET_KEYS)[number] } =>
+        Boolean(item.key),
+      )
+      .map((item) => [item.key, item]),
+  )
 
-  const instances = activeKeys.map((key) => {
-    const found = normalized.find((item) => item.key === key)
-    const safeAge = Math.max(0, typeof found?.ageMs === 'number' ? found.ageMs : 0)
+  const instances = OFFICE_TARGET_KEYS.map((key) => {
+    const liveItem = liveMap.get(key)
+    const snapshotItem = snapshotMap.get(key)
+    const fallbackAge = snapshotAgeToCurrentMs(snapshot?.generatedAt, snapshotItem?.ageMs, now)
+    const safeAge = Math.max(0, typeof liveItem?.ageMs === 'number' ? liveItem.ageMs : fallbackAge ?? 8 * 60 * 60 * 1000)
+    const current = liveItem ?? snapshotItem
+    const usingSnapshotFallback = !liveItem && Boolean(snapshotItem)
 
     return {
       key,
-      name: found?.name || `实例 ${key}`,
-      role: found?.role || OFFICE_ROLE_MAP[key],
+      name: current?.name || `实例 ${key}`,
+      role: current?.role || OFFICE_ROLE_MAP[key],
       status: statusByAge(safeAge),
       task: inferTaskSummary({
-        task: found?.task,
-        currentTask: found?.currentTask,
-        sessionKeyRaw: found?.sessionKeyRaw,
-        kind: found?.kind,
-        model: found?.model,
-        ...(found ? {} : { slotKey: key }),
+        task: current?.task,
+        currentTask: current?.currentTask,
+        sessionKeyRaw: current?.sessionKeyRaw,
+        kind: current?.kind,
+        model: current?.model,
+        ...(current ? {} : { slotKey: key }),
       } as SessionItem),
-      updatedAt: found?.ageText || found?.updatedAt || '刚刚',
+      updatedAt:
+        liveItem?.ageText ||
+        liveItem?.updatedAt ||
+        (usingSnapshotFallback
+          ? `snapshot ${snapshot?.generatedAt ? new Date(snapshot.generatedAt).toLocaleString('zh-CN', { hour12: false }) : '已缓存'}`
+          : `超过 ${Math.max(1, Math.round(safeAge / 60000))} 分钟未见会话上报`),
       ageMs: safeAge,
-      ageText: found?.ageText || found?.updatedAt || '刚刚',
-      note:
-        safeAge <= 5 * 60 * 1000
+      ageText:
+        liveItem?.ageText ||
+        liveItem?.updatedAt ||
+        (usingSnapshotFallback
+          ? `snapshot ${snapshot?.generatedAt ? new Date(snapshot.generatedAt).toLocaleString('zh-CN', { hour12: false }) : '已缓存'}`
+          : `超过 ${Math.max(1, Math.round(safeAge / 60000))} 分钟未见会话上报`),
+      note: liveItem
+        ? safeAge <= 5 * 60 * 1000
           ? `最近 ${Math.max(1, Math.round(safeAge / 1000))} 秒有状态上报`
-          : `上次上报于 ${Math.max(1, Math.round(safeAge / 60000))} 分钟前`,
-      projectRelated: found?.projectRelated || OFFICE_PROJECT_RELATED_MAP[key] || 'KOTOVELA 协同项目',
+          : `上次上报于 ${Math.max(1, Math.round(safeAge / 60000))} 分钟前`
+        : usingSnapshotFallback
+          ? `当前缺少 live session，暂用 snapshot(${snapshot?.generatedAt || 'unknown'}) 兜底`
+          : '当前无 live session，也没有可用 snapshot 记录',
+      projectRelated: current?.projectRelated || OFFICE_PROJECT_RELATED_MAP[key] || 'KOTOVELA 协同项目',
     }
   })
 

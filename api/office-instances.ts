@@ -1,5 +1,30 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { z } from 'zod'
 import { fetchOfficeInstancesPayload } from '../server/officeInstances.js'
+
+const officeInstanceSchema = z
+  .object({
+    key: z.enum(['main', 'builder', 'media', 'family', 'business', 'personal']),
+    name: z.string(),
+    role: z.string(),
+    status: z.string(),
+    task: z.string(),
+    updatedAt: z.string(),
+    ageMs: z.number().finite().nonnegative(),
+    ageText: z.string().optional(),
+    note: z.string().optional(),
+    projectRelated: z.string().optional(),
+  })
+  .strict()
+
+const officeInstancesPayloadSchema = z
+  .object({
+    source: z.string(),
+    generatedAt: z.string(),
+    snapshotGeneratedAt: z.string().optional(),
+    instances: z.array(officeInstanceSchema),
+  })
+  .strict()
 
 const upstreamUrl = process.env.OFFICE_INSTANCES_UPSTREAM_URL?.trim()
 const upstreamToken = process.env.OFFICE_INSTANCES_UPSTREAM_TOKEN?.trim()
@@ -76,7 +101,7 @@ const fetchUpstreamPayload = async () => {
     throw new Error(`office upstream responded ${response.status}`)
   }
 
-  return response.json()
+  return officeInstancesPayloadSchema.parse(await response.json())
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
