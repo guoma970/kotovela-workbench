@@ -53,6 +53,7 @@ npm run dev:internal
 5. **外出访问（手机 / Vercel 读家里 Mac）**  
    云端 **没有** 你的 `openclaw` 二进制，需二选一：  
    - 在 **Mac mini** 上 `npm run serve:office-api` 暴露 `8787`，再用隧道把 **HTTPS** 指到该端口；Vercel 内部构建里设置 **`VITE_OFFICE_INSTANCES_API_PATH`** 为该 HTTPS 地址（含 `token` 若启用鉴权）。见下文「Mac mini 常驻」与 **`docs/vercel-setup.md`**。
+   - 如果你外出时希望继续只靠飞书研发群推进开发，请在私有运行环境中配置项目研发群；公开仓库只保留占位符（如 `<FEISHU_CHAT_ID_KOTOVELA_HUB>`）。具体接力口径见 **`docs/ops/feishu-dev-handoff.md`**。
 
 ## 生产构建校验
 
@@ -91,6 +92,13 @@ OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' \
 npm run serve:office-api
 ```
 
+在另一个终端执行自检；`OFFICE_CHECK_TOKEN` 必须与服务启动时的 `OFFICE_API_TOKEN` 完全一致：
+
+```bash
+OFFICE_CHECK_TOKEN='随机长密钥' npm run check:office-api
+```
+
+- `check:office-api` 会直接请求 `http://localhost:8787/api/office-instances`，输出 `source / generatedAt / snapshotGeneratedAt / instances / statuses`，适合作为常驻服务启动后的第一步自检
 - `OFFICE_API_CORS_ORIGIN` 须与内部站在浏览器中的 **HTTPS 源**一致（上例为 **KOTOVELA HUB** 常用部署域 `https://kotovelahub.vercel.app`；若你使用自有域名，请改成实际主机名）
 - 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances`
 - 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`（前端可把完整 URL 配进 `VITE_OFFICE_INSTANCES_API_PATH`，含 query 则注意构建时写入）
@@ -98,7 +106,57 @@ npm run serve:office-api
   - **Cloudflare Tunnel** / **Tailscale Funnel** / **ngrok**：把 `8787` 暴露为 **HTTPS**（避免浏览器混合内容拦截）
   - 或 **仅 Tailscale/ZeroTier VPN**：手机加入同一虚拟网后访问 `http://100.x.x.x:8787`
 - **Vercel internal 前端**：构建环境变量里把 `VITE_OFFICE_INSTANCES_API_PATH` 设为隧道给出的 **HTTPS** 地址（路径 `/api/office-instances` 及鉴权与本地一致）
-- **launchd**：用 `launchctl` 把上述命令注册为开机自启，并在 plist 里写入与交互 shell 一致的 `PATH`（确保能找到 `openclaw`）
+- **launchd**：仓库提供本机用户级 LaunchAgent 脚本，可把 `npm run serve:office-api` 注册为开机自启，并在异常退出后由 `KeepAlive` 拉起。
+
+### office API 开机自启（macOS launchd）
+
+安装前建议先在当前 shell 里放好生产参数；`OFFICE_API_PORT` 默认 `8787`，`OFFICE_API_TOKEN` 默认必填：
+
+```bash
+cd /path/to/repo
+npm install
+
+OFFICE_API_PORT=8787 \
+OFFICE_API_TOKEN='随机长密钥' \
+OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' \
+./scripts/install-office-api-launchd.sh
+```
+
+脚本会先生成临时 plist 并执行 `plutil -lint`，通过后才替换并加载：
+
+```text
+~/Library/LaunchAgents/com.kotovela.office-api.plist
+```
+
+服务实际通过 `scripts/run-office-api.sh` 在仓库根目录执行：
+
+```bash
+npm run serve:office-api
+```
+
+自检：
+
+```bash
+OFFICE_CHECK_TOKEN='随机长密钥' npm run check:office-api
+launchctl print gui/$(id -u)/com.kotovela.office-api | head -n 80
+```
+
+其中 `OFFICE_CHECK_TOKEN` 必须等于安装时写入 launchd 的 `OFFICE_API_TOKEN`。
+
+查看日志：
+
+```bash
+tail -f logs/office-api.log
+tail -f logs/office-api.error.log
+```
+
+卸载/停用：
+
+```bash
+./scripts/uninstall-office-api-launchd.sh
+```
+
+注意：如果安装后修改 `OFFICE_API_TOKEN` / `OFFICE_API_CORS_ORIGIN` / `OFFICE_API_PORT`，需要带新环境变量重新执行安装脚本；launchd 不会自动继承交互 shell 的后续环境变量。只有在 VPN / 本机可信环境且确认不暴露到公网时，才可显式设置 `ALLOW_NO_OFFICE_API_TOKEN=1 ./scripts/install-office-api-launchd.sh` 跳过 token；不建议用于隧道或公网访问。
 
 ## 实例状态同步（远程查看）
 

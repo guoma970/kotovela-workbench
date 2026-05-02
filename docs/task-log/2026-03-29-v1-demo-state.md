@@ -10,21 +10,14 @@
 - 目标：完成可演示收口 + GitHub 可发布结构准备
 - 本次新增：仓库结构补齐（docs + CI）
 
-## 实例与群映射（2026-03-29 自动同步）
+## 实例与群映射（Public Demo Sanitized）
 
-- 权威实例映射：
-  - Main：app=`cli_a93ad95cb2f8dcd2` / agent=`OzqCaleqneWudvYwa0Y4mfeRg3Mas8ej` / `/Users/ztl/.openclaw/workspace-main` / `/Users/ztl/01-main`
-  - Builder：app=`cli_a94d03260778dccf` / agent=`xzOgnY3qs1Vr7iJsNDo52Qpznxc3RSYG` / `/Users/ztl/.openclaw/workspace-builder` / `/Users/ztl/06-builder`
-  - Media：app=`cli_a93ef26d7db8dcb0` / agent=`KpxBAhx9CL615sg6Bmp5gc6qGW6vlONW` / `/Users/ztl/.openclaw/workspace-media` / `/Users/ztl/03-media`
-  - Family：app=`cli_a93eb80249f89cd4` / agent=`1rUv6YxxXqewCFZkETADah8bT4DNoM0D` / `/Users/ztl/.openclaw/workspace-family` / `/Users/ztl/02-family`
-  - Business：app=`cli_a93eb92ea9785cc2` / agent=`pns10rHYmNtfm6tmWGBbaglvZumsdZeF` / `/Users/ztl/.openclaw/workspace-business` / `/Users/ztl/04-business`
-  - ZTL970：app=`cli_a9305b8bc2345cb2` / agent=`待补齐` / `/Users/ztl/.openclaw/workspace-ztl970` / `/Users/ztl/05-ztl970`
-
-- 群映射（12）：
-  - media: `oc_fec0f098074ffeaf9a55ed5d4f55d7b0`、`oc_8c6222d7f6ade3e47cf297015623b36d`、`oc_9f10225ae4a43e8201b75281fa43c477`、`oc_0ff9f89e5df7852ad75a48d108e568f8`
-  - business: `oc_e0f1121e640353748beed9ad4fa4d695`、`oc_0d85226f988102397e744725f1e06dc2`、`oc_7ad967ff188f9b9034e42f3504348c37`、`oc_4b1300c5d36cb2da4a06db13b5e7204a`
-  - main: `oc_e579a92488b397fb84236924cf9e4e79`、`oc_f958f7f03906b64a27828dc7f3d2653d`
-  - main+builder: `oc_47a05c2f7d840e8cc1b6c1115afe95ad`、`oc_036fcab930f40b798877206801375dbd`
+- 本节原记录来自 2026-03-29 的本机自动同步，包含私有 app / agent / Feishu chat 运行态标识，不适合进入公开发布。
+- 开源候选只保留脱敏后的示例口径：
+  - Main：`<MAIN_AGENT_APP>` / `<MAIN_AGENT_ID>` / `<LOCAL_MAIN_WORKSPACE>`
+  - Builder：`<BUILDER_AGENT_APP>` / `<BUILDER_AGENT_ID>` / `<LOCAL_BUILDER_WORKSPACE>`
+  - Media / Family / Business / Personal：使用同类占位符维护本地私有映射。
+- Feishu 群映射请放在私有部署配置中；公开文档统一使用 `<FEISHU_CHAT_ID_KOTOVELA_HUB>`、`<FEISHU_CHAT_ID_LEGACY>` 等占位符，不发布真实 `oc_*` ID。
 
 ## 2026-03-29（产品边界补齐：言町驾驶舱 vs 羲果陪伴）
 - 已明确：本群与当前仓库研发轨道为独立产品线 **言町驾驶舱**，不再承接/混合 `羲果陪伴` 的研发主线。

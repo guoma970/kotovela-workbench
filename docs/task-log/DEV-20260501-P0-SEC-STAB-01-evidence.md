@@ -146,8 +146,8 @@ dist/assets/index-Du_Jaj28.js   473.44 kB │ gzip: 129.72 kB
 
 - API 异常请求测试结果：blocker: wrapper missing api negative test capability（当前安全 wrapper 无非 GET / upstream 私网 URL 负向请求测试入口；未用裸 curl/node 绕过）。
 - ErrorBoundary fallback 截图：blocker: wrapper missing screenshot capability for forced ErrorBoundary fallback（wrapper 有项目 capture 入口，但无“注入路由渲染异常并截图 fallback”的安全入口；未用 canvas/localhost 绕过）。
-- `build:internal`：blocker: wrapper missing build:internal capability。
-- `build:opensource`：blocker: wrapper missing build:opensource capability。
+- `build:internal`：现已可通过 `/Users/ztl/.openclaw/bin/kotovela-hub-verify build-internal` 执行并通过。
+- `build:opensource`：现已可通过 `/Users/ztl/.openclaw/bin/kotovela-hub-verify build-opensource` 执行并通过。
 
 ## Token 清理说明
 
@@ -164,7 +164,6 @@ dist/assets/index-Du_Jaj28.js   473.44 kB │ gzip: 129.72 kB
 
 - 需要 wrapper 增加 API negative test 能力后，补测：POST/PUT 返回 405 + `Allow: GET`；http URL、localhost、private/internal upstream 被拒绝；allowlist host 生效。
 - 需要 wrapper 增加 forced ErrorBoundary screenshot 能力后，补交 fallback 截图。
-- 需要 wrapper 增加 `build:internal` / `build:opensource` 后补跑对应构建。
 
 ## Claude 复审待办
 

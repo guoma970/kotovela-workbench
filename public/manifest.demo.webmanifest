@@ -1,7 +1,7 @@
 {
-  "name": "KOTOVELA OSS Demo",
-  "short_name": "KOTOVELA OSS",
-  "description": "KOTOVELA OSS Demo · 开源多实例协作演示（Mock）",
+  "name": "Kotovela Hub",
+  "short_name": "Kotovela Hub",
+  "description": "Kotovela Hub · workspace cockpit",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
