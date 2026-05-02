@@ -282,11 +282,11 @@ export function EvidenceAcceptancePage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">执行验证</p>
-          <h2>{isInternal ? '执行验证' : 'Evidence acceptance'}</h2>
+          <h2>{isInternal ? '证据识别验收' : 'Evidence acceptance'}</h2>
         </div>
         <p className="page-note">
           {isInternal
-            ? '把关联结果、未关联原因和成功率放到同一页，快速看出哪些记录还需要人工补充线索。'
+            ? '第一屏先看识别率、待补线索和波动提醒；样本、原始记录和对象关联放到下层排障。'
             : 'Open source mode keeps this page isolated. No internal evidence payload is rendered.'}
         </p>
       </div>
@@ -535,7 +535,7 @@ export function EvidenceAcceptancePage() {
 
           <section className="panel strong-card">
             <div className="panel-header">
-              <h3>关联明细</h3>
+              <h3>最近关联结果</h3>
               <span className="badge-count">{rows.length}</span>
             </div>
             <div className="consultant-evidence-list">

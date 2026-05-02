@@ -7,9 +7,9 @@ export function AutoTasksPage() {
       <div className="page-header home-header">
         <div>
           <p className="eyebrow">{BRAND_NAME}</p>
-          <h2>执行工作台</h2>
+          <h2>执行中枢：先看结果</h2>
         </div>
-        <p className="page-note">把任务分配、执行进度、结果回报和待人工处理集中到同一页查看，先看结果，再按需展开原始记录。</p>
+        <p className="page-note">第一屏先看正在推进什么、哪里卡住、下一步谁处理；原始记录和排障字段折叠到下层。</p>
       </div>
       <AutoTaskSystemPanel />
     </section>

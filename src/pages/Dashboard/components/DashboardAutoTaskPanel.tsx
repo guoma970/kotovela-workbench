@@ -561,7 +561,7 @@ export function AutoTaskSystemPanel() {
           className="auto-task-input"
           value={taskInput}
           onChange={(e) => setTaskInput(e.target.value)}
-          placeholder="输入一句话事项，例如：整理注册页面"
+          placeholder="输入一句话事项，例如：给客户报价跟进生成下一步"
           disabled={running}
         />
         <button className="auto-task-run-btn" type="button" onClick={runTask} disabled={running || !taskInput.trim()}>
@@ -616,7 +616,7 @@ export function AutoTaskSystemPanel() {
           { key: 'operations', label: '运营概览', note: '进度 / 风险 / 待人工' },
           { key: 'execution', label: '执行进展', note: '协作者 / 排队 / 结果' },
           { key: 'routing', label: '分配去向', note: '判断规则 / 去向 / 拦截说明' },
-          { key: 'debug', label: '详细记录', note: '原始记录 / 排障' },
+          { key: 'debug', label: '排障记录', note: '原始数据 / 处理日志' },
         ].map((view) => (
           <button
             key={view.key}

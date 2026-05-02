@@ -132,11 +132,11 @@ const PROJECT_NAME_BY_INSTANCE_KEY: Record<string, string> = {
  * 3) Fallback to original title
  */
 const FEISHU_CHAT_ID_TO_NAME: Record<string, string> = {
-  oc_e579a92488b397fb84236924cf9e4e79: 'KOTOVELAHUB研发群',
-  oc_47a05c2f7d840e8cc1b6c1115afe95ad: '言町驾驶舱研发群',
-  oc_f958f7f03906b64a27828dc7f3d2653d: '言町科技工作台研发群',
-  oc_036fcab930f40b798877206801375dbd: '羲果陪伴研发群',
-  oc_cc9a5a8f9cb3dd8477bf0a0b86261549: 'YANFAMI平台研发群',
+  demo_kotovela_hub_research_chat: 'Kotovela Hub Demo 研发群',
+  demo_workbench_legacy_chat: 'Kotovela Workbench Demo 历史群',
+  demo_builder_chat: 'Builder Demo 协作群',
+  demo_family_chat: 'Family Demo 协作群',
+  demo_business_chat: 'Business Demo 协作群',
 }
 
 const normalizeStatus = (value?: string): OfficeInstanceStatus => {

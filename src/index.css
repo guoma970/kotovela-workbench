@@ -1935,6 +1935,7 @@ button,
   background: rgba(10, 16, 32, 0.78);
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .scheduler-task-card-running {
@@ -1960,6 +1961,7 @@ button,
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .scheduler-task-meta-grid {
@@ -2106,6 +2108,7 @@ button,
   border: 1px solid rgba(126, 163, 255, 0.18);
   background: rgba(126, 163, 255, 0.06);
   padding: 10px;
+  min-width: 0;
 }
 
 .scheduler-task-result-head,
@@ -2114,11 +2117,13 @@ button,
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .scheduler-task-result-content {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .scheduler-task-result-content span {
@@ -2142,6 +2147,8 @@ button,
 
 .scheduler-task-result-content pre {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: inherit;
   line-height: 1.55;
 }
@@ -2259,6 +2266,7 @@ button,
   background: rgba(126, 163, 255, 0.08);
   color: #e8f0ff;
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .scheduler-route-arrow {

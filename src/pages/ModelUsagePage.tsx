@@ -265,9 +265,9 @@ export function ModelUsagePage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Kotovela Hub</p>
-          <h2>用量统计</h2>
+          <h2>模型额度与调用用量</h2>
         </div>
-        <p className="page-note">本页只读展示当前模型用量、账号先后顺序和近 24 小时调用记录；账号默认脱敏展示，不显示敏感信息。</p>
+        <p className="page-note">第一屏先看剩余额度、近 24 小时总用量和账号是否可用；模型明细与原始提醒只读展示，并默认脱敏。</p>
       </div>
 
       <div className="model-usage-provider-grid">

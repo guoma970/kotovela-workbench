@@ -76,8 +76,8 @@ export function DashboardAutoTaskTaskCard({
   const externalPartnerMode = getExternalPartnerMode(item)
   const flags = [
     item.auto_generated ? '自动生成' : '',
-    item.trigger_source ? `trigger_${item.trigger_source}` : '',
-    item.predicted_risk ? `risk_${item.predicted_risk}` : '',
+    item.trigger_source ? `来源：${item.trigger_source.replace(/[._-]+/g, ' ')}` : '',
+    item.predicted_risk ? `风险：${formatRiskLevel(item.predicted_risk)}` : '',
     item.predicted_block ? '预测有卡点' : '',
     item.attention ? '需要关注' : '',
     item.stuck ? '任务卡住' : '',
@@ -117,19 +117,24 @@ export function DashboardAutoTaskTaskCard({
         <span>负责人：{item.human_owner ?? item.assigned_agent ?? item.agent}</span>
       </div>
       <details className="scheduler-task-result-block" open={showTechnicalDetails}>
-        <summary className="scheduler-task-result-head"><strong>业务详情</strong></summary>
+        <summary className="scheduler-task-result-head"><strong>分配与执行摘要</strong></summary>
         <div className="scheduler-task-result-content">
           <div><span>执行协作者</span><strong>{item.agent}</strong></div>
           <div><span>协作池</span><strong>{formatPoolKey(item.instance_pool)}</strong></div>
           <div><span>领域</span><strong>{item.domain ?? '-'}</strong></div>
-          <div><span>父任务编号</span><strong>{item.parent_task_id ?? '-'}</strong></div>
-          <div><span>场景编号</span><strong>{item.scenario_id ?? '-'}</strong></div>
           <div><span>任务组</span><strong>{item.task_group_label ?? '-'}</strong></div>
-          <div><span>任务组编号</span><strong>{item.task_group_id ?? '-'}</strong></div>
           <div><span>模板来源</span><strong>{item.template_source ?? formatScenarioTemplate(item.template_key) ?? '-'}</strong></div>
           <div><span>分配去向</span><strong>{formatRouteTarget(item.route_target)}</strong></div>
           <div><span>去向判断</span><strong>{formatRouteResult(item.route_result)}</strong></div>
         </div>
+        <details className="scheduler-task-result-block">
+          <summary className="scheduler-task-result-head"><strong>查看排障字段</strong></summary>
+          <div className="scheduler-task-result-content">
+            <div><span>父任务编号</span><strong>{item.parent_task_id ?? '-'}</strong></div>
+            <div><span>场景编号</span><strong>{item.scenario_id ?? '-'}</strong></div>
+            <div><span>任务组编号</span><strong>{item.task_group_id ?? '-'}</strong></div>
+          </div>
+        </details>
         <details className="scheduler-task-result-block">
           <summary className="scheduler-task-result-head"><strong>查看原始记录</strong></summary>
           <div className="scheduler-task-result-content">
