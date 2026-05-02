@@ -47,11 +47,20 @@ const formatControlDetail = (value: string) =>
     .replace(/guardrails/g, '安全规则')
     .replace(/warning/g, '安全提醒')
     .replace(/overload/g, '负载状态')
+    .replace(/manual_change/g, '人工调整')
+    .replace(/builder/gi, '研发位')
     .replace(/=true/g, '=已开启')
     .replace(/=false/g, '=未开启')
 
 const formatControlAction = (value: string) =>
   formatControlDetail(value)
+    .replace(/_updated/gi, '已更新')
+    .replace(/system_mode_updated/gi, '已调整运行方式')
+    .replace(/publish_mode_updated/gi, '已调整发布节奏')
+    .replace(/force_stop_updated/gi, '已调整紧急停止')
+    .replace(/warning_updated/gi, '已调整风险提醒')
+    .replace(/overload_updated/gi, '已调整繁忙程度')
+    .replace(/guardrails_updated/gi, '已调整保护规则')
     .replace(/system mode/gi, '系统模式调整')
     .replace(/publish mode/gi, '发布状态调整')
     .replace(/force stop/gi, '紧急停止调整')
@@ -126,7 +135,7 @@ export function SystemControlPage() {
           <p className="eyebrow">系统设置</p>
           <h2>系统设置</h2>
         </div>
-        <p className="page-note">统一查看当前运行方式、发布口径、紧急停止和安全保护设置。</p>
+        <p className="page-note">统一查看当前如何运行、发布节奏是否放开，以及遇到异常时是否会立即拦停。</p>
       </div>
 
       <section className={`panel strong-card system-mode-bar ${state.system_mode === 'live' ? 'is-live' : state.system_mode === 'test' ? 'is-test' : 'is-dev'}`}>
@@ -144,12 +153,12 @@ export function SystemControlPage() {
 
       <section className="panel strong-card consultant-editor-panel">
         <div className="panel-header align-start">
-          <h3>运行设置</h3>
-          <span className="home-count">应用模式 {APP_MODE_LABELS[state.app_mode] ?? state.app_mode}</span>
+          <h3>运行与发布设置</h3>
+          <span className="home-count">{APP_MODE_LABELS[state.app_mode] ?? state.app_mode}</span>
         </div>
         <div className="consultant-form-grid">
           <label>
-            <span>系统模式</span>
+            <span>运行方式</span>
             <select value={state.system_mode} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ system_mode: e.target.value as SystemModeValue })}>
               <option value="dev">开发验证</option>
               <option value="test">测试验证</option>
@@ -157,7 +166,7 @@ export function SystemControlPage() {
             </select>
           </label>
           <label>
-            <span>发布状态</span>
+            <span>发布节奏</span>
             <select value={state.publish_mode} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ publish_mode: e.target.value as PublishModeValue })}>
               <option value="auto_disabled">自动发布关闭</option>
               <option value="manual_only">仅手动发布</option>
@@ -172,21 +181,21 @@ export function SystemControlPage() {
             </select>
           </label>
           <label>
-            <span>安全提醒</span>
+            <span>风险提醒</span>
             <select value={String(state.warning)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ warning: e.target.value === 'true' })}>
               <option value="false">未开启</option>
               <option value="true">已开启</option>
             </select>
           </label>
           <label>
-            <span>负载状态</span>
+            <span>繁忙程度</span>
             <select value={String(state.overload)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ overload: e.target.value === 'true' })}>
               <option value="false">正常</option>
               <option value="true">偏高</option>
             </select>
           </label>
           <label>
-            <span>安全规则</span>
+            <span>保护规则</span>
             <select value={String(state.live_guardrails.enabled)} disabled={saving || isReadonlyOpenSource} onChange={(e) => save({ live_guardrails: { ...state.live_guardrails, enabled: e.target.value === 'true' } as SystemControlState['live_guardrails'] })}>
               <option value="false">未开启</option>
               <option value="true">已开启</option>
@@ -195,9 +204,9 @@ export function SystemControlPage() {
         </div>
 
         <div className="cross-link-row top-gap">
-          <span className="inline-link-chip">安全提醒：{state.warning ? '已开启' : '未开启'}</span>
-          <span className="inline-link-chip">负载状态：{state.overload ? '偏高' : '正常'}</span>
-          <span className="inline-link-chip">安全规则：{state.live_guardrails.enabled ? '已开启' : '未开启'}</span>
+          <span className="inline-link-chip">风险提醒：{state.warning ? '已开启' : '未开启'}</span>
+          <span className="inline-link-chip">繁忙程度：{state.overload ? '偏高' : '正常'}</span>
+          <span className="inline-link-chip">保护规则：{state.live_guardrails.enabled ? '已开启' : '未开启'}</span>
           <Link className="inline-link-chip" to="/">返回总览</Link>
         </div>
       </section>

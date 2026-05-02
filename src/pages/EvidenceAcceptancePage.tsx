@@ -54,24 +54,24 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 const MATCH_SOURCE_LABELS: Record<string, string> = {
-  none: '未匹配',
-  direct_id: '编号匹配',
-  direct_name: '名称匹配',
-  signal_map_account: '账号线索匹配',
-  signal_map_room: '频道线索匹配',
-  signal_map_content: '内容线索匹配',
-  signal_map_only: '线索辅助匹配',
+  none: '暂未识别',
+  direct_id: '编号直连',
+  direct_name: '名称直连',
+  signal_map_account: '账号线索',
+  signal_map_room: '频道线索',
+  signal_map_content: '内容线索',
+  signal_map_only: '线索辅助',
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  resolved: '已关联',
+  resolved: '已识别',
   missing_signals: '线索不足',
   text_too_thin: '信息过少',
-  no_object_match: '暂未关联到对象',
+  no_object_match: '仍待补线索',
 }
 
 const REASON_LABELS: Record<string, string> = {
-  resolved: '已完成关联',
+  resolved: '已完成识别',
   signal_parts_empty: '缺少可用线索',
   text_under_min_length: '描述信息过少',
   signals_present_but_unmapped: '已有线索，但还找不到对应对象',
@@ -294,19 +294,19 @@ export function EvidenceAcceptancePage() {
       <section className="panel strong-card evidence-hero-card">
         <div className="evidence-hero-metrics">
           <article className="evidence-metric-card">
-            <span>验证记录</span>
+            <span>检查记录</span>
             <strong>{rows.length}</strong>
           </article>
           <article className="evidence-metric-card is-hit">
-            <span>匹配成功</span>
+            <span>已识别</span>
             <strong>{summary.successCount}</strong>
           </article>
           <article className="evidence-metric-card is-miss">
-            <span>未匹配</span>
+            <span>待补线索</span>
             <strong>{summary.unresolved.length}</strong>
           </article>
           <article className="evidence-metric-card">
-            <span>关联成功率</span>
+            <span>自动识别率</span>
             <strong>{summary.successRate}%</strong>
           </article>
         </div>
@@ -330,9 +330,9 @@ export function EvidenceAcceptancePage() {
                     <span className="badge-count">{list.length}</span>
                   </div>
                   <div className="evidence-source-stats">
-                    <span className="inline-link-chip">匹配成功 {hitCount}</span>
-                    <span className="inline-link-chip">未匹配 {list.length - hitCount}</span>
-                    <span className="inline-link-chip">匹配成功率 {rate}%</span>
+                    <span className="inline-link-chip">已识别 {hitCount}</span>
+                    <span className="inline-link-chip">待补线索 {list.length - hitCount}</span>
+                    <span className="inline-link-chip">自动识别率 {rate}%</span>
                   </div>
                 </section>
               )
@@ -341,33 +341,33 @@ export function EvidenceAcceptancePage() {
 
           <section className="panel strong-card">
             <div className="panel-header">
-              <h3>未关联原因</h3>
+              <h3>为什么还没识别出来</h3>
               <span className="badge-count">{Object.keys(summary.missReasonCounts).length}</span>
             </div>
             <div className="evidence-source-stats">
               {Object.entries(summary.missReasonCounts).map(([reason, count]) => (
                 <span key={reason} className="inline-link-chip">{displayReason(reason)} · {count}</span>
               ))}
-              {Object.keys(summary.missReasonCounts).length === 0 ? <span className="inline-link-chip">全部已匹配</span> : null}
+              {Object.keys(summary.missReasonCounts).length === 0 ? <span className="inline-link-chip">当前都已识别</span> : null}
             </div>
             <div className="evidence-source-stats top-gap">
               {Object.entries(summary.heuristicDriftCounts).map(([source, count]) => (
                 <span key={source} className="inline-link-chip">线索辅助 {displayMatchSource(source)} · {count}</span>
               ))}
-              {Object.keys(summary.heuristicDriftCounts).length === 0 ? <span className="inline-link-chip">线索辅助正常</span> : null}
+              {Object.keys(summary.heuristicDriftCounts).length === 0 ? <span className="inline-link-chip">线索提示正常</span> : null}
             </div>
           </section>
 
           <section className="panel strong-card">
             <div className="panel-header">
-              <h3>线索关联波动提醒</h3>
+              <h3>近期识别波动提醒</h3>
               <span className="badge-count">{driftSummary?.alerts.length ?? 0}</span>
             </div>
             <div className="evidence-source-stats">
               {driftSummary?.samples.map((sample) => (
-                <span key={sample.sampleId} className="inline-link-chip">{sample.label} · 未匹配 {sample.unresolved} · 线索辅助 {sample.heuristicHits}</span>
+                <span key={sample.sampleId} className="inline-link-chip">{sample.label} · 待补线索 {sample.unresolved} · 线索辅助 {sample.heuristicHits}</span>
               ))}
-              {!driftSummary?.samples.length ? <span className="inline-link-chip">趋势快照暂不可用</span> : null}
+              {!driftSummary?.samples.length ? <span className="inline-link-chip">近期趋势暂不可用</span> : null}
             </div>
             <div className="evidence-source-stats top-gap">
               {driftSummary?.alerts.map((alert) => (
@@ -396,69 +396,74 @@ export function EvidenceAcceptancePage() {
                 </article>
               ))}
             </div>
-            <div className="consultant-evidence-list top-gap">
-              {DRIFT_BUCKET_DISPLAY.map(({ key, label, description }) => {
-                const examples = driftSummary?.bucket_top_examples?.[key] ?? []
-                return (
-                  <article key={key} className="consultant-evidence-card">
-                    <div className="audit-log-item-top">
-                      <strong>{label}未匹配样本</strong>
-                      <span className={examples.length > 0 ? 'evidence-state-miss' : 'evidence-state-hit'}>{examples.length}</span>
-                    </div>
-                    <p>{description}</p>
-                    <div className="consultant-evidence-list top-gap">
-                      {examples.map((example) => {
-                        const linkedRow = rowById.get(example.rowId)
-                        const linkedTextParts = linkedRow?.textParts ?? [example.title, example.detail]
-                        const linkedSignalParts = linkedRow?.signalParts ?? example.signalParts
-                        const linkedProjectId = linkedRow?.projectId ?? example.projectId
-                        const linkedAgentId = linkedRow?.agentId ?? example.agentId
-                        const linkedRoomId = linkedRow?.roomId ?? example.roomId
-                        const linkedTaskId = linkedRow?.taskId ?? example.taskId
-                        const linkedRoutingHints = linkedRow?.routingHints ?? example.routingHints
-                        const hasLinkedRow = Boolean(linkedRow)
+            <details className="scheduler-debug-block top-gap">
+              <summary className="scheduler-task-result-head">
+                <strong>查看波动样本（排障用）</strong>
+              </summary>
+              <div className="consultant-evidence-list top-gap">
+                {DRIFT_BUCKET_DISPLAY.map(({ key, label, description }) => {
+                  const examples = driftSummary?.bucket_top_examples?.[key] ?? []
+                  return (
+                    <article key={key} className="consultant-evidence-card">
+                      <div className="audit-log-item-top">
+                        <strong>{label}未匹配样本</strong>
+                        <span className={examples.length > 0 ? 'evidence-state-miss' : 'evidence-state-hit'}>{examples.length}</span>
+                      </div>
+                      <p>{description}</p>
+                      <div className="consultant-evidence-list top-gap">
+                        {examples.map((example) => {
+                          const linkedRow = rowById.get(example.rowId)
+                          const linkedTextParts = linkedRow?.textParts ?? [example.title, example.detail]
+                          const linkedSignalParts = linkedRow?.signalParts ?? example.signalParts
+                          const linkedProjectId = linkedRow?.projectId ?? example.projectId
+                          const linkedAgentId = linkedRow?.agentId ?? example.agentId
+                          const linkedRoomId = linkedRow?.roomId ?? example.roomId
+                          const linkedTaskId = linkedRow?.taskId ?? example.taskId
+                          const linkedRoutingHints = linkedRow?.routingHints ?? example.routingHints
+                          const hasLinkedRow = Boolean(linkedRow)
 
-                        return (
-                          <article key={`${key}-${example.rowId}`} className="consultant-evidence-card">
-                            <div className="audit-log-item-top">
-                              <strong>{example.title}</strong>
-                              <span>{displayMatchSource(example.matchSource)}</span>
-                            </div>
-                            <p>{example.detail}</p>
-                            <small>{renderBucketExampleMeta(example)} · {hasLinkedRow ? '已通过当前验证记录关联' : linkedProjectId || linkedAgentId || linkedRoomId || linkedTaskId ? '已通过导出对象线索关联' : '仅剩线索辅助，缺少记录级关联提示'}</small>
-                            <div className="cross-link-row top-gap">
-                              {example.signalParts.map((item) => (
-                                <span key={`${example.rowId}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
-                              ))}
-                            </div>
-                            <EvidenceObjectLinks
-                              textParts={linkedTextParts}
-                              signalParts={linkedSignalParts}
-                              currentSearch={linking.currentSearch}
-                              projects={projects}
-                              agents={agents}
-                              rooms={rooms}
-                              tasks={tasks}
-                              projectId={linkedProjectId}
-                              agentId={linkedAgentId}
-                              roomId={linkedRoomId}
-                              taskId={linkedTaskId}
-                              routingHints={linkedRoutingHints}
-                            />
-                          </article>
-                        )
-                      })}
-                      {examples.length === 0 ? <p className="empty-state">暂无代表样本。</p> : null}
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
+                          return (
+                            <article key={`${key}-${example.rowId}`} className="consultant-evidence-card">
+                              <div className="audit-log-item-top">
+                                <strong>{example.title}</strong>
+                                <span>{displayMatchSource(example.matchSource)}</span>
+                              </div>
+                              <p>{example.detail}</p>
+                              <small>{renderBucketExampleMeta(example)} · {hasLinkedRow ? '已通过当前验证记录关联' : linkedProjectId || linkedAgentId || linkedRoomId || linkedTaskId ? '已通过导出对象线索关联' : '仅剩线索辅助，缺少记录级关联提示'}</small>
+                              <div className="cross-link-row top-gap">
+                                {example.signalParts.map((item) => (
+                                  <span key={`${example.rowId}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
+                                ))}
+                              </div>
+                              <EvidenceObjectLinks
+                                textParts={linkedTextParts}
+                                signalParts={linkedSignalParts}
+                                currentSearch={linking.currentSearch}
+                                projects={projects}
+                                agents={agents}
+                                rooms={rooms}
+                                tasks={tasks}
+                                projectId={linkedProjectId}
+                                agentId={linkedAgentId}
+                                roomId={linkedRoomId}
+                                taskId={linkedTaskId}
+                                routingHints={linkedRoutingHints}
+                              />
+                            </article>
+                          )
+                        })}
+                        {examples.length === 0 ? <p className="empty-state">暂无代表样本。</p> : null}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </details>
           </section>
 
           <section className="panel strong-card">
             <div className="panel-header">
-              <h3>校验样本集</h3>
+              <h3>系统自检样本</h3>
               <span className="badge-count">{fixtureDataset.length}</span>
             </div>
             <div className="evidence-source-stats">
@@ -469,35 +474,41 @@ export function EvidenceAcceptancePage() {
                 <span key={source} className="inline-link-chip">关联方式 {displayMatchSource(source)} · {count}</span>
               ))}
               {Object.entries(fixtureSummary.byMatchConfidence ?? {}).map(([confidence, count]) => (
-                <span key={confidence} className="inline-link-chip">把握度 {displayConfidence(confidence)} · {count}</span>
+                <span key={confidence} className="inline-link-chip">可信度 {displayConfidence(confidence)} · {count}</span>
               ))}
             </div>
-            <div className="consultant-evidence-list top-gap">
-              {fixtureDataset.map(({ fixture, row }) => (
-                <article key={fixture.id} className="consultant-evidence-card">
-                  <div className="audit-log-item-top">
-                    <strong>{fixture.title}</strong>
-                    <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
-                      {row.success ? `已命中 × ${row.hitCount}` : `${displayCategory(row.category)} / ${displayReason(row.reason)}`}
-                    </span>
-                  </div>
-                  <p>{fixture.detail}</p>
-                  <small>预期：{displayCategory(fixture.expectation.category)} / {displayReason(fixture.expectation.reason)}</small>
-                  <div className="cross-link-row top-gap">
-                    <span className="inline-link-chip">关联方式 {displayMatchSource(row.matchSource)}</span>
-                    <span className="inline-link-chip">把握度 {displayConfidence(row.matchConfidence)}</span>
-                    {fixture.signalParts.map((item) => (
-                      <span key={`${fixture.id}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
+            <p className="page-note">这组样本用于确认最近一轮更新后，自动识别逻辑是否仍然稳定；详细样本折叠到下层。</p>
+            <details className="scheduler-debug-block top-gap">
+              <summary className="scheduler-task-result-head">
+                <strong>查看系统自检样本（排障用）</strong>
+              </summary>
+              <div className="consultant-evidence-list top-gap">
+                {fixtureDataset.map(({ fixture, row }) => (
+                  <article key={fixture.id} className="consultant-evidence-card">
+                    <div className="audit-log-item-top">
+                      <strong>{fixture.title}</strong>
+                      <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
+                        {row.success ? `已命中 × ${row.hitCount}` : `${displayCategory(row.category)} / ${displayReason(row.reason)}`}
+                      </span>
+                    </div>
+                    <p>{fixture.detail}</p>
+                    <small>预期：{displayCategory(fixture.expectation.category)} / {displayReason(fixture.expectation.reason)}</small>
+                    <div className="cross-link-row top-gap">
+                      <span className="inline-link-chip">识别来源 {displayMatchSource(row.matchSource)}</span>
+                      <span className="inline-link-chip">可信度 {displayConfidence(row.matchConfidence)}</span>
+                      {fixture.signalParts.map((item) => (
+                        <span key={`${fixture.id}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </details>
           </section>
 
           <section className="panel strong-card">
             <div className="panel-header">
-              <h3>未关联记录</h3>
+              <h3>仍待人工补线索的记录</h3>
               <span className="badge-count">{summary.unresolved.length}</span>
             </div>
             <div className="consultant-evidence-list evidence-unresolved-list">
@@ -510,8 +521,8 @@ export function EvidenceAcceptancePage() {
                   <p>{row.detail}</p>
                   <small>{displayReason(row.reason)} · {row.timestamp}</small>
                   <div className="cross-link-row top-gap">
-                    <span className="inline-link-chip">关联方式 {displayMatchSource(row.matchSource)}</span>
-                    <span className="inline-link-chip">把握度 {displayConfidence(row.matchConfidence)}</span>
+                    <span className="inline-link-chip">识别来源 {displayMatchSource(row.matchSource)}</span>
+                    <span className="inline-link-chip">可信度 {displayConfidence(row.matchConfidence)}</span>
                     {row.signalParts.map((item) => (
                       <span key={`${row.id}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
                     ))}
