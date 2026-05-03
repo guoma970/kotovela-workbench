@@ -57,9 +57,10 @@
 | `OFFICE_INSTANCES_UPSTREAM_TOKEN` | 与 Mac mini `OFFICE_API_TOKEN` 一致，Vercel 服务端使用，不写入前端静态包 |
 | `MODEL_USAGE_UPSTREAM_URL` | 填 **完整 HTTPS** 地址，例如隧道到 Mac mini 的 `https://xxxx.trycloudflare.com/api/model-usage` |
 | `MODEL_USAGE_UPSTREAM_TOKEN` | 与 Mac mini `OFFICE_API_TOKEN` 一致，Vercel 服务端使用，不写入前端静态包 |
+| `KOTOVELA_ACCESS_SECRET` | 内部站访问口令；用于项目内 middleware 保护页面和 API，不写入前端静态包 |
 | （可选）`VITE_POLLING_INTERVAL_MS` | 默认内部构建为 5s，可按需改 |
 
-**注意**：Internal 站点会返回真实内部状态和用量线索，务必配合 **Vercel 访问保护 / 私有域访问控制 + 定期轮换 token**，并限制 Internal 站点访问范围。
+**注意**：Internal 站点会返回真实内部状态和用量线索，务必配合 **访问口令 / Vercel 访问保护 / 私有域访问控制 + 定期轮换 token**，并限制 Internal 站点访问范围。当前 Hobby 计划下，Production 域名可能无法使用完整 Vercel Authentication，因此仓库内提供 `middleware.ts` 作为应用级访问门禁。
 
 #### `kotovelahub` 项目：必须在控制台里配（无法写在仓库里）
 
@@ -79,8 +80,9 @@
 
 - **Demo**：任意页数据源为 **Mock**；打开开发者工具 Network，**不应**出现对 office 实例接口的请求（除非有人误改构建变量）
 - **Internal**：**中控**是否显示「上次同步」、数据源是否为 OpenClaw / 回退 Mock
-- **Internal 可选**：`GET /api/office-instances` 在同域应返回 JSON；连 Mac mini 时看 `source` 是否为 `live`
-- **Internal 可选**：`GET /api/model-usage` 在同域应返回 JSON；连 Mac mini 时 `source` 应为 `partial` 或 `local-openclaw`，不是 `unavailable`
+- **Internal 访问保护**：未登录打开首页应显示 `Kotovela Hub 访问验证`；未登录 `GET /api/model-usage` 应返回 `401`
+- **Internal 可选**：登录后 `GET /api/office-instances` 在同域应返回 JSON；连 Mac mini 时看 `source` 是否为 `live`
+- **Internal 可选**：登录后 `GET /api/model-usage` 在同域应返回 JSON；连 Mac mini 时 `source` 应为 `partial` 或 `local-openclaw`，不是 `unavailable`
 - 两站均可试 **添加到主屏幕**（见 `docs/deployment.md`「轻应用」）
 
 ## 5. 线上地址（定稿）与自定义域名（可选）

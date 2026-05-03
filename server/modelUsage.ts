@@ -16,6 +16,7 @@ const CLAUDE_HISTORY_FILE = path.join(CLAUDE_HOME, 'history.jsonl')
 const CLAUDE_SESSIONS_DIR = path.join(CLAUDE_HOME, 'sessions')
 const WINDOW_HOURS = 24
 const MAX_SESSION_FILES_PER_AGENT = 40
+const OPENCLAW_STATUS_TIMEOUT_MS = Number.parseInt(process.env.OPENCLAW_STATUS_TIMEOUT_MS || '15000', 10)
 
 const AGENT_LABELS: Record<string, string> = {
   main: '小树 / 数字指挥官',
@@ -180,7 +181,7 @@ const upsertBucket = (buckets: Map<string, ModelUsageBucket>, key: string, label
 const readOpenClawStatus = async (warnings: string[]) => {
   try {
     const { stdout } = await execFileAsync(OPENCLAW_BIN, ['models', 'status', '--agent', 'main'], {
-      timeout: 8_000,
+      timeout: OPENCLAW_STATUS_TIMEOUT_MS,
       maxBuffer: 1024 * 1024,
     })
     const rawLine = stdout.split('\n').find((line) => line.includes('openai-codex usage:'))?.trim()

@@ -103,6 +103,7 @@ OFFICE_CHECK_TOKEN='随机长密钥' npm run check:office-api
 - `OFFICE_API_CORS_ORIGIN` 须与内部站在浏览器中的 **HTTPS 源**一致（上例为 **KOTOVELA HUB** 常用部署域 `https://kotovelahub.vercel.app`；若你使用自有域名，请改成实际主机名）
 - 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances` 与 `GET http://<mini 局域网或隧道>:8787/api/model-usage`
 - 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`；线上 Vercel 应使用服务端变量保存 token，避免写入前端静态包
+- 内部访问口令：Vercel 项目需设置 `KOTOVELA_ACCESS_SECRET`，仓库根 `middleware.ts` 会同时保护页面与 `/api/*`，未登录 API 应返回 `401`
 - **外出访问**：家庭宽带通常无固定公网 IP，需任选其一：
   - **Cloudflare Tunnel** / **Tailscale Funnel** / **ngrok**：把 `8787` 暴露为 **HTTPS**（避免浏览器混合内容拦截）
   - 或 **仅 Tailscale/ZeroTier VPN**：手机加入同一虚拟网后访问 `http://100.x.x.x:8787`
