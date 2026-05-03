@@ -27,7 +27,18 @@ const resolveNextPath = (value: unknown) => {
   return value
 }
 
+const normalizePassword = (value: unknown) => String(value ?? '').trim()
+
+const extractMultipartPassword = (value: string) => {
+  const match = value.match(/name="password"[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n--/)
+  return match?.[1]
+}
+
 const readPassword = (body: unknown) => {
+  if (Buffer.isBuffer(body)) {
+    return readPassword(body.toString('utf8'))
+  }
+
   if (typeof body === 'string') {
     const trimmed = body.trim()
     if (!trimmed) return ''
@@ -35,17 +46,24 @@ const readPassword = (body: unknown) => {
     try {
       const parsed = JSON.parse(trimmed) as unknown
       if (typeof parsed === 'object' && parsed !== null && 'password' in parsed) {
-        return String((parsed as { password?: unknown }).password ?? '')
+        return normalizePassword((parsed as { password?: unknown }).password)
       }
     } catch {
-      return new URLSearchParams(trimmed).get('password') ?? ''
+      const formPassword = new URLSearchParams(trimmed).get('password')
+      if (formPassword !== null) return normalizePassword(formPassword)
     }
 
-    return new URLSearchParams(trimmed).get('password') ?? ''
+    const formPassword = new URLSearchParams(trimmed).get('password')
+    if (formPassword !== null) return normalizePassword(formPassword)
+
+    const multipartPassword = extractMultipartPassword(trimmed)
+    if (multipartPassword !== undefined) return normalizePassword(multipartPassword)
+
+    return normalizePassword(trimmed)
   }
 
   if (typeof body === 'object' && body !== null && 'password' in body) {
-    return String((body as { password?: unknown }).password ?? '')
+    return normalizePassword((body as { password?: unknown }).password)
   }
 
   return ''

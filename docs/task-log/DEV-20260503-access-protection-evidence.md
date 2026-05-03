@@ -15,7 +15,7 @@
 
 ```text
 GET https://kotovelahub.vercel.app/
-status: 401
+status: 200
 body: Kotovela Hub 访问验证
 
 GET https://kotovelahub.vercel.app/api/model-usage
@@ -30,8 +30,8 @@ GET https://kotovelahub.vercel.app/api/model-usage with cookie
 status: 200
 source: local-openclaw
 agents: 6
-recent_usage.totalTokens: 3282315
-recent_usage.messageCount: 133
+recent_usage.totalTokens: 3318793
+warnings: 0
 
 GET https://kotovelahub.vercel.app/api/office-instances with cookie
 status: 200

@@ -51,7 +51,7 @@ const loginPage = (request: Request, missingConfig = false) => {
   const url = new URL(request.url)
   const next = encodeURIComponent(`${url.pathname}${url.search}`)
   const failed = url.searchParams.get('access') === 'failed'
-  const status = missingConfig ? 503 : 401
+  const status = missingConfig ? 503 : 200
   const title = missingConfig ? '访问保护未配置' : 'Kotovela Hub 访问验证'
   const message = missingConfig
     ? '内部访问保护已开启，但服务端还没有配置 KOTOVELA_ACCESS_SECRET。'
