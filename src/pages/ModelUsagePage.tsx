@@ -127,6 +127,19 @@ const formatDisabledReason = (value?: string) => {
   }
 }
 
+const COOLDOWN_REASON_LABELS: Record<string, string> = {
+  rate_limited: '触发频率限制',
+  quota_exceeded: '额度已用完',
+  auth_failed: '认证失败',
+  cooldown: '冷却中',
+  error_threshold: '错误次数超限',
+}
+
+const formatCooldownReason = (value?: string) => {
+  if (!value) return ''
+  return COOLDOWN_REASON_LABELS[value] ?? value.replace(/[._-]+/g, ' ')
+}
+
 const formatModelName = (value?: string) => maskEmail(value) ?? value ?? '模型信息暂未同步'
 
 const formatModelList = (values: string[]) =>
@@ -391,7 +404,7 @@ export function ModelUsagePage() {
                   {agent.codex_usage_stats.map((stats) => (
                     <small key={stats.profile}>
                       {formatAccountLabel(stats.profile)} · 异常次数 {stats.error_count ?? 0}
-                      {stats.cooldown_reason ? ` · 暂停原因 ${stats.cooldown_reason.replace(/[._-]+/g, ' ')}` : ''}
+                      {stats.cooldown_reason ? ` · 暂停原因 ${formatCooldownReason(stats.cooldown_reason)}` : ''}
                       {stats.last_used ? ` · 最近使用 ${formatTime(stats.last_used)}` : ''}
                     </small>
                   ))}
