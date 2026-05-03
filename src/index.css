@@ -2993,6 +2993,215 @@ button,
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.task-read-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-color: rgba(87, 214, 165, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(87, 214, 165, 0.12), transparent 34%),
+    rgba(15, 23, 43, 0.84);
+}
+
+.task-read-guide h3,
+.task-read-guide p {
+  margin: 0;
+}
+
+.task-read-guide p {
+  margin-top: 6px;
+  color: #a9b8d4;
+  line-height: 1.55;
+}
+
+.task-read-guide-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.task-read-guide-steps span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #dfe8ff;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.queue-column-note {
+  margin: 4px 0 0;
+  color: #8397bb;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.task-readable-card {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 3px solid rgba(126, 163, 255, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02)),
+    rgba(15, 23, 43, 0.84);
+}
+
+.task-freshness-live {
+  border-left-color: rgba(87, 214, 165, 0.82);
+}
+
+.task-freshness-stale {
+  border-left-color: rgba(255, 167, 38, 0.82);
+  background:
+    linear-gradient(180deg, rgba(255, 167, 38, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(15, 23, 43, 0.84);
+}
+
+.task-card-kicker,
+.task-readable-meta,
+.task-signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-card-kicker {
+  justify-content: space-between;
+}
+
+.task-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #dfe8ff;
+  background: rgba(126, 163, 255, 0.13);
+}
+
+.task-status-running {
+  color: #8ff0bf;
+  background: rgba(67, 199, 140, 0.15);
+}
+
+.task-status-queue {
+  color: #9ec1ff;
+  background: rgba(91, 140, 255, 0.15);
+}
+
+.task-status-paused,
+.task-status-need_human {
+  color: #ffc877;
+  background: rgba(255, 167, 38, 0.16);
+}
+
+.task-status-done {
+  color: #a4e7c4;
+  background: rgba(87, 214, 165, 0.12);
+}
+
+.priority-unknown {
+  color: #c2cee7;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.task-readable-title {
+  color: #f5f8ff;
+  line-height: 1.35;
+  font-size: 1rem;
+}
+
+.task-readable-summary {
+  line-height: 1.55;
+  color: #aebddd;
+}
+
+.task-next-action {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(87, 214, 165, 0.08);
+  border: 1px solid rgba(87, 214, 165, 0.14);
+}
+
+.task-next-action span {
+  color: #77d9ad;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.task-next-action strong {
+  color: #eff7ff;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.task-readable-meta {
+  color: #91a6c8;
+  font-size: 0.84rem;
+}
+
+.task-readable-meta span {
+  min-width: min(100%, 150px);
+}
+
+.task-signal-row {
+  align-items: stretch;
+}
+
+.task-signal-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 116px;
+  flex: 1 1 116px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  color: #d6e2fb;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.task-signal-row small {
+  color: #7f93b6;
+}
+
+.task-raw-details {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.task-raw-details summary {
+  cursor: pointer;
+  color: #8fb1ff;
+  font-size: 0.84rem;
+}
+
+.task-raw-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.task-history-fold {
+  border-radius: 14px;
+  border: 1px dashed rgba(126, 163, 255, 0.18);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.task-history-fold summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  color: #9eb8f7;
+  font-size: 0.88rem;
+}
+
+.task-history-fold .queue-list {
+  padding: 0 12px 12px;
+}
+
 .mapping-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -3947,6 +4156,14 @@ body.focus-overlay-open .panel:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .task-read-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .task-read-guide-steps {
+    justify-content: flex-start;
+  }
+
   .demo-path-steps {
     flex-direction: column;
     align-items: flex-start;
@@ -3998,6 +4215,16 @@ body.focus-overlay-open .panel:hover {
 
   .queue-grid {
     grid-template-columns: 1fr;
+  }
+
+  .task-read-guide,
+  .task-readable-card {
+    padding: 14px;
+  }
+
+  .task-read-guide-steps span,
+  .task-signal-row span {
+    width: 100%;
   }
 
   .focus-summary-actions {

@@ -58,12 +58,12 @@ type AuditEntry = {
   actor?: string
 }
 
-const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string }> = [
-  { key: 'running', label: 'Running', labelZh: '进行中' },
-  { key: 'queue', label: 'Queue', labelZh: '排队中' },
-  { key: 'paused', label: 'Paused', labelZh: '已暂停' },
-  { key: 'done', label: 'Done', labelZh: '已完成' },
-  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理' },
+const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string; helperZh: string }> = [
+  { key: 'running', label: 'Running', labelZh: '进行中', helperZh: '正在有人推进，优先看下一步和负责人。' },
+  { key: 'queue', label: 'Queue', labelZh: '排队中', helperZh: '还没开始处理，等待调度或接单。' },
+  { key: 'paused', label: 'Paused', labelZh: '已暂停', helperZh: '目前有卡点，先看暂停原因。' },
+  { key: 'done', label: 'Done', labelZh: '已完成', helperZh: '已经处理完，可回看依据和记录。' },
+  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理', helperZh: '需要你或负责人确认下一步。' },
 ]
 
 const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
@@ -79,6 +79,59 @@ const TASK_PRIORITY_LABEL_ZH: Record<string, string> = {
   medium: '中优先级',
   low: '低优先级',
   unknown: '未标注优先级',
+}
+
+const EMPTY_COLUMN_TEXT_ZH: Record<TaskBoardStatus, string> = {
+  running: '当前没有正在推进的任务。',
+  queue: '当前没有排队等待的任务。',
+  paused: '当前没有暂停任务，一切顺利。',
+  done: '当前没有新的完成记录。',
+  need_human: '当前没有需要人工处理的任务。',
+}
+
+const OWNER_LABELS: Record<string, string> = {
+  main: '小树 / 中枢调度',
+  builder: '小筑 / 开发执行',
+  media: '小果 / 内容助手',
+  family: '小羲 / 家庭助手',
+  business: '小言 / 业务助手',
+  personal: '小柒 / 个人助手',
+  ztl970: '果妈970 / 项目负责人',
+  unassigned: '暂未分配',
+}
+
+const OWNER_SHORT_LABELS: Record<string, string> = {
+  main: '小树',
+  builder: '小筑',
+  media: '小果',
+  family: '小羲',
+  business: '小言',
+  personal: '小柒',
+  ztl970: '果妈970',
+  unassigned: '未分配',
+}
+
+const BUSINESS_SIGNAL_LABELS: Record<string, string> = {
+  builder: '研发执行',
+  builder_page: '页面开发',
+  business: '业务跟进',
+  customer_followup: '客户跟进',
+  family: '家庭事务',
+  family_study: '家庭学习',
+  latin_boy: '拉丁男孩果果',
+  layout_renovation: '户型改造',
+  media: '内容协作',
+  media_publish_with_distribution: '内容发布与分发',
+  mom970: '果妈970',
+  openclaw_content: 'OpenClaw 内容运营',
+  personal: '个人助手',
+  personal_reminder: '个人提醒',
+  kitchen_storage: '厨房收纳',
+  consultant_kotovela_floor_heating: '地暖顾问',
+  consultant_kotoharo_material: '建材顾问',
+  consultant_yanfami_residential: '户型顾问',
+  kotovelahub: 'Kotovela Hub',
+  KOTOVELAHUB研发群: 'Kotovela Hub 研发群',
 }
 
 const TASK_ACTION_LABELS: Record<string, string> = {
@@ -105,6 +158,185 @@ const formatTaskLogText = (value?: string, fallback = '未补充说明') => {
     .replace(/decision_log/gi, '处理记录')
     .replace(/audit_log/gi, '变更记录')
     .replace(/[._-]+/g, ' ')
+}
+
+const normalizeOwnerKey = (value?: string) =>
+  String(value ?? '')
+    .replace(/^实例\s*/i, '')
+    .replace(/^consultant_/i, '')
+    .trim()
+    .toLowerCase()
+
+const formatOwnerLabel = (value?: string, short = false) => {
+  const key = normalizeOwnerKey(value)
+  const labels = short ? OWNER_SHORT_LABELS : OWNER_LABELS
+  if (labels[key]) return labels[key]
+  if (!key) return short ? '未分配' : '暂未分配'
+  return key
+    .replace(/^kotovela_/i, '')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const formatBusinessSignal = (value?: string, fallback = '暂未同步') => {
+  if (!value || value === '-') return fallback
+  if (BUSINESS_SIGNAL_LABELS[value]) return BUSINESS_SIGNAL_LABELS[value]
+  if (BUSINESS_SIGNAL_LABELS[value.toLowerCase()]) return BUSINESS_SIGNAL_LABELS[value.toLowerCase()]
+  const compact = value.replace(/^consultant_/i, '')
+  if (BUSINESS_SIGNAL_LABELS[compact]) return BUSINESS_SIGNAL_LABELS[compact]
+  if (BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]) return BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]
+  return compact
+    .replace(/^oc_[a-z0-9]+$/i, '飞书群会话')
+    .replace(/^room-/i, '频道 ')
+    .replace(/^task-/i, '任务 ')
+    .replace(/^project-/i, '项目 ')
+    .replace(/kotovela/gi, 'Kotovela')
+    .replace(/openclaw content/gi, 'OpenClaw 内容运营')
+    .replace(/media publish with distribution/gi, '内容发布与分发')
+    .replace(/[._-]+/g, ' ')
+}
+
+const humanizeTaskText = (value?: string, fallback = '任务内容暂未同步') => {
+  if (!value || value === '-') return fallback
+  return value
+    .replace(/当前缺少\s*live session/gi, '当前没有实时会话')
+    .replace(/live session/gi, '实时会话')
+    .replace(/snapshot\(([^)]+)\)\s*兜底/gi, '快照兜底（$1）')
+    .replace(/snapshot\s*/gi, '快照 ')
+    .replace(/无会话上报/gi, '暂无会话回报')
+    .replace(/请同步任务标题\/摘要/gi, '等待补充任务说明')
+    .replace(/直连会话进行中/gi, '直连会话进行中')
+    .replace(/oc_[a-z0-9]+/gi, '飞书群会话')
+    .replace(/\bstab-\d+/gi, '稳定任务')
+    .replace(/media_publish_with_distribution/gi, '内容发布与分发')
+    .replace(/openclaw_content/gi, 'OpenClaw 内容运营')
+    .replace(/priority queue builder/gi, '优先级队列')
+    .replace(/priority_up changes priority and writes decision log/gi, '已提高优先级并记录处理依据')
+    .replace(/priority_down changes priority and writes decision log/gi, '已降低优先级并记录处理依据')
+    .replace(/pause sets status paused/gi, '任务已暂停')
+    .replace(/resume clears pause state and returns active control/gi, '任务已恢复处理')
+    .replace(/template creates blocked dependency tasks and decision log/gi, '模板已生成依赖任务和处理记录')
+    .replace(/blocked tasks later emit unblocked\/dependency_resolved evidence/gi, '依赖解除后会补充完成依据')
+    .replace(/routes to/gi, '分配给')
+    .replace(/assigned to/gi, '已分配给')
+    .replace(/domain/gi, '领域')
+    .replace(/project_line/gi, '项目线')
+    .replace(/content_line/gi, '内容线')
+    .replace(/consultant_/gi, '顾问 ')
+    .replace(/[{}"]/g, '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const formatUpdatedAt = (value?: string) => {
+  if (!value || value === '-') return '暂未同步'
+  if (/^刚刚|^最近|^超过/.test(value)) return value
+  if (/^snapshot/i.test(value)) return value.replace(/^snapshot\s*/i, '快照时间：')
+
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) return humanizeTaskText(value, '暂未同步')
+
+  const diffMs = Date.now() - timestamp
+  if (diffMs < 0) return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(timestamp)
+  const diffMinutes = Math.floor(diffMs / 60_000)
+  if (diffMinutes < 1) return '刚刚'
+  if (diffMinutes < 60) return `最近 ${diffMinutes} 分钟`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `最近 ${diffHours} 小时`
+  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(timestamp)
+}
+
+const buildTaskHeadline = (task: TaskListItem) => {
+  const rawTitle = task.title
+  if (/当前缺少\s*live session/i.test(rawTitle)) return '没有实时会话，正在使用快照兜底'
+  if (/oc_[a-z0-9]+|飞书群会话/i.test(rawTitle)) return '飞书群有新会话待处理'
+
+  const instanceMatch = rawTitle.match(/^实例\s+([a-z0-9_-]+)\s*[·:：-]\s*(.+)$/i)
+  if (instanceMatch) return `${formatOwnerLabel(instanceMatch[1], true)}：${humanizeTaskText(instanceMatch[2])}`
+
+  return humanizeTaskText(rawTitle)
+}
+
+const buildTaskSummary = (task: TaskListItem) => {
+  if (/当前缺少\s*live session|暂用\s*snapshot/i.test(task.title)) {
+    return '这条不是最新实时回报，建议先确认对应协作者是否在线或是否有新会话。'
+  }
+  if (/oc_[a-z0-9]+|飞书群会话/i.test(task.title)) {
+    return '来自飞书研发群的会话任务，先看负责人是否已经接手，再看是否需要人工确认。'
+  }
+  if (task.status === 'running') return '任务正在推进，等待负责人下一次状态回报或完成依据。'
+  if (task.status === 'queue') return '任务已进入队列，还没有开始执行，等待调度分配。'
+  if (task.status === 'paused') return '任务暂时停住了，需要先处理卡点再继续。'
+  if (task.status === 'done') return '任务已经处理完，可以在处理动态里回看依据。'
+  return '这条任务需要人工判断，请先确认负责人和下一步。'
+}
+
+const buildNextAction = (task: TaskListItem) => {
+  if (task.status === 'need_human') return '人工确认处理方式，并补充清晰任务说明。'
+  if (/当前缺少\s*live session|暂用\s*snapshot/i.test(task.title)) return '让对应协作者上线或产生新会话，再刷新驾驶舱。'
+  if (/oc_[a-z0-9]+|飞书群会话/i.test(task.title)) return '由小树确认是否派发；需要开发时转给小筑。'
+  if (task.status === 'running') return '等待负责人回报进度；如超时，进入执行验证页排查。'
+  if (task.status === 'queue') return '等待中枢调度接单或明确负责人。'
+  if (task.status === 'paused') return '先处理卡点，再恢复任务。'
+  return '查看处理记录，确认是否需要复盘或追加任务。'
+}
+
+const buildTaskSignals = (task: TaskListItem) =>
+  [
+    { label: '项目线', value: task.project_line },
+    { label: '来源', value: task.source_line },
+    { label: '账号/频道', value: task.account_line },
+    { label: '内容线', value: task.content_line },
+    { label: '顾问', value: task.consultant_id },
+    { label: '渠道', value: task.attribution?.source },
+  ]
+    .filter((item): item is { label: string; value: string } => Boolean(item.value))
+    .slice(0, 4)
+    .map((item) => ({ ...item, value: formatBusinessSignal(item.value) }))
+
+const getTaskFreshnessClass = (task: TaskListItem) => {
+  if (/当前缺少\s*live session|暂用\s*snapshot|超过\s*\d+\s*分钟/i.test(`${task.title} ${task.updated_at}`)) return 'task-freshness-stale'
+  if (/^刚刚|^最近/.test(task.updated_at)) return 'task-freshness-live'
+  return 'task-freshness-neutral'
+}
+
+const getTaskUpdatedMs = (value?: string) => {
+  if (!value || value === '-') return 0
+  const recentMatch = value.match(/^最近\s*(\d+)\s*(秒|分钟|小时)/)
+  if (recentMatch) {
+    const amount = Number(recentMatch[1])
+    const unit = recentMatch[2]
+    const multiplier = unit === '秒' ? 1_000 : unit === '分钟' ? 60_000 : 3_600_000
+    return Date.now() - amount * multiplier
+  }
+  if (/^刚刚/.test(value)) return Date.now()
+  const snapshotMatch = value.match(/snapshot\s*([0-9/: T-]+)/i)
+  const timestamp = Date.parse(snapshotMatch?.[1] ?? value)
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+const getTaskPriorityScore = (priority: string) => {
+  if (priority === 'high') return 4
+  if (priority === 'medium') return 3
+  if (priority === 'unknown') return 2
+  if (priority === 'low') return 1
+  return 0
+}
+
+const sortTasksForBoard = (tasks: TaskListItem[]) =>
+  [...tasks].sort((a, b) => {
+    const needHumanDelta = Number(b.status === 'need_human') - Number(a.status === 'need_human')
+    if (needHumanDelta) return needHumanDelta
+    const priorityDelta = getTaskPriorityScore(b.priority) - getTaskPriorityScore(a.priority)
+    if (priorityDelta) return priorityDelta
+    return getTaskUpdatedMs(b.updated_at) - getTaskUpdatedMs(a.updated_at)
+  })
+
+const getVisibleTaskLimit = (status: TaskBoardStatus) => {
+  if (status === 'done') return 8
+  if (status === 'queue') return 10
+  return 12
 }
 
 const normalizeStatus = (status?: string, needHuman?: boolean): TaskBoardStatus => {
@@ -240,6 +472,125 @@ export function TasksPage() {
       .join(' ')
   }
 
+  const renderTaskCard = (task: TaskListItem) => {
+    const taskRecord = resolveTaskRecord(task)
+    const project = taskRecord ? projects.find((item) => item.id === taskRecord.projectId) : undefined
+    const agent = taskRecord ? agents.find((item) => item.id === taskRecord.executorAgentId || item.id === taskRecord.assigneeAgentId) : undefined
+    const linkedRooms = taskRecord
+      ? rooms.filter((room) => room.mainProjectId === taskRecord.projectId || room.instanceIds.includes(taskRecord.executorAgentId))
+      : []
+    const taskSignals = buildTaskSignals(task)
+    return (
+      <article key={task.task_id} className={`${cardClass(task)} task-readable-card ${getTaskFreshnessClass(task)}`}>
+        <div className="task-card-kicker">
+          <span className={`task-status-chip task-status-${task.status}`}>
+            {isInternal ? TASK_STATUS_LABEL_ZH[task.status] : task.status}
+          </span>
+          <span className={`priority-badge priority-${task.priority}`}>{isInternal ? (TASK_PRIORITY_LABEL_ZH[task.priority] ?? task.priority) : task.priority}</span>
+        </div>
+        <h4 className="task-readable-title">{isInternal ? buildTaskHeadline(task) : task.title}</h4>
+        <p className="task-readable-summary">{isInternal ? buildTaskSummary(task) : task.task_id}</p>
+        {isInternal ? (
+          <div className="task-next-action">
+            <span>下一步</span>
+            <strong>{buildNextAction(task)}</strong>
+          </div>
+        ) : null}
+        <div className="task-readable-meta">
+          <span>负责人：{isInternal ? formatOwnerLabel(task.owner) : task.owner}</span>
+          <span>更新：{isInternal ? formatUpdatedAt(task.updated_at) : task.updated_at}</span>
+        </div>
+        {isInternal && taskSignals.length > 0 ? (
+          <div className="task-signal-row" aria-label="任务业务线索">
+            {taskSignals.map((signal) => (
+              <span key={`${signal.label}-${signal.value}`}>
+                <small>{signal.label}</small>
+                {signal.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <details className="task-raw-details">
+          <summary>{isInternal ? '查看原始信息与关联对象' : 'Details'}</summary>
+          <div className="queue-meta dense-meta">
+            <span>{isInternal ? '任务编号' : 'task_id'}：{task.task_id}</span>
+          </div>
+          <div className="queue-meta dense-meta">
+            <span>{isInternal ? '原始标题' : 'title'}：{humanizeTaskText(task.title)}</span>
+          </div>
+          <div className="queue-meta dense-meta">
+            <span>{isInternal ? '状态' : 'status'}：{isInternal ? TASK_STATUS_LABEL_ZH[task.status] : task.status}</span>
+          </div>
+          {taskRecord ? (
+            <div className="relation-stack" style={{ marginTop: 12 }}>
+              <div>
+                <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
+                <div className="object-row top-gap">
+                  {project ? (
+                    <ObjectBadge
+                      kind="project"
+                      code={project.code}
+                      name={project.name}
+                      hideCode={isInternal}
+                      compact
+                      clickable
+                      onClick={() => goFocus('/projects', 'project', project.id)}
+                      {...linking.getState('project', project.id)}
+                    />
+                  ) : (
+                    <span className="soft-tag">—</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
+                <div className="object-row top-gap">
+                  {linkedRooms.length > 0 ? (
+                    linkedRooms.slice(0, 2).map((room) => (
+                      <ObjectBadge
+                        key={room.id}
+                        kind="room"
+                        code={room.code}
+                        name={room.name}
+                        compact
+                        clickable
+                        onClick={() => goFocus('/rooms', 'room', room.id)}
+                        {...linking.getState('room', room.id)}
+                      />
+                    ))
+                  ) : (
+                    <span className="soft-tag">—</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
+                <div className="object-row top-gap">
+                  {agent ? (
+                    <ObjectBadge
+                      kind="agent"
+                      code={agent.code}
+                      name={agent.name}
+                      hideCode={isInternal}
+                      instanceKey={agent.instanceKey}
+                      agentId={agent.id}
+                      compact
+                      clickable
+                      onClick={() => goFocus('/agents', 'agent', agent.id)}
+                      {...linking.getState('agent', agent.id)}
+                    />
+                  ) : (
+                    <span className="soft-tag">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </details>
+      </article>
+    )
+  }
+
   return (
     <section className="page">
       <div className="page-header">
@@ -249,14 +600,14 @@ export function TasksPage() {
         </div>
         <p className="page-note">
           {isInternal
-            ? '统一查看任务状态、负责人、更新时间和关联对象；内部版会优先同步真实记录。'
+            ? '默认展示给人看的任务摘要、负责人和下一步；原始编号与排障信息可展开查看。'
             : 'Task list with unified fields: task_id, title, status, priority, owner, updated_at.'}
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '任务列表' : 'Task Queue'}
-        intro={isInternal ? '按状态查看当前任务结果、责任归属、卡点与执行记录。' : 'Track task status results by queue state.'}
+        heading={isInternal ? '任务快照' : 'Task Queue'}
+        intro={isInternal ? '先看进行中、已暂停和需人工处理；每张卡片都会告诉你“现在是什么事”和“下一步做什么”。' : 'Track task status results by queue state.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -265,110 +616,45 @@ export function TasksPage() {
         internalHint={isInternal ? '内部版优先读取真实任务记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
 
+      {isInternal ? (
+        <section className="task-read-guide panel strong-card">
+          <div>
+            <span className="eyebrow">怎么读</span>
+            <h3>先判断任务是否需要你介入</h3>
+            <p>默认只展示每列最重要、最近的任务；任务编号、频道编号、处理依据都收在“查看原始信息”或“较早记录”里。</p>
+          </div>
+          <div className="task-read-guide-steps">
+            <span>1. 看状态列</span>
+            <span>2. 看下一步</span>
+            <span>3. 需要排障再展开详情</span>
+          </div>
+        </section>
+      ) : null}
+
       <div className="queue-grid">
         {STATUS_COLUMNS.map((column) => {
-          const list = effectiveTasks.filter((task) => task.status === column.key)
+          const list = sortTasksForBoard(effectiveTasks.filter((task) => task.status === column.key))
+          const visibleLimit = isInternal ? getVisibleTaskLimit(column.key) : list.length
+          const visibleList = list.slice(0, visibleLimit)
+          const hiddenList = list.slice(visibleLimit)
           return (
             <section key={column.key} className="panel queue-column strong-card">
               <div className="panel-header">
-                <h3>{isInternal ? column.labelZh : column.label}</h3>
+                <div>
+                  <h3>{isInternal ? column.labelZh : column.label}</h3>
+                  {isInternal ? <p className="queue-column-note">{column.helperZh}</p> : null}
+                </div>
                 <span className="badge-count">{list.length}</span>
               </div>
               <div className="queue-list">
-                {list.map((task) => {
-                  const taskRecord = resolveTaskRecord(task)
-                  const project = taskRecord ? projects.find((item) => item.id === taskRecord.projectId) : undefined
-                  const agent = taskRecord ? agents.find((item) => item.id === taskRecord.executorAgentId || item.id === taskRecord.assigneeAgentId) : undefined
-                  const linkedRooms = taskRecord
-                    ? rooms.filter((room) => room.mainProjectId === taskRecord.projectId || room.instanceIds.includes(taskRecord.executorAgentId))
-                    : []
-                  return (
-                    <article key={task.task_id} className={cardClass(task)}>
-                      <div className="item-head">
-                        <h4>{task.title}</h4>
-                        <span className={`priority-badge priority-${task.priority}`}>{isInternal ? (TASK_PRIORITY_LABEL_ZH[task.priority] ?? task.priority) : task.priority}</span>
-                      </div>
-                      <div className="queue-meta dense-meta" style={{ marginTop: 8 }}>
-                        <span>{isInternal ? '任务编号' : 'task_id'}: {task.task_id}</span>
-                      </div>
-                      <div className="queue-meta dense-meta">
-                        <span>{isInternal ? '状态' : 'status'}: {isInternal ? TASK_STATUS_LABEL_ZH[task.status] : task.status}</span>
-                      </div>
-                      <div className="queue-meta dense-meta">
-                        <span>{isInternal ? '负责人' : 'owner'}: {task.owner}</span>
-                      </div>
-                      <div className="queue-meta dense-meta">
-                        <span>{isInternal ? '更新时间' : 'updated_at'}: {task.updated_at}</span>
-                      </div>
-                      {taskRecord ? (
-                        <div className="relation-stack" style={{ marginTop: 12 }}>
-                          <div>
-                            <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
-                            <div className="object-row top-gap">
-                              {project ? (
-                                <ObjectBadge
-                                  kind="project"
-                                  code={project.code}
-                                  name={project.name}
-                                  hideCode={isInternal}
-                                  compact
-                                  clickable
-                                  onClick={() => goFocus('/projects', 'project', project.id)}
-                                  {...linking.getState('project', project.id)}
-                                />
-                              ) : (
-                                <span className="soft-tag">—</span>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
-                            <div className="object-row top-gap">
-                              {linkedRooms.length > 0 ? (
-                                linkedRooms.slice(0, 2).map((room) => (
-                                  <ObjectBadge
-                                    key={room.id}
-                                    kind="room"
-                                    code={room.code}
-                                    name={room.name}
-                                    compact
-                                    clickable
-                                    onClick={() => goFocus('/rooms', 'room', room.id)}
-                                    {...linking.getState('room', room.id)}
-                                  />
-                                ))
-                              ) : (
-                                <span className="soft-tag">—</span>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
-                            <div className="object-row top-gap">
-                              {agent ? (
-                                <ObjectBadge
-                                  kind="agent"
-                                  code={agent.code}
-                                  name={agent.name}
-                                  hideCode={isInternal}
-                                  instanceKey={agent.instanceKey}
-                                  agentId={agent.id}
-                                  compact
-                                  clickable
-                                  onClick={() => goFocus('/agents', 'agent', agent.id)}
-                                  {...linking.getState('agent', agent.id)}
-                                />
-                              ) : (
-                                <span className="soft-tag">—</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </article>
-                  )
-                })}
-                {list.length === 0 ? <p className="empty-state empty-compact">{isInternal ? '当前没有进行中的任务 · 一切顺利' : 'No tasks'}</p> : null}
+                {visibleList.map(renderTaskCard)}
+                {hiddenList.length > 0 ? (
+                  <details className="task-history-fold">
+                    <summary>还有 {hiddenList.length} 条较早记录，展开查看</summary>
+                    <div className="queue-list top-gap">{hiddenList.map(renderTaskCard)}</div>
+                  </details>
+                ) : null}
+                {list.length === 0 ? <p className="empty-state empty-compact">{isInternal ? EMPTY_COLUMN_TEXT_ZH[column.key] : 'No tasks'}</p> : null}
               </div>
             </section>
           )
@@ -453,8 +739,8 @@ export function TasksPage() {
               <strong>查看变更记录（排障用）</strong>
             </summary>
             <div className="consultant-evidence-list top-gap">
-              {auditEntries.map((entry) => (
-                <article key={entry.id} className="consultant-evidence-card">
+              {auditEntries.map((entry, index) => (
+                <article key={`${entry.id}-${index}`} className="consultant-evidence-card">
                   <strong>{formatTaskLogText(entry.action, '已记录变更')}</strong>
                   <p>{formatTaskLogText(entry.target, '涉及对象已记录')}</p>
                   <small>{formatTaskLogText(entry.result, '结果已记录')} · {entry.time}</small>
