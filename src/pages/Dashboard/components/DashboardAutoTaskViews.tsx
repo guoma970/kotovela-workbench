@@ -27,6 +27,7 @@ import {
   formatTaskStatus,
   formatTaskTone,
 } from '../lib/autoTaskLabels'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../../../lib/readableText'
 
 type TaskCardRenderer = (item: AutoTaskBoardItem, tone: TaskCardTone, index: number) => ReactNode
 
@@ -173,17 +174,17 @@ export function AutoTaskDebugMainView({
             {parentTaskViews.slice(0, 6).map((parent) => (
               <article className="scheduler-parent-task-card" key={parent.id}>
                 <div className="scheduler-parent-task-top">
-                  <strong>{parent.title}</strong>
+                  <strong>{formatReadableTaskTitle(parent.title)}</strong>
                   <span>{formatScenarioTemplate(parent.template)}</span>
                 </div>
                 <div className="scheduler-parent-task-meta">
                   <span>子任务 {parent.childCount}</span>
                   <span>进度 {parent.progress}%</span>
-                  <span>卡点 {parent.blockedPoint}</span>
+                  <span>卡点 {formatReadableTaskTitle(parent.blockedPoint)}</span>
                 </div>
                 <div className="scheduler-parent-task-domains">
                   {parent.domains.map((domain) => (
-                    <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{domain}</span>
+                    <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{formatReadableDetail(domain)}</span>
                   ))}
                 </div>
               </article>
@@ -194,8 +195,8 @@ export function AutoTaskDebugMainView({
           <div className="scheduler-task-groups">
             {taskGroups.slice(0, 6).map((group) => (
               <div className="scheduler-task-group-chip" key={group.id}>
-                <strong>{group.label}</strong>
-                <span>{formatScenarioTemplate(group.template)} · {group.count} 项任务 · {group.domain} / {group.projectLine}</span>
+                <strong>{formatReadableTaskTitle(group.label)}</strong>
+                <span>{formatScenarioTemplate(group.template)} · {group.count} 项任务 · {formatReadableDetail(group.domain)} / {formatReadableDetail(group.projectLine)}</span>
               </div>
             ))}
           </div>
@@ -259,10 +260,10 @@ export function AutoTaskDebugMainView({
             <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
               <div className="scheduler-decision-top">
                 <strong>{formatDecisionAction(decision.decision)}</strong>
-                <span>{decision.timestamp}</span>
+                <span>{formatReadableTime(decision.timestamp)}</span>
               </div>
-              <p>{decision.taskName} · {decision.agent}</p>
-              <small>{decision.reason} · {decision.detail}{decision.decision === 'retry' ? ` · 重试次数 ${decision.retryCount}` : ''}</small>
+              <p>{formatReadableTaskTitle(decision.taskName)} · {formatReadableOwner(decision.agent)}</p>
+              <small>{formatReadableDetail(decision.reason)} · {formatReadableDetail(decision.detail)}{decision.decision === 'retry' ? ` · 重试次数 ${decision.retryCount}` : ''}</small>
             </article>
           )) : <div className="auto-task-empty">暂无自动决策记录</div>}
         </div>
@@ -276,11 +277,11 @@ export function AutoTaskDebugMainView({
             return (
               <article className="scheduler-decision-item scheduler-human-item" key={`${item.task_name}-human-${index}`}>
                 <div className="scheduler-decision-top">
-                  <strong>{item.task_name}</strong>
-                  <span>{item.domain ?? '-'}</span>
+                  <strong>{formatReadableTaskTitle(item.task_name)}</strong>
+                  <span>{formatReadableDetail(item.domain)}</span>
                 </div>
-                <p>原因：{latestDecision?.reason ?? '待人工处理'}</p>
-                <small>负责人：{item.human_owner ?? '-'} · 最新判断：{latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
+                <p>原因：{formatReadableDetail(latestDecision?.reason, '待人工处理')}</p>
+                <small>负责人：{formatReadableOwner(item.human_owner)} · 最新判断：{formatReadableDetail(latestDecision?.detail ?? item.manual_decision)}</small>
                 <div className="auto-task-actions scheduler-human-actions">
                   <button className="auto-task-row-btn" type="button" onClick={() => onManualControlTask(item.task_name, 'manual_done')} disabled={controlsDisabled}>已处理</button>
                   <button className="auto-task-row-btn" type="button" onClick={() => onManualControlTask(item.task_name, 'manual_continue')} disabled={controlsDisabled}>继续执行</button>
@@ -338,8 +339,18 @@ export function AutoTaskDebugSidebar({
       <div className="scheduler-alert-group">
         {visibleNotifications.length ? visibleNotifications.map((notice) => (
           <div className={`scheduler-alert-item scheduler-notice-card is-${notice.event_type === 'task_failed' ? 'critical' : notice.event_type === 'task_warning' || notice.event_type === 'task_need_human' ? 'warning' : 'abnormal'}`} key={notice.id}>
-            <strong>{notice.target_group}</strong>
-            <pre>{notice.message || `【${notice.event_type === 'task_warning' ? '任务告警' : '任务完成'}】\n任务编号：${notice.task_id ?? '-'}\n任务名称：${notice.task_name}\n领域：${notice.domain}\n执行协作者：${notice.assigned_agent}\n状态：${formatTaskStatus(notice.status)}\n摘要：${notice.summary}\n👉 查看：/scheduler`}</pre>
+            <strong>{formatReadableDetail(notice.target_group)}</strong>
+            <p>{formatReadableTaskTitle(notice.task_name)}</p>
+            <small>
+              {notice.event_type === 'task_warning' ? '任务告警' : notice.event_type === 'task_need_human' ? '需要人工处理' : '任务完成'}
+              {' · '}执行协作者：{formatReadableOwner(notice.assigned_agent)}
+              {' · '}状态：{formatTaskStatus(notice.status)}
+              {' · '}摘要：{formatReadableDetail(notice.summary)}
+            </small>
+            <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
+              <summary className="scheduler-task-result-head"><strong>查看原始群回报</strong></summary>
+              <pre>{notice.message || `任务编号：${notice.task_id ?? '-'}\n任务名称：${notice.task_name}\n领域：${notice.domain}\n执行协作者：${notice.assigned_agent}\n状态：${formatTaskStatus(notice.status)}\n摘要：${notice.summary}`}</pre>
+            </details>
             {notice.event_type === 'task_need_human' ? (
               <div className="auto-task-actions scheduler-human-actions">
                 <button className="auto-task-row-btn" type="button" onClick={() => onGroupNotificationAction(notice, 'done')} disabled={controlsDisabled}>已处理</button>
@@ -347,7 +358,7 @@ export function AutoTaskDebugSidebar({
                 <button className="auto-task-row-btn" type="button" onClick={() => onGroupNotificationAction(notice, 'transfer')} disabled={controlsDisabled}>转人工</button>
               </div>
             ) : null}
-            <small>{notice.task_id ?? '-'} · {notice.project_line ?? '-'} · {notice.notify_mode ?? '-'} · {notice.target_group_id ?? '-'} · {notice.delivery} · {notice.created_at}</small>
+            <small>{formatReadableDetail(notice.project_line, '未关联项目线')} · {formatReadableDetail(notice.notify_mode, '默认回报')} · {formatReadableTime(notice.created_at)}</small>
           </div>
         )) : <div className="auto-task-empty">暂无群内回报</div>}
       </div>
@@ -355,9 +366,9 @@ export function AutoTaskDebugSidebar({
       <div className="scheduler-alert-group">
         {recentResults.length ? recentResults.map((entry, index) => (
           <div className="scheduler-result-item" key={`${entry.task_name}-${index}`}>
-            <strong>{entry.task_name}</strong>
+            <strong>{formatReadableTaskTitle(entry.task_name)}</strong>
             <p>{entry.result.content}</p>
-            <small>{entry.updated_at ?? '-'}</small>
+            <small>{formatReadableTime(entry.updated_at)}</small>
           </div>
         )) : <div className="auto-task-empty">暂无结果</div>}
       </div>
@@ -365,26 +376,26 @@ export function AutoTaskDebugSidebar({
       <div className="scheduler-alert-group">
         <h4>连续失败事项</h4>
         {continuousFailedTasks.length ? continuousFailedTasks.map((item, index) => (
-          <div className="scheduler-alert-item is-critical" key={`failed-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+          <div className="scheduler-alert-item is-critical" key={`failed-${item.task_name}-${index}`}>{formatReadableTaskTitle(item.task_name)} · {formatReadableOwner(item.agent)}</div>
         )) : <div className="auto-task-empty">暂无连续失败任务</div>}
       </div>
       <div className="scheduler-alert-group">
         <h4>卡住事项</h4>
         {stuckTasks.length ? stuckTasks.map((item, index) => (
-          <div className="scheduler-alert-item is-warning" key={`stuck-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+          <div className="scheduler-alert-item is-warning" key={`stuck-${item.task_name}-${index}`}>{formatReadableTaskTitle(item.task_name)} · {formatReadableOwner(item.agent)}</div>
         )) : <div className="auto-task-empty">暂无卡住任务</div>}
       </div>
       <div className="scheduler-alert-group">
         <h4>异常事项</h4>
         {abnormalTasks.length ? abnormalTasks.map((item, index) => (
-          <div className="scheduler-alert-item is-abnormal" key={`abnormal-${item.task_name}-${index}`}>{item.task_name} · {item.agent}</div>
+          <div className="scheduler-alert-item is-abnormal" key={`abnormal-${item.task_name}-${index}`}>{formatReadableTaskTitle(item.task_name)} · {formatReadableOwner(item.agent)}</div>
         )) : <div className="auto-task-empty">暂无异常或提醒任务</div>}
       </div>
       {systemAlerts.length > 0 ? (
         <div className="scheduler-alert-group">
           <h4>系统级提醒</h4>
           {systemAlerts.map((alert, index) => (
-            <div className={`scheduler-alert-item is-${alert.level}`} key={`sys-alert-${index}`}>{alert.task_name || '-'} · {alert.agent || '-'} · {alert.reason}</div>
+            <div className={`scheduler-alert-item is-${alert.level}`} key={`sys-alert-${index}`}>{formatReadableTaskTitle(alert.task_name)} · {formatReadableOwner(alert.agent)} · {formatReadableDetail(alert.reason)}</div>
           ))}
         </div>
       ) : null}

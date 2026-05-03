@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { Agent, Project, Room, Task } from '../types'
 import { inferStructuredSignalBucket } from '../lib/evidenceDriftBucket'
+import { formatReadableOwner, formatReadableTaskTitle } from '../lib/readableText'
 import { createFocusSearch, type FocusKind } from '../lib/workbenchLinking'
 
 type EvidenceObject =
@@ -54,6 +55,16 @@ const PATHNAME_BY_KIND: Record<FocusKind, string> = {
   room: '/rooms',
   task: '/tasks',
 }
+
+const KIND_LABELS: Record<FocusKind, string> = {
+  project: '项目',
+  agent: '协作者',
+  room: '频道',
+  task: '任务',
+}
+
+const displayObjectName = (item: EvidenceObject) =>
+  item.kind === 'agent' ? formatReadableOwner(item.name) : formatReadableTaskTitle(item.name)
 
 const normalize = (value?: string) => String(value ?? '').trim().toLowerCase()
 
@@ -359,14 +370,14 @@ export function EvidenceObjectLinks({
 
   return (
     <div className="cross-link-row top-gap evidence-link-row" data-evidence-links="true">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <Link
-          key={`${item.kind}:${item.id}`}
+          key={`${item.kind}:${item.id}:${index}`}
           className="inline-link-chip"
           data-evidence-link="true"
           to={{ pathname: PATHNAME_BY_KIND[item.kind], search: createFocusSearch(currentSearch, item.kind, item.id) }}
         >
-          {item.kind}: {item.name}
+          {KIND_LABELS[item.kind]}：{displayObjectName(item)}
         </Link>
       ))}
     </div>

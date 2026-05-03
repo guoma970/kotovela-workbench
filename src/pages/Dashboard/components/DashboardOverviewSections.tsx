@@ -3,6 +3,7 @@ import { EvidenceObjectLinks } from '../../../components/EvidenceObjectLinks'
 import { consultantSettingsConfig } from '../../../config/consultantSettings'
 import { useOfficeInstances } from '../../../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../../../lib/formatSyncTime'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../../../lib/readableText'
 import { useWorkbenchLinking } from '../../../lib/workbenchLinking'
 import type { Agent, Project, UpdateItem } from '../../../types'
 
@@ -102,7 +103,7 @@ function formatConsultantRole(value: string) {
 }
 
 function formatAuditAction(value: string) {
-  return value
+  return formatReadableDetail(value)
     .replace(/consultant_assigned/gi, '已完成分配')
     .replace(/system_mode/gi, '系统设置调整')
     .replace(/publish_mode/gi, '发布状态调整')
@@ -112,7 +113,7 @@ function formatAuditAction(value: string) {
 }
 
 function formatAuditResult(value: string) {
-  return value
+  return formatReadableDetail(value)
     .replace(/assigned to/gi, '已分配给')
     .replace(/consultant/gi, '顾问')
     .replace(/[._-]+/g, ' ')
@@ -201,7 +202,7 @@ export function AuditLogPanel() {
       </div>
       {entries.length ? (
         <div className="audit-log-list">
-          {entries.slice(0, 8).map((entry) => {
+          {entries.slice(0, 8).map((entry, index) => {
             const relatedAgent = agents.find((agent) =>
               [agent.id, agent.code, agent.name, agent.instanceKey].some(
                 (value) => value && entry.user.toLowerCase().includes(String(value).toLowerCase()),
@@ -224,14 +225,14 @@ export function AuditLogPanel() {
             )
 
             return (
-              <article key={entry.id} className="audit-log-item consultant-evidence-card">
+              <article key={`${entry.id}-${index}`} className="audit-log-item consultant-evidence-card">
                 <div className="audit-log-item-top">
                   <strong>{formatAuditAction(entry.action)}</strong>
-                  <span>{entry.time}</span>
+                  <span>{formatReadableTime(entry.time)}</span>
                 </div>
-                <p>最近处理对象：{entry.target}</p>
+                <p>最近处理对象：{formatReadableTaskTitle(entry.target)}</p>
                 <small>
-                  {entry.user} · {formatAuditResult(entry.result)}
+                  {formatReadableOwner(entry.user)} · {formatAuditResult(entry.result)}
                 </small>
                 {isInternal ? (
                   <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
@@ -286,7 +287,7 @@ export function ConsultantConfigSummaryCard() {
         <span className="home-count">{consultants.length}</span>
       </div>
       <div className="audit-log-list">
-        {consultants.slice(0, 4).map((item) => {
+        {consultants.slice(0, 4).map((item, index) => {
           const relatedAgent = agents.find((agent) =>
             [agent.id, agent.code, agent.name, agent.instanceKey].some(
               (value) =>
@@ -310,16 +311,16 @@ export function ConsultantConfigSummaryCard() {
           )
 
           return (
-            <article key={item.consultant_id} className="audit-log-item consultant-evidence-card">
+            <article key={`${item.consultant_id}-${index}`} className="audit-log-item consultant-evidence-card">
               <div className="audit-log-item-top">
                 <strong>{item.name}</strong>
                 <span>{formatConsultantStatus(item.status)}</span>
               </div>
               <p>
-                {formatConsultantRole(item.role)} · {formatConsultantAccountType(item.account_type)} · {item.domain}
+                {formatConsultantRole(item.role)} · {formatConsultantAccountType(item.account_type)} · {formatReadableDetail(item.domain)}
               </p>
               <small>
-                顾问编号 {item.consultant_id} · 当前工作量 {item.active_load}
+                配置已同步 · 当前工作量 {item.active_load}
               </small>
               {isInternal ? (
                 <EvidenceObjectLinks

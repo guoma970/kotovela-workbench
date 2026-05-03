@@ -5,6 +5,7 @@ import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { mockLeads } from '../data/mockLeads'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { formatReadableDetail, formatReadableKey, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 import type { StableEvidenceRoutingHints } from '../lib/evidenceContext'
 
@@ -94,7 +95,7 @@ const LEAD_ACTION_LABELS: Record<string, string> = {
 const formatLeadLogText = (value?: string, fallback = '未补充说明') => {
   if (!value || value === '-') return fallback
   if (LEAD_ACTION_LABELS[value]) return LEAD_ACTION_LABELS[value]
-  return value
+  return formatReadableDetail(value)
     .replace(/consultant_assigned/gi, '已完成分配')
     .replace(/manual_review.required/gi, '待人工复核')
     .replace(/business.lead_router/gi, '业务跟进池')
@@ -104,6 +105,38 @@ const formatLeadLogText = (value?: string, fallback = '未补充说明') => {
     .replace(/audit_log/gi, '变更记录')
     .replace(/[._-]+/g, ' ')
 }
+
+const buildLeadSummary = (lead: LeadListItem) => {
+  if (lead.status === 'queue') return '这条待跟进事项还在排队，先确认来源和负责人是否明确。'
+  if (lead.status === 'running') return '正在跟进中，重点看负责人和最近处理动态。'
+  if (lead.status === 'need_human') return '需要人工判断，建议先补充客户意图或确认分配方向。'
+  if (lead.status === 'done') return '已经转化或完成，可在处理动态里回看依据。'
+  return '已关闭或流失，可用于复盘来源和跟进路径。'
+}
+
+const buildLeadNextAction = (lead: LeadListItem) => {
+  if (lead.status === 'queue') return '确认负责人，必要时进入执行中枢派发。'
+  if (lead.status === 'running') return '等待负责人回报下一步，或补充客户关键需求。'
+  if (lead.status === 'need_human') return '人工确认是否继续跟进、改派或关闭。'
+  if (lead.status === 'done') return '确认转化记录是否完整，必要时沉淀案例。'
+  return '复盘流失原因，避免同类线索重复丢失。'
+}
+
+const buildLeadSignals = (lead: LeadListItem) =>
+  [
+    { label: '来源', value: lead.source },
+    { label: '来源频道', value: lead.source_line },
+    { label: '账号/频道', value: lead.account_line },
+    { label: '内容线', value: lead.content_line },
+    { label: '顾问', value: lead.consultant_id },
+    { label: '渠道', value: lead.attribution?.source },
+  ]
+    .filter((item): item is { label: string; value: string } => Boolean(item.value))
+    .slice(0, 4)
+    .map((item) => ({
+      ...item,
+      value: item.label === '顾问' ? formatReadableOwner(item.value) : formatReadableKey(item.value),
+    }))
 
 const normalizeLeadStatus = (status?: string, assignmentStatus?: string): LeadStatus => {
   const s = String(status ?? '').toLowerCase()
@@ -241,14 +274,14 @@ export function LeadsPage() {
         </div>
         <p className="page-note">
           {isInternal
-            ? '统一查看待跟进事项的来源、负责人、当前状态和最近更新时间；内部版会优先同步真实记录。'
+            ? '默认展示待跟进事项的业务摘要、负责人和下一步；编号、字段和关联对象可展开查看。'
             : 'Mode-isolated lead list with unified fields: lead_id, name, source, status, owner, updated_at.'}
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '待跟进列表' : 'Lead Queue'}
-        intro={isInternal ? '统一状态口径后查看来源、负责人、跟进状态和关联依据。' : 'Track leads with normalized status labels.'}
+        heading={isInternal ? '待跟进快照' : 'Lead Queue'}
+        intro={isInternal ? '先看需人工处理和跟进中；每张卡片都给出来源、负责人和下一步。' : 'Track leads with normalized status labels.'}
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
           label: isInternal ? column.labelZh : column.label,
@@ -267,31 +300,54 @@ export function LeadsPage() {
           <span className="badge-count">{effectiveLeads.length}</span>
         </div>
         <div className="queue-list">
-          {effectiveLeads.map((lead) => {
+          {effectiveLeads.map((lead, index) => {
             const { relatedTask, relatedAgent, relatedProject, relatedRooms } = resolveLeadRelations(lead)
             return (
               <article
-                key={lead.lead_id}
+                key={`${lead.lead_id}-${index}`}
                 className={[
-                  'queue-card panel-surface',
+                  'queue-card panel-surface task-readable-card',
                   relatedTask ? (linking.getState('task', relatedTask.id).isSelected ? 'surface-selected' : '') : '',
                   relatedTask && !linking.getState('task', relatedTask.id).isSelected && linking.getState('task', relatedTask.id).isRelated ? 'surface-related' : '',
                 ].filter(Boolean).join(' ')}
               >
-                <div className="item-head">
-                  <h4>{lead.name}</h4>
+                <div className="task-card-kicker">
+                  <span className={`task-status-chip task-status-${lead.status}`}>
+                    {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}
+                  </span>
                   <span className={`priority-badge priority-${lead.status === 'done' ? 'low' : lead.status === 'running' ? 'medium' : 'high'}`}>
                     {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}
                   </span>
                 </div>
-                <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>{isInternal ? '线索编号' : 'lead_id'}: {lead.lead_id}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '来源' : 'source'}: {lead.source}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '状态' : 'status'}: {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '负责人' : 'owner'}: {lead.owner}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '更新时间' : 'updated_at'}: {lead.updated_at}</span></div>
-                <div className="queue-meta dense-meta"><span>{isInternal ? '展示口径' : 'mode'}: {lead.source_mode}</span></div>
-                {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
-                  <div className="relation-stack" style={{ marginTop: 12 }}>
+                <h4 className="task-readable-title">{isInternal ? formatReadableTaskTitle(lead.name) : lead.name}</h4>
+                <p className="task-readable-summary">{isInternal ? buildLeadSummary(lead) : lead.lead_id}</p>
+                {isInternal ? (
+                  <div className="task-next-action">
+                    <span>下一步</span>
+                    <strong>{buildLeadNextAction(lead)}</strong>
+                  </div>
+                ) : null}
+                <div className="task-readable-meta">
+                  <span>负责人：{isInternal ? formatReadableOwner(lead.owner) : lead.owner}</span>
+                  <span>更新：{isInternal ? formatReadableTime(lead.updated_at) : lead.updated_at}</span>
+                </div>
+                {isInternal ? (
+                  <div className="task-signal-row" aria-label="待跟进业务线索">
+                    {buildLeadSignals(lead).map((signal) => (
+                      <span key={`${lead.lead_id}-${signal.label}-${signal.value}`}>
+                        <small>{signal.label}</small>
+                        {signal.value}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <details className="task-raw-details">
+                  <summary>{isInternal ? '查看编号、来源与关联对象' : 'Details'}</summary>
+                  <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>{isInternal ? '待跟进编号' : 'lead_id'}：{lead.lead_id}</span></div>
+                  <div className="queue-meta dense-meta"><span>{isInternal ? '原始来源' : 'source'}：{formatReadableKey(lead.source)}</span></div>
+                  <div className="queue-meta dense-meta"><span>{isInternal ? '展示口径' : 'mode'}：{lead.source_mode === 'internal' ? '内部实时/快照数据' : '演示数据'}</span></div>
+                  {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
+                    <div className="relation-stack" style={{ marginTop: 12 }}>
                     <div>
                       <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
                       <div className="object-row top-gap">
@@ -345,8 +401,9 @@ export function LeadsPage() {
                         ) : <span className="soft-tag">—</span>}
                       </div>
                     </div>
-                  </div>
-                ) : null}
+                    </div>
+                  ) : null}
+                </details>
               </article>
             )
           })}
@@ -406,9 +463,9 @@ export function LeadsPage() {
                 }
                 return (
                   <article key={entry.key} className="consultant-evidence-card">
-                    <strong>{leadRecord.name}</strong>
-                    <p>最近处理：{formatLeadLogText(entry.action, '已记录处理动作')}</p>
-                    <small>原因：{formatLeadLogText(entry.reason)} · {entry.timestamp}</small>
+                  <strong>{formatReadableTaskTitle(leadRecord.name)}</strong>
+                  <p>最近处理：{formatLeadLogText(entry.action, '已记录处理动作')}</p>
+                    <small>原因：{formatLeadLogText(entry.reason)} · {formatReadableTime(entry.timestamp)}</small>
                     <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
                       <summary className="scheduler-task-result-head">
                         <strong>查看处理依据</strong>
@@ -451,11 +508,11 @@ export function LeadsPage() {
               <strong>查看变更记录（排障用）</strong>
             </summary>
             <div className="consultant-evidence-list top-gap">
-              {auditEntries.map((entry) => (
-                <article key={entry.id} className="consultant-evidence-card">
+              {auditEntries.map((entry, index) => (
+                <article key={`${entry.id}-${index}`} className="consultant-evidence-card">
                   <strong>{formatLeadLogText(entry.action, '已记录变更')}</strong>
                   <p>{formatLeadLogText(entry.target, '涉及对象已记录')}</p>
-                  <small>{formatLeadLogText(entry.result, '结果已记录')} · {entry.time}</small>
+                  <small>{formatLeadLogText(entry.result, '结果已记录')} · {formatReadableTime(entry.time)}</small>
                   <EvidenceObjectLinks
                     textParts={[entry.action, entry.target, entry.result]}
                     signalParts={[entry.actor, entry.target, entry.result]}

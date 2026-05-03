@@ -10,6 +10,7 @@ import {
   type SystemModeValue,
 } from '../config/systemControl'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type AuditEntry = {
@@ -40,7 +41,7 @@ const APP_MODE_LABELS: Record<string, string> = {
 }
 
 const formatControlDetail = (value: string) =>
-  value
+  formatReadableDetail(value)
     .replace(/system_mode/g, '系统模式')
     .replace(/publish_mode/g, '发布状态')
     .replace(/force_stop/g, '紧急停止')
@@ -222,7 +223,7 @@ export function SystemControlPage() {
             <article key={`${entry.timestamp}-${index}`} className="consultant-evidence-card">
               <strong>{formatControlAction(entry.action)}</strong>
               <p>{formatControlDetail(entry.reason)}</p>
-              <small>{entry.actor || '-'} · {entry.timestamp}</small>
+              <small>{formatReadableOwner(entry.actor)} · {formatReadableTime(entry.timestamp)}</small>
               <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
                 <summary className="scheduler-task-result-head">
                   <strong>查看原始记录</strong>
@@ -254,11 +255,11 @@ export function SystemControlPage() {
             <strong>查看原始变更记录（排障用）</strong>
           </summary>
           <div className="consultant-evidence-list top-gap">
-            {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry) => (
-              <article key={entry.id} className="consultant-evidence-card">
+            {auditEntries.filter((entry) => entry.action.includes('system_mode')).slice(0, 6).map((entry, index) => (
+              <article key={`${entry.id}-${index}`} className="consultant-evidence-card">
                 <strong>{formatControlAction(entry.action)}</strong>
-                <p>{entry.target}</p>
-                <small>{formatControlDetail(entry.result)} · {entry.time}</small>
+                <p>{formatReadableTaskTitle(entry.target)}</p>
+                <small>{formatControlDetail(entry.result)} · {formatReadableTime(entry.time)}</small>
                 <EvidenceObjectLinks
                   textParts={[entry.action, entry.target, entry.result]}
                   signalParts={[entry.user, entry.target, entry.result]}

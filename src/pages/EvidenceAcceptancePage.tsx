@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceBucketExample, type EvidenceDriftSummary, type EvidenceRow } from '../lib/evidenceAcceptance'
+import { formatReadableDetail, formatReadableKey, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type BoardEntry = {
@@ -100,7 +101,7 @@ const displayAlertLevel = (value: string) => ALERT_LEVEL_LABELS[value] ?? value
 
 function displaySignalPart(value: string) {
   const [rawKey, rawValue] = value.split('=')
-  if (!rawValue) return value
+  if (!rawValue) return formatReadableTaskTitle(value)
 
   const keyLabels: Record<string, string> = {
     project_line: '项目线索',
@@ -112,11 +113,15 @@ function displaySignalPart(value: string) {
     lead_id: '待跟进编号',
   }
 
-  return `${keyLabels[rawKey] ?? rawKey}：${rawValue}`
+  const displayValue = rawKey === 'consultant_id'
+    ? formatReadableOwner(rawValue)
+    : formatReadableKey(rawValue)
+
+  return `${keyLabels[rawKey] ?? formatReadableKey(rawKey)}：${displayValue}`
 }
 
 function renderBucketExampleMeta(example: EvidenceBucketExample) {
-  return `${example.source} · ${example.timestamp}`
+  return `${displaySource(example.source)} · ${formatReadableTime(example.timestamp)}`
 }
 
 export function EvidenceAcceptancePage() {
@@ -364,20 +369,20 @@ export function EvidenceAcceptancePage() {
               <span className="badge-count">{driftSummary?.alerts.length ?? 0}</span>
             </div>
             <div className="evidence-source-stats">
-              {driftSummary?.samples.map((sample) => (
-                <span key={sample.sampleId} className="inline-link-chip">{sample.label} · 待补线索 {sample.unresolved} · 线索辅助 {sample.heuristicHits}</span>
+              {driftSummary?.samples.map((sample, index) => (
+                    <span key={`${sample.sampleId}-${index}`} className="inline-link-chip">{formatReadableDetail(sample.label)} · 待补线索 {sample.unresolved} · 线索辅助 {sample.heuristicHits}</span>
               ))}
               {!driftSummary?.samples.length ? <span className="inline-link-chip">近期趋势暂不可用</span> : null}
             </div>
             <div className="evidence-source-stats top-gap">
-              {driftSummary?.alerts.map((alert) => (
-                <span key={alert.source} className="inline-link-chip">{displayAlertLevel(alert.level)} · {displayMatchSource(alert.source)} · 最新 {alert.latestCount} · Δ {alert.delta >= 0 ? `+${alert.delta}` : alert.delta} {alert.driftStartedAt ? `· 首次 ${alert.driftStartedAt}` : ''}</span>
+              {driftSummary?.alerts.map((alert, index) => (
+                <span key={`${alert.source}-${index}`} className="inline-link-chip">{displayAlertLevel(alert.level)} · {displayMatchSource(alert.source)} · 最新 {alert.latestCount} · Δ {alert.delta >= 0 ? `+${alert.delta}` : alert.delta} {alert.driftStartedAt ? `· 首次 ${formatReadableTime(alert.driftStartedAt)}` : ''}</span>
               ))}
               {driftSummary && !driftSummary.alerts.length ? <span className="inline-link-chip">未触发阈值</span> : null}
             </div>
             <div className="consultant-evidence-list top-gap">
-              {driftSummary?.buckets.map((bucket) => (
-                <article key={bucket.source} className="consultant-evidence-card">
+              {driftSummary?.buckets.map((bucket, bucketIndex) => (
+                <article key={`${bucket.source}-${bucketIndex}`} className="consultant-evidence-card">
                     <div className="audit-log-item-top">
                       <strong>{displayMatchSource(bucket.source)}</strong>
                       <span className={bucket.alertLevel === 'critical' || bucket.alertLevel === 'warning' ? 'evidence-state-miss' : 'evidence-state-hit'}>
@@ -387,10 +392,10 @@ export function EvidenceAcceptancePage() {
                   <p>
                     上次 {bucket.previousCount} → 最新 {bucket.latestCount}，Δ {bucket.delta >= 0 ? `+${bucket.delta}` : bucket.delta}，占比 {(bucket.latestRatio * 100).toFixed(0)}%
                   </p>
-                  <small>{bucket.driftStartedAt ? `首次波动 ${bucket.driftStartedAt}` : '未触发早期波动'}</small>
+                  <small>{bucket.driftStartedAt ? `首次波动 ${formatReadableTime(bucket.driftStartedAt)}` : '未触发早期波动'}</small>
                   <div className="cross-link-row top-gap">
                     {driftSummary.samples.map((sample, index) => (
-                      <span key={`${bucket.source}-${sample.sampleId}`} className="inline-link-chip">{sample.label} · {bucket.counts[index] ?? 0}</span>
+                      <span key={`${bucket.source}-${sample.sampleId}-${index}`} className="inline-link-chip">{formatReadableDetail(sample.label)} · {bucket.counts[index] ?? 0}</span>
                     ))}
                   </div>
                 </article>
@@ -411,7 +416,7 @@ export function EvidenceAcceptancePage() {
                       </div>
                       <p>{description}</p>
                       <div className="consultant-evidence-list top-gap">
-                        {examples.map((example) => {
+                        {examples.map((example, exampleIndex) => {
                           const linkedRow = rowById.get(example.rowId)
                           const linkedTextParts = linkedRow?.textParts ?? [example.title, example.detail]
                           const linkedSignalParts = linkedRow?.signalParts ?? example.signalParts
@@ -423,16 +428,16 @@ export function EvidenceAcceptancePage() {
                           const hasLinkedRow = Boolean(linkedRow)
 
                           return (
-                            <article key={`${key}-${example.rowId}`} className="consultant-evidence-card">
+                            <article key={`${key}-${example.rowId}-${exampleIndex}`} className="consultant-evidence-card">
                               <div className="audit-log-item-top">
-                                <strong>{example.title}</strong>
+                                <strong>{formatReadableTaskTitle(example.title)}</strong>
                                 <span>{displayMatchSource(example.matchSource)}</span>
                               </div>
-                              <p>{example.detail}</p>
+                              <p>{formatReadableDetail(example.detail)}</p>
                               <small>{renderBucketExampleMeta(example)} · {hasLinkedRow ? '已通过当前验证记录关联' : linkedProjectId || linkedAgentId || linkedRoomId || linkedTaskId ? '已通过导出对象线索关联' : '仅剩线索辅助，缺少记录级关联提示'}</small>
                               <div className="cross-link-row top-gap">
-                                {example.signalParts.map((item) => (
-                                  <span key={`${example.rowId}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
+                                {example.signalParts.map((item, signalIndex) => (
+                                  <span key={`${example.rowId}-${item}-${signalIndex}`} className="inline-link-chip">{displaySignalPart(item)}</span>
                                 ))}
                               </div>
                               <EvidenceObjectLinks
@@ -486,18 +491,18 @@ export function EvidenceAcceptancePage() {
                 {fixtureDataset.map(({ fixture, row }) => (
                   <article key={fixture.id} className="consultant-evidence-card">
                     <div className="audit-log-item-top">
-                      <strong>{fixture.title}</strong>
+                      <strong>{formatReadableTaskTitle(fixture.title)}</strong>
                       <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
                         {row.success ? `已命中 × ${row.hitCount}` : `${displayCategory(row.category)} / ${displayReason(row.reason)}`}
                       </span>
                     </div>
-                    <p>{fixture.detail}</p>
+                    <p>{formatReadableDetail(fixture.detail)}</p>
                     <small>预期：{displayCategory(fixture.expectation.category)} / {displayReason(fixture.expectation.reason)}</small>
                     <div className="cross-link-row top-gap">
                       <span className="inline-link-chip">识别来源 {displayMatchSource(row.matchSource)}</span>
                       <span className="inline-link-chip">可信度 {displayConfidence(row.matchConfidence)}</span>
-                      {fixture.signalParts.map((item) => (
-                        <span key={`${fixture.id}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
+                      {fixture.signalParts.map((item, signalIndex) => (
+                        <span key={`${fixture.id}-${item}-${signalIndex}`} className="inline-link-chip">{displaySignalPart(item)}</span>
                       ))}
                     </div>
                   </article>
@@ -515,16 +520,16 @@ export function EvidenceAcceptancePage() {
               {summary.unresolved.slice(0, 12).map((row) => (
                 <article key={row.id} className="consultant-evidence-card">
                   <div className="audit-log-item-top">
-                    <strong>{row.title}</strong>
+                    <strong>{formatReadableTaskTitle(row.title)}</strong>
                     <span>{displaySource(row.source)}</span>
                   </div>
-                  <p>{row.detail}</p>
-                  <small>{displayReason(row.reason)} · {row.timestamp}</small>
+                  <p>{formatReadableDetail(row.detail)}</p>
+                  <small>{displayReason(row.reason)} · {formatReadableTime(row.timestamp)}</small>
                   <div className="cross-link-row top-gap">
                     <span className="inline-link-chip">识别来源 {displayMatchSource(row.matchSource)}</span>
                     <span className="inline-link-chip">可信度 {displayConfidence(row.matchConfidence)}</span>
-                    {row.signalParts.map((item) => (
-                      <span key={`${row.id}-${item}`} className="inline-link-chip">{displaySignalPart(item)}</span>
+                    {row.signalParts.map((item, signalIndex) => (
+                      <span key={`${row.id}-${item}-${signalIndex}`} className="inline-link-chip">{displaySignalPart(item)}</span>
                     ))}
                   </div>
                 </article>
@@ -542,13 +547,13 @@ export function EvidenceAcceptancePage() {
               {rows.slice(0, 18).map((row) => (
                 <article key={row.id} className="consultant-evidence-card">
                   <div className="audit-log-item-top">
-                    <strong>{row.title}</strong>
+                    <strong>{formatReadableTaskTitle(row.title)}</strong>
                     <span className={row.success ? 'evidence-state-hit' : 'evidence-state-miss'}>
                       {row.success ? `已关联 × ${row.hitCount}` : displayReason(row.reason)}
                     </span>
                   </div>
-                  <p>{row.detail}</p>
-                  <small>{displaySource(row.source)} · {row.timestamp}</small>
+                  <p>{formatReadableDetail(row.detail)}</p>
+                  <small>{displaySource(row.source)} · {formatReadableTime(row.timestamp)}</small>
                   <div className="cross-link-row top-gap">
                     <span className="inline-link-chip">关联方式 {displayMatchSource(row.matchSource)}</span>
                     <span className="inline-link-chip">把握度 {displayConfidence(row.matchConfidence)}</span>

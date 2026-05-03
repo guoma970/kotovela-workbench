@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { consultantSettingsConfig, type ConsultantRecord } from '../config/consultantSettings'
 import { APP_MODE } from '../config/brand'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
 
 type BoardItem = {
   task_name: string
@@ -128,11 +129,11 @@ const publishModeLabels: Record<string, string> = {
 }
 
 function formatConsultantRole(role: string) {
-  return consultantRoleLabels[role] ?? role
+  return consultantRoleLabels[role] ?? formatReadableDetail(role)
 }
 
 function formatConsultantDomain(value: string) {
-  return consultantDomainLabels[value] ?? value.replace(/[._-]+/g, ' ')
+  return consultantDomainLabels[value] ?? formatReadableDetail(value)
 }
 
 function formatAssignmentScope(value: string) {
@@ -176,12 +177,12 @@ function formatPartnerMode(value?: string) {
 
 function formatRouteTarget(value?: string) {
   if (!value || value === '-') return '暂未分配'
-  return consultantRouteTargetLabels[value] ?? value.replace(/[._-]+/g, ' ')
+  return consultantRouteTargetLabels[value] ?? formatReadableDetail(value)
 }
 
 function formatDecisionSnippet(value?: string) {
   if (!value) return '未补充说明'
-  return value
+  return formatReadableDetail(value)
     .replace(/consultant/gi, '顾问')
     .replace(/external_partner/gi, '外部合作方')
     .replace(/route/gi, '分配')
@@ -190,7 +191,7 @@ function formatDecisionSnippet(value?: string) {
 
 function formatAssignmentAction(value?: string) {
   if (!value || value === '-') return '已记录分配动作'
-  return value
+  return formatReadableDetail(value)
     .replace(/consultant_assigned/gi, '已完成顾问分配')
     .replace(/manual_review/gi, '已转人工复核')
     .replace(/priority_up/gi, '已提高优先级')
@@ -200,7 +201,7 @@ function formatAssignmentAction(value?: string) {
 
 function formatAuditResult(value?: string) {
   if (!value || value === '-') return '已记录结果'
-  return value
+  return formatReadableDetail(value)
     .replace(/assigned to/gi, '已分配给')
     .replace(/consultant/gi, '顾问')
     .replace(/[._-]+/g, ' ')
@@ -434,8 +435,8 @@ export function ConsultantsPage() {
             <span className="home-count">{consultantSettingsConfig.ruleSummary.length}</span>
           </div>
           <ul className="consultant-rule-list">
-            {consultantSettingsConfig.ruleSummary.map((rule) => (
-              <li key={rule}>{rule}</li>
+            {consultantSettingsConfig.ruleSummary.map((rule, index) => (
+              <li key={`${rule}-${index}`}>{rule}</li>
             ))}
           </ul>
         </section>
@@ -446,9 +447,9 @@ export function ConsultantsPage() {
             <span className="home-count">{consultantLoadSummary.length}</span>
           </div>
           <div className="consultant-evidence-list">
-            {consultantLoadSummary.map((item) => (
-              <article key={item.consultantId} className="consultant-evidence-card">
-                <strong>{item.owner}</strong>
+            {consultantLoadSummary.map((item, index) => (
+              <article key={`${item.consultantId}-${index}`} className="consultant-evidence-card">
+                <strong>{formatReadableOwner(item.owner)}</strong>
                 <p>当前工作量 {item.active} · 总计 {item.total}</p>
                 <small>主要方向：{item.domains.map((domain) => formatConsultantDomain(domain)).join(' / ') || '暂未同步'}</small>
               </article>
@@ -463,9 +464,9 @@ export function ConsultantsPage() {
             <span className="home-count">{externalPartnerEvidence.length}</span>
           </div>
           <div className="consultant-evidence-list">
-            {externalPartnerEvidence.map((item) => (
-              <article key={item.task_name} className="consultant-evidence-card">
-                <strong>{item.task_name}</strong>
+            {externalPartnerEvidence.map((item, index) => (
+              <article key={`${item.task_name}-${index}`} className="consultant-evidence-card">
+                <strong>{formatReadableTaskTitle(item.task_name)}</strong>
                 <p>去向判断 {formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
                 <small>合作方式：{formatPartnerMode(item.partner_mode)} · 处理方向：{formatConsultantDomain(item.domain ?? 'business')}</small>
               </article>
@@ -480,12 +481,12 @@ export function ConsultantsPage() {
           </div>
           <p className="page-note">先看最近有哪些事项被分给了谁，以及这样分配的原因；原始记录折叠到下层，排障时再展开。</p>
           <div className="consultant-evidence-list">
-            {assignmentEvidence.map((item) => {
+            {assignmentEvidence.map((item, index) => {
               const lastEntry = [...(item.decision_log ?? [])].slice(-1)[0]
-              const consultantName = item.consultant_id ? consultantNameById.get(item.consultant_id) ?? item.consultant_id : '待确认'
+              const consultantName = item.consultant_id ? consultantNameById.get(item.consultant_id) ?? formatReadableOwner(item.consultant_id) : '待确认'
               return (
-                <article key={item.task_name} className="consultant-evidence-card">
-                  <strong>{item.task_name}</strong>
+                <article key={`${item.task_name}-${index}`} className="consultant-evidence-card">
+                  <strong>{formatReadableTaskTitle(item.task_name)}</strong>
                   <p>已分给：{consultantName}</p>
                   <small>原因：{formatDecisionSnippet(lastEntry?.rule_hit_reason ?? lastEntry?.reason ?? lastEntry?.detail)}</small>
                   <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
@@ -493,7 +494,7 @@ export function ConsultantsPage() {
                       <strong>查看原始分配依据</strong>
                     </summary>
                     <div className="top-gap">
-                      <p>领域：{item.domain ?? '未标注'} · 去向判断：{formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
+                      <p>领域：{formatConsultantDomain(item.domain ?? '未标注')} · 去向判断：{formatRouteResult(item.route_result)} → {formatRouteTarget(item.route_target)}</p>
                       <p>顾问编号：{item.consultant_id ?? '暂未同步'}</p>
                       <small>
                         {(item.decision_log ?? [])
@@ -514,11 +515,11 @@ export function ConsultantsPage() {
               <strong>查看原始分配记录（排障用）</strong>
             </summary>
             <div className="consultant-evidence-list top-gap">
-              {auditEvidence.map((entry) => (
-                <article key={entry.id} className="consultant-evidence-card">
+              {auditEvidence.map((entry, index) => (
+                <article key={`${entry.id}-${index}`} className="consultant-evidence-card">
                   <strong>{formatAssignmentAction(entry.action)}</strong>
-                  <p>{entry.target}</p>
-                  <small>{entry.user} · {formatAuditResult(entry.result)} · {entry.time}</small>
+                  <p>{formatReadableTaskTitle(entry.target)}</p>
+                  <small>{formatReadableOwner(entry.user)} · {formatAuditResult(entry.result)} · {formatReadableTime(entry.time)}</small>
                 </article>
               ))}
               {!auditEvidence.length ? <p className="empty-state">暂无原始分配记录。</p> : null}

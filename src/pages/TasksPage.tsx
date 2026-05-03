@@ -4,6 +4,7 @@ import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle } from '../lib/readableText'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type TaskBoardStatus = 'running' | 'queue' | 'paused' | 'done' | 'need_human'
@@ -115,6 +116,7 @@ const BUSINESS_SIGNAL_LABELS: Record<string, string> = {
   builder: '研发执行',
   builder_page: '页面开发',
   business: '业务跟进',
+  business_default: '业务默认分配',
   customer_followup: '客户跟进',
   family: '家庭事务',
   family_study: '家庭学习',
@@ -132,10 +134,14 @@ const BUSINESS_SIGNAL_LABELS: Record<string, string> = {
   consultant_yanfami_residential: '户型顾问',
   kotovelahub: 'Kotovela Hub',
   KOTOVELAHUB研发群: 'Kotovela Hub 研发群',
+  tech: '技术线',
 }
 
 const TASK_ACTION_LABELS: Record<string, string> = {
   consultant_assigned: '已完成分配',
+  blocked: '有卡点',
+  dependency_waiting: '等待依赖完成',
+  notify_result: '已同步结果',
   priority_up: '已提高优先级',
   priority_down: '已降低优先级',
   pause: '已暂停',
@@ -144,12 +150,21 @@ const TASK_ACTION_LABELS: Record<string, string> = {
   transfer: '已转派',
   direct: '直接处理',
   manual_review: '转人工处理',
+  predictive_risk: '预测风险',
+  risk_detected: '发现风险',
+  task_done: '任务完成',
 }
 
 const formatTaskLogText = (value?: string, fallback = '未补充说明') => {
   if (!value || value === '-') return fallback
   if (TASK_ACTION_LABELS[value]) return TASK_ACTION_LABELS[value]
-  return value
+  return formatReadableDetail(value)
+    .replace(/task done/gi, '任务完成')
+    .replace(/risk detected/gi, '发现风险')
+    .replace(/dependency waiting/gi, '等待依赖完成')
+    .replace(/predictive risk/gi, '预测风险')
+    .replace(/notify result/gi, '已同步结果')
+    .replace(/business default/gi, '业务默认分配')
     .replace(/consultant_assigned/gi, '已完成分配')
     .replace(/manual_review.required/gi, '待人工复核')
     .replace(/business.lead_router/gi, '业务跟进池')
@@ -172,10 +187,7 @@ const formatOwnerLabel = (value?: string, short = false) => {
   const labels = short ? OWNER_SHORT_LABELS : OWNER_LABELS
   if (labels[key]) return labels[key]
   if (!key) return short ? '未分配' : '暂未分配'
-  return key
-    .replace(/^kotovela_/i, '')
-    .replace(/[._-]+/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+  return formatReadableOwner(key)
 }
 
 const formatBusinessSignal = (value?: string, fallback = '暂未同步') => {
@@ -185,7 +197,7 @@ const formatBusinessSignal = (value?: string, fallback = '暂未同步') => {
   const compact = value.replace(/^consultant_/i, '')
   if (BUSINESS_SIGNAL_LABELS[compact]) return BUSINESS_SIGNAL_LABELS[compact]
   if (BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]) return BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]
-  return compact
+  return formatReadableDetail(compact)
     .replace(/^oc_[a-z0-9]+$/i, '飞书群会话')
     .replace(/^room-/i, '频道 ')
     .replace(/^task-/i, '任务 ')
@@ -255,7 +267,7 @@ const buildTaskHeadline = (task: TaskListItem) => {
   const instanceMatch = rawTitle.match(/^实例\s+([a-z0-9_-]+)\s*[·:：-]\s*(.+)$/i)
   if (instanceMatch) return `${formatOwnerLabel(instanceMatch[1], true)}：${humanizeTaskText(instanceMatch[2])}`
 
-  return humanizeTaskText(rawTitle)
+  return formatReadableTaskTitle(humanizeTaskText(rawTitle))
 }
 
 const buildTaskSummary = (task: TaskListItem) => {
@@ -695,16 +707,16 @@ export function TasksPage() {
                 }
                 return (
                   <article key={key} className="consultant-evidence-card">
-                    <strong>{task.title}</strong>
+                    <strong>{buildTaskHeadline(task)}</strong>
                     <p>最近处理：{formatTaskLogText(entry.action, '已记录处理动作')}</p>
-                    <small>原因：{formatTaskLogText(entry.reason)} · {entry.timestamp}</small>
+                    <small>原因：{formatTaskLogText(entry.reason)} · {formatUpdatedAt(entry.timestamp)}</small>
                     <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
                       <summary className="scheduler-task-result-head">
                         <strong>查看处理依据</strong>
                       </summary>
                       <div className="top-gap">
                         <p>处理说明：{formatTaskLogText(entry.detail)}</p>
-                        <p>任务编号：{task.task_id}</p>
+                        <p>原始任务编号（排障用）：{task.task_id}</p>
                         <EvidenceObjectLinks
                           textParts={[task.title, task.task_id, entry.reason, entry.detail]}
                           signalParts={[
@@ -743,7 +755,7 @@ export function TasksPage() {
                 <article key={`${entry.id}-${index}`} className="consultant-evidence-card">
                   <strong>{formatTaskLogText(entry.action, '已记录变更')}</strong>
                   <p>{formatTaskLogText(entry.target, '涉及对象已记录')}</p>
-                  <small>{formatTaskLogText(entry.result, '结果已记录')} · {entry.time}</small>
+                  <small>{formatTaskLogText(entry.result, '结果已记录')} · {formatUpdatedAt(entry.time)}</small>
                   <EvidenceObjectLinks
                     textParts={[entry.action, entry.target, entry.result]}
                     signalParts={[entry.actor, entry.target, entry.result]}

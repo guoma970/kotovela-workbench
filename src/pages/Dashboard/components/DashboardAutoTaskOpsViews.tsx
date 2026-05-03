@@ -22,12 +22,15 @@ import type {
   TemplatePoolEntry,
 } from '../lib/autoTaskShared'
 import {
+  formatAccountLine,
+  formatContentLine,
   formatDecisionAction,
   formatPoolHealth,
   formatPoolKey,
   formatScenarioTemplate,
   formatTaskTone,
 } from '../lib/autoTaskLabels'
+import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../../../lib/readableText'
 
 type TaskCardRenderer = (item: AutoTaskBoardItem, tone: TaskCardTone, index: number) => ReactNode
 
@@ -61,17 +64,17 @@ export function AutoTaskOperationsView({
             {parentTaskViews.slice(0, 6).map((parent) => (
               <article className="scheduler-parent-task-card" key={parent.id}>
                 <div className="scheduler-parent-task-top">
-                  <strong>{parent.title}</strong>
+                  <strong>{formatReadableTaskTitle(parent.title)}</strong>
                   <span>{formatScenarioTemplate(parent.template)}</span>
                 </div>
                 <div className="scheduler-parent-task-meta">
                   <span>子任务 {parent.childCount}</span>
                   <span>进度 {parent.progress}%</span>
-                  <span>阻塞点 {parent.blockedPoint}</span>
+                  <span>阻塞点 {formatReadableTaskTitle(parent.blockedPoint)}</span>
                 </div>
                 <div className="scheduler-parent-task-domains">
-                  {parent.domains.map((domain) => (
-                    <span key={`${parent.id}-${domain}`} className="scheduler-parent-domain-chip">{domain}</span>
+                  {parent.domains.map((domain, domainIndex) => (
+                    <span key={`${parent.id}-${domain}-${domainIndex}`} className="scheduler-parent-domain-chip">{formatReadableDetail(domain)}</span>
                   ))}
                 </div>
               </article>
@@ -82,8 +85,8 @@ export function AutoTaskOperationsView({
           <div className="scheduler-task-groups">
             {taskGroups.slice(0, 6).map((group) => (
               <div className="scheduler-task-group-chip" key={group.id}>
-                <strong>{group.label}</strong>
-                <span>{formatScenarioTemplate(group.template)} · {group.count} 项任务 · {group.domain} / {group.projectLine}</span>
+                <strong>{formatReadableTaskTitle(group.label)}</strong>
+                <span>{formatScenarioTemplate(group.template)} · {group.count} 项任务 · {formatReadableDetail(group.domain)} / {formatReadableDetail(group.projectLine)}</span>
               </div>
             ))}
           </div>
@@ -105,9 +108,9 @@ export function AutoTaskOperationsView({
           <div className="scheduler-decisions-card">
             <div className="scheduler-section-title">各领域负载摘要</div>
             <div className="scheduler-decision-list">
-              {domainLoadSummary.length ? domainLoadSummary.map((entry) => (
-                <article className="scheduler-decision-item" key={entry.domain}>
-                  <div className="scheduler-decision-top"><strong>{entry.domain}</strong><span>{entry.total} 项任务</span></div>
+              {domainLoadSummary.length ? domainLoadSummary.map((entry, index) => (
+                <article className="scheduler-decision-item" key={`${entry.domain}-${index}`}>
+                  <div className="scheduler-decision-top"><strong>{formatReadableDetail(entry.domain)}</strong><span>{entry.total} 项任务</span></div>
                   <p>执行中 {entry.running} · 待调度 {entry.queued}</p>
                   <small>有卡点 {entry.blocked} · 待人工处理 {entry.needHuman}</small>
                 </article>
@@ -121,9 +124,9 @@ export function AutoTaskOperationsView({
                 const latestDecision = [...(item.decision_log ?? [])].slice(-1)[0]
                 return (
                   <article className="scheduler-decision-item scheduler-human-item" key={`${item.task_name}-ops-human-${index}`}>
-                    <div className="scheduler-decision-top"><strong>{item.task_name}</strong><span>{item.domain ?? '-'}</span></div>
-                    <p>{latestDecision?.reason ?? '待人工处理'}</p>
-                    <small>{item.human_owner ?? '-'} · {latestDecision?.detail ?? item.manual_decision ?? '-'}</small>
+                    <div className="scheduler-decision-top"><strong>{formatReadableTaskTitle(item.task_name)}</strong><span>{formatReadableDetail(item.domain)}</span></div>
+                    <p>{formatReadableDetail(latestDecision?.reason, '待人工处理')}</p>
+                    <small>{formatReadableOwner(item.human_owner)} · {formatReadableDetail(latestDecision?.detail ?? item.manual_decision)}</small>
                   </article>
                 )
               }) : <div className="auto-task-empty">暂无待人工处理任务</div>}
@@ -134,9 +137,9 @@ export function AutoTaskOperationsView({
           <section className="scheduler-decisions-card">
             <div className="scheduler-section-title">顾问负载 / 转化率</div>
             <div className="scheduler-decision-list">
-              {consultantSummary.length ? consultantSummary.map((entry) => (
-                <article className="scheduler-decision-item" key={entry.consultantId}>
-                  <div className="scheduler-decision-top"><strong>{entry.owner}</strong><span>{entry.consultantId}</span></div>
+              {consultantSummary.length ? consultantSummary.map((entry, index) => (
+                <article className="scheduler-decision-item" key={`${entry.consultantId}-${index}`}>
+                  <div className="scheduler-decision-top"><strong>{formatReadableOwner(entry.owner)}</strong><span>{formatReadableDetail(entry.consultantId)}</span></div>
                   <p>当前工作量 {entry.activeLoad} · 总线索 {entry.total}</p>
                   <small>转化率 {entry.conversionRate}%</small>
                 </article>
@@ -146,11 +149,11 @@ export function AutoTaskOperationsView({
           <section className="scheduler-decisions-card">
             <div className="scheduler-section-title">改派记录</div>
             <div className="scheduler-decision-list">
-              {reassignmentRecords.length ? reassignmentRecords.map((item) => (
-                <article className="scheduler-decision-item" key={`${item.lead_id}-${item.reassigned_at}`}>
-                  <div className="scheduler-decision-top"><strong>{item.task_name}</strong><span>{item.reassigned_at ?? '-'}</span></div>
-                  <p>{item.consultant_id ?? '-'} → {item.reassigned_to ?? '-'}</p>
-                  <small>{item.reassigned_reason ?? '-'}</small>
+              {reassignmentRecords.length ? reassignmentRecords.map((item, index) => (
+                <article className="scheduler-decision-item" key={`${item.lead_id}-${item.reassigned_at}-${index}`}>
+                  <div className="scheduler-decision-top"><strong>{formatReadableTaskTitle(item.task_name)}</strong><span>{formatReadableTime(item.reassigned_at)}</span></div>
+                  <p>{formatReadableOwner(item.consultant_id)} → {formatReadableOwner(item.reassigned_to)}</p>
+                  <small>{formatReadableDetail(item.reassigned_reason)}</small>
                 </article>
               )) : <div className="auto-task-empty">暂无改派记录</div>}
             </div>
@@ -258,9 +261,9 @@ export function AutoTaskExecutionView({
           <div className="scheduler-decision-list">
             {recentDecisions.length ? recentDecisions.map((decision, index) => (
               <article className="scheduler-decision-item" key={`${decision.taskName}-${decision.timestamp}-${index}`}>
-                <div className="scheduler-decision-top"><strong>{formatDecisionAction(decision.decision)}</strong><span>{decision.timestamp}</span></div>
-                <p>{decision.taskName} · {decision.agent}</p>
-                <small>{decision.reason} · {decision.detail}</small>
+                <div className="scheduler-decision-top"><strong>{formatDecisionAction(decision.decision)}</strong><span>{formatReadableTime(decision.timestamp)}</span></div>
+                <p>{formatReadableTaskTitle(decision.taskName)} · {formatReadableOwner(decision.agent)}</p>
+                <small>{formatReadableDetail(decision.reason)} · {formatReadableDetail(decision.detail)}</small>
               </article>
             )) : <div className="auto-task-empty">暂无自动决策记录</div>}
           </div>
@@ -270,9 +273,9 @@ export function AutoTaskExecutionView({
           <div className="scheduler-alert-group">
             {recentResults.length ? recentResults.map((entry, index) => (
               <div className="scheduler-result-item" key={`${entry.task_name}-execution-${index}`}>
-                <strong>{entry.task_name}</strong>
-                <p>{entry.result.content}</p>
-                <small>{entry.updated_at ?? '-'}</small>
+                <strong>{formatReadableTaskTitle(entry.task_name)}</strong>
+                <p>{formatReadableDetail(entry.result.content, '暂无结果摘要')}</p>
+                <small>{formatReadableTime(entry.updated_at)}</small>
               </div>
             )) : <div className="auto-task-empty">暂无结果</div>}
           </div>
@@ -286,7 +289,7 @@ export function AutoTaskExecutionView({
             {publishSourceGroups.length ? publishSourceGroups.map(([sourceKey, entries], groupIndex) => (
               <section className="scheduler-archive-group" key={`${sourceKey}-${groupIndex}`}>
                 <div className="scheduler-archive-group-head">
-                  <strong>{sourceKey}</strong>
+                  <strong>{formatReadableDetail(sourceKey)}</strong>
                   <span>{entries.length} 个版本</span>
                 </div>
                 <div className="scheduler-alert-group">
@@ -308,22 +311,22 @@ export function AutoTaskExecutionView({
         <section className="scheduler-alert-card">
           <div className="scheduler-section-title">结果沉淀中心</div>
           <div className="scheduler-task-groups">
-            {archiveContentLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`content-${line}`}><strong>内容线</strong><span>{line} · {entries.length} 条</span></div>)}
-            {archiveAccountLineGroups.map(([line, entries]) => <div className="scheduler-task-group-chip" key={`account-${line}`}><strong>账号</strong><span>{entries[0]?.accountDisplay || line} · {entries.length} 条</span></div>)}
+            {archiveContentLineGroups.map(([line, entries], index) => <div className="scheduler-task-group-chip" key={`content-${line}-${index}`}><strong>内容线</strong><span>{formatContentLine(line)} · {entries.length} 条</span></div>)}
+            {archiveAccountLineGroups.map(([line, entries], index) => <div className="scheduler-task-group-chip" key={`account-${line}-${index}`}><strong>账号</strong><span>{entries[0]?.accountDisplay || formatAccountLine(line)} · {entries.length} 条</span></div>)}
           </div>
           <div className="scheduler-task-groups">
-            {archiveStructureGroups.map((entry) => (
-              <div className="scheduler-task-group-chip" key={`structure-${entry.structureId}`}>
+            {archiveStructureGroups.map((entry, index) => (
+              <div className="scheduler-task-group-chip" key={`structure-${entry.structureId}-${index}`}>
                 <strong>结构模板</strong>
-                <span>{entry.structureId} · 复用 {entry.count} 次 · 主账号 {entry.topAccount?.[0] || '-'} ({entry.topAccount?.[1] || 0})</span>
+                <span>{formatReadableDetail(entry.structureId)} · 复用 {entry.count} 次 · 主账号 {formatAccountLine(entry.topAccount?.[0])} ({entry.topAccount?.[1] || 0})</span>
               </div>
             ))}
           </div>
           <div className="scheduler-archive-groups">
-            {archiveDomainGroups.length ? archiveDomainGroups.map(([domain, entries]) => (
-              <section className="scheduler-archive-group" key={domain}>
+            {archiveDomainGroups.length ? archiveDomainGroups.map(([domain, entries], groupIndex) => (
+              <section className="scheduler-archive-group" key={`${domain}-${groupIndex}`}>
                 <div className="scheduler-archive-group-head">
-                  <strong>{domain}</strong>
+                  <strong>{formatReadableDetail(domain)}</strong>
                   <span>{entries.length} 条</span>
                 </div>
                 <div className="scheduler-alert-group">

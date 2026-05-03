@@ -14,11 +14,13 @@ import {
   formatDistributionChannel,
   formatRoleVersion,
   formatRouteResult,
+  formatRouteTarget,
   formatSourceProject,
   formatSourceType,
   formatStructureTemplate,
   formatStructureType,
 } from '../lib/autoTaskLabels'
+import { formatReadableDetail, formatReadableTaskTitle, formatReadableTime } from '../../../lib/readableText'
 
 function getRecommendedTemplates(
   templates: TemplatePoolEntry[],
@@ -51,9 +53,9 @@ function TemplateRecommendations({
   return (
     <div className="scheduler-template-recommendations">
       <span>推荐相似模板</span>
-      {templates.length ? templates.map((template) => (
-        <div className="scheduler-template-rec-item" key={template.template_id}>
-          <strong>{template.source_task_name ?? template.template_id}</strong>
+      {templates.length ? templates.map((template, index) => (
+        <div className="scheduler-template-rec-item" key={`${template.template_id}-${index}`}>
+          <strong>{formatReadableTaskTitle(template.source_task_name ?? template.template_id)}</strong>
           <small>复用 {template.use_count} 次</small>
         </div>
       )) : <small>暂无</small>}
@@ -77,22 +79,22 @@ export function PublishCenterCard({
   return (
     <article className="scheduler-result-item scheduler-center-card">
       <div className="scheduler-center-card-top">
-        <strong>{entry.taskName}</strong>
-        <span>{entry.domain} · {formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
+        <strong>{formatReadableTaskTitle(entry.taskName)}</strong>
+        <span>{formatReadableDetail(entry.domain)} · {formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
         <div><span>品牌</span><p>{entry.brandDisplay || formatBrandLine(entry.brandLine) || '-'}</p></div>
         <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
         <div><span>账号</span><p>{entry.accountDisplay || formatAccountLine(entry.accountLine) || '-'}</p></div>
         <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
-        <div><span>账号层级</span><p>{entry.tier || '-'}</p></div>
+        <div><span>账号层级</span><p>{formatReadableDetail(entry.tier, '暂未同步')}</p></div>
         <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
-        <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
+        <div><span>分配去向</span><p>{formatRouteTarget(entry.routeTarget)}</p></div>
         <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
         <div><span>分发渠道</span><p>{formatDistributionChannel(entry.distributionChannel)}</p></div>
         <div><span>内容形态</span><p>{formatContentVariant(entry.contentVariant)}</p></div>
-        <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
-        <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+        <div><span>来源线</span><p>{formatReadableDetail(entry.sourceLine, '暂未同步')}</p></div>
+        <div><span>人设</span><p>{formatReadableDetail(entry.result.persona || entry.result.persona_id, '暂未同步')}</p></div>
         <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
         <div><span>结构模板</span><p>{formatStructureTemplate(entry.result.structure_id)}</p></div>
         <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
@@ -149,9 +151,9 @@ export function PublishCenterCard({
         <button className="auto-task-row-btn" type="button" onClick={() => onManualPublished(entry.taskName)}>
           {controlLoadingTask === `${entry.taskName}:mark_manual_published` ? '记录中...' : '人工已发布'}
         </button>
-        <small>{entry.updatedAt ?? '-'}</small>
+        <small>{formatReadableTime(entry.updatedAt)}</small>
       </div>
-      {entry.result.manual_published_at ? <small>已由 {entry.result.manual_published_by || '-'} 于 {entry.result.manual_published_at} 记录人工发布</small> : null}
+      {entry.result.manual_published_at ? <small>已由 {entry.result.manual_published_by || '-'} 于 {formatReadableTime(entry.result.manual_published_at)} 记录人工发布</small> : null}
       <TemplateRecommendations templates={recommendedTemplates} />
     </article>
   )
@@ -173,7 +175,7 @@ export function ArchiveCenterCard({
   return (
     <article className="scheduler-result-item scheduler-center-card">
       <div className="scheduler-center-card-top">
-        <strong>{entry.taskName}</strong>
+        <strong>{formatReadableTaskTitle(entry.taskName)}</strong>
         <span>{formatAssetType(entry.assetType)} · {formatContentVariant(entry.contentVariant)}</span>
       </div>
       <div className="scheduler-publish-grid">
@@ -181,14 +183,14 @@ export function ArchiveCenterCard({
         <div><span>协作矩阵</span><p>{entry.mcnDisplay || '-'}</p></div>
         <div><span>账号</span><p>{entry.accountDisplay || formatAccountLine(entry.accountLine) || '-'}</p></div>
         <div><span>账号类型</span><p>{formatAccountType(entry.accountType)}</p></div>
-        <div><span>账号层级</span><p>{entry.tier || '-'}</p></div>
+        <div><span>账号层级</span><p>{formatReadableDetail(entry.tier, '暂未同步')}</p></div>
         <div><span>路由结果</span><p>{formatRouteResult(entry.routeResult)}</p></div>
-        <div><span>路由目标</span><p>{entry.routeTarget || '-'}</p></div>
+        <div><span>分配去向</span><p>{formatRouteTarget(entry.routeTarget)}</p></div>
         <div><span>可否成交</span><p>{formatBooleanDecision(entry.canCloseDeal)}</p></div>
         <div><span>分发渠道</span><p>{formatDistributionChannel(entry.distributionChannel)}</p></div>
         <div><span>内容形态</span><p>{formatContentVariant(entry.contentVariant)}</p></div>
-        <div><span>来源线</span><p>{entry.sourceLine || '-'}</p></div>
-        <div><span>人设</span><p>{entry.result.persona || entry.result.persona_id || '-'}</p></div>
+        <div><span>来源线</span><p>{formatReadableDetail(entry.sourceLine, '暂未同步')}</p></div>
+        <div><span>人设</span><p>{formatReadableDetail(entry.result.persona || entry.result.persona_id, '暂未同步')}</p></div>
         <div><span>结构类型</span><p>{formatStructureType(entry.result.structure_type)}</p></div>
         <div><span>结构模板</span><p>{formatStructureTemplate(entry.result.structure_id)}</p></div>
         <div><span>转化策略</span><p>{formatCtaPolicy(entry.result.cta_policy)}</p></div>
@@ -206,7 +208,7 @@ export function ArchiveCenterCard({
         <button className="auto-task-row-btn" type="button" onClick={() => onMarkTemplateSource(entry.taskName)}>
           {controlLoadingTask === `${entry.taskName}:mark_template_source` ? '标记中...' : '标记为模板来源'}
         </button>
-        <small>{entry.updatedAt ?? '-'}</small>
+        <small>{formatReadableTime(entry.updatedAt)}</small>
       </div>
       <TemplateRecommendations templates={recommendedTemplates} />
     </article>
