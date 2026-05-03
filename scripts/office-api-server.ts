@@ -5,22 +5,71 @@
  *   OFFICE_API_PORT=8787 OFFICE_API_TOKEN='你的密钥' OFFICE_API_CORS_ORIGIN='https://kotovelahub.vercel.app' npm run serve:office-api
  *
  * 外出访问：用 Cloudflare Tunnel / Tailscale Funnel / ngrok 等把本机端口暴露为 HTTPS，
- * 再在 Vercel internal 构建里设置 VITE_OFFICE_INSTANCES_API_PATH 指向该 HTTPS URL（含路径）。
+ * 再在 Vercel internal 构建里设置对应上游 URL 指向该 HTTPS URL（含路径）。
  */
 import http from 'node:http'
+import { fetchModelUsagePayload } from '../server/modelUsage.ts'
 import { fetchOfficeInstancesPayload } from '../server/officeInstances.ts'
 
 const PORT = Number.parseInt(process.env.OFFICE_API_PORT || '8787', 10)
 const TOKEN = process.env.OFFICE_API_TOKEN?.trim()
 const CORS_ORIGIN = process.env.OFFICE_API_CORS_ORIGIN?.trim() || '*'
+const MODEL_USAGE_CACHE_MS = Number.parseInt(process.env.MODEL_USAGE_CACHE_MS || '60000', 10)
+type ModelUsagePayload = Awaited<ReturnType<typeof fetchModelUsagePayload>>
 
 const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
   res.end(JSON.stringify(body))
 }
 
+let modelUsageCache: { payload: ModelUsagePayload; refreshedAt: number } | undefined
+let modelUsageRefresh: Promise<ModelUsagePayload> | undefined
+
+const refreshModelUsageCache = async () => {
+  if (modelUsageRefresh) return modelUsageRefresh
+
+  modelUsageRefresh = fetchModelUsagePayload()
+    .then((payload) => {
+      modelUsageCache = { payload, refreshedAt: Date.now() }
+      return payload
+    })
+    .finally(() => {
+      modelUsageRefresh = undefined
+    })
+
+  return modelUsageRefresh
+}
+
+const fetchCachedModelUsagePayload = async () => {
+  const now = Date.now()
+  if (modelUsageCache && now - modelUsageCache.refreshedAt < MODEL_USAGE_CACHE_MS) {
+    return modelUsageCache.payload
+  }
+
+  try {
+    return await refreshModelUsageCache()
+  } catch (error) {
+    if (modelUsageCache) {
+      return {
+        ...modelUsageCache.payload,
+        warnings: [
+          `model usage refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+          ...modelUsageCache.payload.warnings,
+        ].slice(0, 20),
+      }
+    }
+    throw error
+  }
+}
+
+const API_HANDLERS = {
+  '/api/office-instances': fetchOfficeInstancesPayload,
+  '/api/model-usage': fetchCachedModelUsagePayload,
+} as const
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+  const apiHandler = API_HANDLERS[url.pathname as keyof typeof API_HANDLERS]
 
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN)
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
@@ -31,8 +80,14 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (req.method !== 'GET' || url.pathname !== '/api/office-instances') {
+  if (!apiHandler) {
     sendJson(res, 404, { error: 'not_found' })
+    return
+  }
+
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET')
+    sendJson(res, 405, { error: 'method_not_allowed' })
     return
   }
 
@@ -48,11 +103,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    const payload = await fetchOfficeInstancesPayload()
+    const payload = await apiHandler()
     sendJson(res, 200, payload)
   } catch (error) {
     sendJson(res, 500, {
-      error: 'office-instances fetch failed',
+      error: `${url.pathname} fetch failed`,
       message: error instanceof Error ? error.message : String(error),
     })
   }
@@ -61,12 +116,22 @@ const server = http.createServer(async (req, res) => {
 const host = process.env.OFFICE_API_HOST?.trim() || '0.0.0.0'
 
 server.listen(PORT, host, () => {
+  const baseUrl = `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${PORT}`
   console.log(
-    `[office-api] listening http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${PORT}/api/office-instances`,
+    `[office-api] listening ${baseUrl}/api/office-instances and ${baseUrl}/api/model-usage`,
   )
   if (TOKEN) {
     console.log('[office-api] token auth enabled (Authorization: Bearer … or ?token=)')
   } else {
     console.warn('[office-api] OFFICE_API_TOKEN not set — only use behind VPN / tunnel with access control')
   }
+  void refreshModelUsageCache().catch((error) => {
+    console.warn(`[office-api] model usage warmup failed: ${error instanceof Error ? error.message : String(error)}`)
+  })
 })
+
+setInterval(() => {
+  void refreshModelUsageCache().catch((error) => {
+    console.warn(`[office-api] model usage refresh failed: ${error instanceof Error ? error.message : String(error)}`)
+  })
+}, MODEL_USAGE_CACHE_MS).unref()

@@ -49,14 +49,17 @@
 
 - **`VERCEL_BUILD_MODE`** = `internal`（**必填**，否则会变成 Demo 包）
 - 默认可依赖仓库内 **`.env.internal`**（已随 Git 提交时）包含轮询、模式等
-- **外出要看 Mac mini 实时数据**时，在 Vercel 增加（会覆盖 `.env.internal` 里同名字段）：
+- **外出要看 Mac mini 实时数据**时，在 Vercel 增加服务端上游变量；前端仍访问同域 `/api/office-instances` 与 `/api/model-usage`：
 
 | 变量 | 说明 |
 |------|------|
-| `VITE_OFFICE_INSTANCES_API_PATH` | 填 **完整 HTTPS** 地址，例如隧道到 Mac mini 的 `https://xxxx.trycloudflare.com/api/office-instances?token=你的密钥` |
+| `OFFICE_INSTANCES_UPSTREAM_URL` | 填 **完整 HTTPS** 地址，例如隧道到 Mac mini 的 `https://xxxx.trycloudflare.com/api/office-instances` |
+| `OFFICE_INSTANCES_UPSTREAM_TOKEN` | 与 Mac mini `OFFICE_API_TOKEN` 一致，Vercel 服务端使用，不写入前端静态包 |
+| `MODEL_USAGE_UPSTREAM_URL` | 填 **完整 HTTPS** 地址，例如隧道到 Mac mini 的 `https://xxxx.trycloudflare.com/api/model-usage` |
+| `MODEL_USAGE_UPSTREAM_TOKEN` | 与 Mac mini `OFFICE_API_TOKEN` 一致，Vercel 服务端使用，不写入前端静态包 |
 | （可选）`VITE_POLLING_INTERVAL_MS` | 默认内部构建为 5s，可按需改 |
 
-**注意**：带 token 的 URL 会打进前端静态包，务必配合 **隧道访问控制 + 定期轮换 token**，并限制 Internal 站点访问范围。
+**注意**：Internal 站点会返回真实内部状态和用量线索，务必配合 **Vercel 访问保护 / 私有域访问控制 + 定期轮换 token**，并限制 Internal 站点访问范围。
 
 #### `kotovelahub` 项目：必须在控制台里配（无法写在仓库里）
 
@@ -76,7 +79,8 @@
 
 - **Demo**：任意页数据源为 **Mock**；打开开发者工具 Network，**不应**出现对 office 实例接口的请求（除非有人误改构建变量）
 - **Internal**：**中控**是否显示「上次同步」、数据源是否为 OpenClaw / 回退 Mock
-- **Internal 可选**：`GET /api/office-instances` 在同域应返回 JSON（Vercel 上一般为 **snapshot**；连 Mac mini 时以前端 `VITE_OFFICE_INSTANCES_API_PATH` 为准）
+- **Internal 可选**：`GET /api/office-instances` 在同域应返回 JSON；连 Mac mini 时看 `source` 是否为 `live`
+- **Internal 可选**：`GET /api/model-usage` 在同域应返回 JSON；连 Mac mini 时 `source` 应为 `partial` 或 `local-openclaw`，不是 `unavailable`
 - 两站均可试 **添加到主屏幕**（见 `docs/deployment.md`「轻应用」）
 
 ## 5. 线上地址（定稿）与自定义域名（可选）
@@ -124,7 +128,7 @@
 说明 **`VERCEL_BUILD_MODE` 未设为 `internal`**，Vercel 走了 **公开 Demo** 构建路径，而 Demo 守卫禁止 `VITE_DATA_SOURCE=openclaw`。**不要**为通过构建而删掉 `VITE_DATA_SOURCE`（内部站需要 OpenClaw 时应保留）。正确做法：在 **`kotovelahub` 的 Production（及需要的 Preview）** 增加 **`VERCEL_BUILD_MODE=internal`**，保存后 **Redeploy**。
 
 **Q：想连家里 Mac mini API？**  
-Mac mini 上跑 `npm run serve:office-api`，用 Cloudflare Tunnel 等得到 HTTPS，把完整 API URL 写入 `VITE_OFFICE_INSTANCES_API_PATH` 后 **重新部署**（Vite 在构建期写入该变量）。
+Mac mini 上跑 `npm run serve:office-api`，用 Cloudflare Tunnel 等得到 HTTPS，把完整 API URL 分别写入 `OFFICE_INSTANCES_UPSTREAM_URL` / `MODEL_USAGE_UPSTREAM_URL`，并把同一个 `OFFICE_API_TOKEN` 写入对应 `*_TOKEN` 后 **重新部署**。
 
 **Q：快照太旧？**  
 在本机或 CI 执行 `npm run sync:office-snapshot`，提交 `data/office-instances.snapshot.json` 后再推送到触发 Vercel 构建。

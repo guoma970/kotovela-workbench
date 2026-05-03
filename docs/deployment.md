@@ -50,9 +50,9 @@ npm run dev:internal
    - 临时将 `.env.internal` 中 **`VITE_FALLBACK_TO_MOCK=false`**（或在本机 `.env.internal.local` 覆盖）再试一次，便于在浏览器 Network 里看到 **真实接口错误**，而不是静默 Mock。
    - 确认没有用 **`npm run dev:demo`**（Demo 固定 `VITE_DATA_SOURCE=mock`，不会请求真实实例）。
 
-5. **外出访问（手机 / Vercel 读家里 Mac）**  
-   云端 **没有** 你的 `openclaw` 二进制，需二选一：  
-   - 在 **Mac mini** 上 `npm run serve:office-api` 暴露 `8787`，再用隧道把 **HTTPS** 指到该端口；Vercel 内部构建里设置 **`VITE_OFFICE_INSTANCES_API_PATH`** 为该 HTTPS 地址（含 `token` 若启用鉴权）。见下文「Mac mini 常驻」与 **`docs/vercel-setup.md`**。
+5. **外出访问（手机 / Vercel 读家里 Mac）**
+   云端 **没有** 你的 `openclaw` 二进制和本机 Claude Code 状态，需二选一：
+   - 在 **Mac mini** 上 `npm run serve:office-api` 暴露 `8787`，再用隧道把 **HTTPS** 指到该端口；Vercel 内部项目里配置 **服务端上游变量**（`OFFICE_INSTANCES_UPSTREAM_URL` / `MODEL_USAGE_UPSTREAM_URL` 及对应 token）。见下文「Mac mini 常驻」与 **`docs/vercel-setup.md`**。
    - 如果你外出时希望继续只靠飞书研发群推进开发，请在私有运行环境中配置项目研发群；公开仓库只保留占位符（如 `<FEISHU_CHAT_ID_KOTOVELA_HUB>`）。具体接力口径见 **`docs/ops/feishu-dev-handoff.md`**。
 
 ## 生产构建校验
@@ -71,14 +71,14 @@ npm run build
 1. 将仓库导入 Vercel
 2. Build Command 由仓库根 `vercel.json` 指定为 `node scripts/vercel-build.mjs`（勿在控制台改成裸 `vite build`）
 3. Output Directory 使用默认 `dist`
-4. `api/office-instances.ts` 作为服务端接口保留 `/api/office-instances`
+4. `api/office-instances.ts` 与 `api/model-usage.ts` 作为服务端接口保留同域 API
 5. 前端通过同域 `/api/office-instances` 获取实例状态
 
 这样可以得到一个：
 - 手机可打开
 - 飞书内可直接访问
 - 不依赖本地 `localhost`
-- 仍保留实例状态接口的预发布版本
+- 仍保留实例状态与模型用量接口的预发布版本
 
 ## Mac mini 常驻：自建 office API（外出访问）
 
@@ -99,13 +99,14 @@ OFFICE_CHECK_TOKEN='随机长密钥' npm run check:office-api
 ```
 
 - `check:office-api` 会直接请求 `http://localhost:8787/api/office-instances`，输出 `source / generatedAt / snapshotGeneratedAt / instances / statuses`，适合作为常驻服务启动后的第一步自检
+- 用量统计可额外自检：`curl -H "Authorization: Bearer <token>" http://localhost:8787/api/model-usage`，若返回 `source: "partial"` 或 `source: "local-openclaw"`，表示已读到本机 OpenClaw / Claude Code 线索
 - `OFFICE_API_CORS_ORIGIN` 须与内部站在浏览器中的 **HTTPS 源**一致（上例为 **KOTOVELA HUB** 常用部署域 `https://kotovelahub.vercel.app`；若你使用自有域名，请改成实际主机名）
-- 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances`
-- 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`（前端可把完整 URL 配进 `VITE_OFFICE_INSTANCES_API_PATH`，含 query 则注意构建时写入）
+- 接口：`GET http://<mini 局域网或隧道>:8787/api/office-instances` 与 `GET http://<mini 局域网或隧道>:8787/api/model-usage`
+- 鉴权（推荐）：设置 `OFFICE_API_TOKEN` 后，请求需带 `Authorization: Bearer <token>` 或 `?token=<token>`；线上 Vercel 应使用服务端变量保存 token，避免写入前端静态包
 - **外出访问**：家庭宽带通常无固定公网 IP，需任选其一：
   - **Cloudflare Tunnel** / **Tailscale Funnel** / **ngrok**：把 `8787` 暴露为 **HTTPS**（避免浏览器混合内容拦截）
   - 或 **仅 Tailscale/ZeroTier VPN**：手机加入同一虚拟网后访问 `http://100.x.x.x:8787`
-- **Vercel internal 前端**：构建环境变量里把 `VITE_OFFICE_INSTANCES_API_PATH` 设为隧道给出的 **HTTPS** 地址（路径 `/api/office-instances` 及鉴权与本地一致）
+- **Vercel internal 前端**：前端继续走同域 `/api/office-instances` / `/api/model-usage`；在 Vercel 服务端环境变量里把上游地址设为隧道给出的 **HTTPS** 地址（分别带 `/api/office-instances` 与 `/api/model-usage` 路径）
 - **launchd**：仓库提供本机用户级 LaunchAgent 脚本，可把 `npm run serve:office-api` 注册为开机自启，并在异常退出后由 `KeepAlive` 拉起。
 
 ### office API 开机自启（macOS launchd）
