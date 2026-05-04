@@ -1,10 +1,10 @@
 import type {
   AutoTaskBoardItem,
-  AutoTaskTemplateKey,
   PoolTab,
   PublishCenterEntry,
   TaskCardTone,
 } from './autoTaskShared'
+import { formatReadableDetail } from '../../../lib/readableText'
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   todo: '待开始',
@@ -159,13 +159,14 @@ const STRUCTURE_TEMPLATE_LABELS: Record<string, string> = {
   layout_short_v1: '户型改造短内容版',
 }
 
-const SCENARIO_TEMPLATE_LABELS: Record<AutoTaskTemplateKey, string> = {
+const SCENARIO_TEMPLATE_LABELS: Record<string, string> = {
   media_publish_with_distribution: '内容发布与分发',
   business_quote_with_materials: '报价与物料协同',
   family_study_evening: '家庭晚间学习',
   media_publish_flow: '内容发布流程',
   business_followup_flow: '客户跟进流程',
   builder_delivery_flow: '研发交付流程',
+  book_manuscript_role_distribution: '书稿角色分配',
 }
 
 const AUTO_ACTION_LABELS: Record<string, string> = {
@@ -264,7 +265,7 @@ export function formatStructureTemplate(value?: string) {
 }
 
 export function formatScenarioTemplate(value?: string) {
-  return value ? (SCENARIO_TEMPLATE_LABELS[value as AutoTaskTemplateKey] ?? value) : '-'
+  return value ? (SCENARIO_TEMPLATE_LABELS[value] ?? formatReadableDetail(value)) : '-'
 }
 
 export function formatAutoAction(value?: AutoTaskBoardItem['auto_action']) {

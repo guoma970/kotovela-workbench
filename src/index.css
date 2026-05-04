@@ -355,6 +355,11 @@ button,
   .consultant-form-grid {
     grid-template-columns: 1fr;
   }
+
+  .scheduler-system-test-case-top,
+  .scheduler-system-test-case-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .auto-task-row-btn,
@@ -2243,6 +2248,78 @@ button,
   color: #8ea2c6;
   font-size: 0.76rem;
   text-transform: lowercase;
+}
+
+.scheduler-system-test-case-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.scheduler-system-test-case {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(126, 163, 255, 0.16);
+  background: rgba(12, 22, 43, 0.82);
+}
+
+.scheduler-system-test-case.is-failed {
+  border-color: rgba(248, 113, 113, 0.36);
+  background: rgba(42, 14, 20, 0.68);
+}
+
+.scheduler-system-test-case-top,
+.scheduler-system-test-case-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduler-system-test-case-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-start;
+}
+
+.scheduler-system-test-case-top span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.13);
+  color: #bbf7d0;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.scheduler-system-test-case.is-failed .scheduler-system-test-case-top span {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.scheduler-system-test-case-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.scheduler-system-test-case-grid div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.scheduler-system-test-case-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8ea2c6;
+  font-size: 0.76rem;
+}
+
+.scheduler-system-test-case-grid strong,
+.scheduler-system-test-case p {
+  overflow-wrap: anywhere;
+}
+
+.scheduler-system-test-case p {
+  margin: 10px 0 0;
+  color: #b7c7e6;
 }
 
 .scheduler-route-card-list,

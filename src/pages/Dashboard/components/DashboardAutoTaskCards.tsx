@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatReadableDetail, formatReadableTaskTitle } from '../../../lib/readableText'
 
 type AutoTaskBoardSummaryPayload = {
   total?: number
@@ -43,6 +44,38 @@ const MODULE_LABELS: Record<string, string> = {
 const formatModuleLabel = (value?: string) => {
   if (!value) return '未标注'
   return MODULE_LABELS[value] ?? value.replace(/[._-]+/g, ' ')
+}
+
+const SYSTEM_TEST_FIELD_LABELS: Record<string, string> = {
+  account_line: '账号线索',
+  content_line: '内容线索',
+  domain: '领域',
+  project_line: '项目线索',
+  status: '状态',
+  tasks: '任务数',
+  priority: '优先级',
+  route_target: '分配去向',
+  route_result: '去向判断',
+}
+
+const formatSystemTestField = (value: string) =>
+  SYSTEM_TEST_FIELD_LABELS[value] ?? formatReadableDetail(value)
+
+const formatSystemTestValue = (value?: string) => {
+  if (!value || value === '-') return '无'
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed as Record<string, unknown>)
+        .map(([key, item]) => `${formatSystemTestField(key)}：${formatReadableDetail(String(item ?? '无'))}`)
+        .join('；')
+    }
+  } catch {
+    // Plain text from the fixture, fall through to readable formatting.
+  }
+
+  return formatReadableDetail(value)
 }
 
 export function AutoTaskSystemSummaryCard() {
@@ -133,65 +166,53 @@ export function SystemTestResultPanel() {
       </div>
       <details className="scheduler-debug-block">
         <summary className="scheduler-task-result-head">
-          <strong>查看详细检查项</strong>
+          <strong>展开检查明细（研发排障用）</strong>
         </summary>
-        <div id="test-case-table" className="scheduler-routing-table-wrap scheduler-system-test-table-wrap">
-          <table className="scheduler-routing-table scheduler-system-test-table">
-            <thead>
-              <tr>
-                <th>样例编号</th>
-                <th>检查对象</th>
-                <th>输入事项</th>
-                <th>期望判断</th>
-                <th>系统输出</th>
-                <th>结论</th>
-                <th>备注</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.cases.map((item) => (
-                <tr key={item.case_id} className={item.result === 'fail' ? 'is-failed' : ''}>
-                  <td>{item.case_id}</td>
-                  <td>{formatModuleLabel(item.module)}</td>
-                  <td>{item.input}</td>
-                  <td>{item.expected}</td>
-                  <td>{item.actual}</td>
-                  <td>{item.result === 'pass' ? '通过' : '未通过'}</td>
-                  <td>{item.note || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div id="test-case-table" className="scheduler-system-test-case-list">
+          {payload.cases.map((item) => (
+            <article key={item.case_id} className={`scheduler-system-test-case ${item.result === 'fail' ? 'is-failed' : ''}`}>
+              <div className="scheduler-system-test-case-top">
+                <strong>{formatReadableTaskTitle(item.input)}</strong>
+                <span>{item.result === 'pass' ? '通过' : '未通过'}</span>
+              </div>
+              <div className="scheduler-system-test-case-grid">
+                <div>
+                  <span>检查编号</span>
+                  <strong>{item.case_id}</strong>
+                </div>
+                <div>
+                  <span>检查对象</span>
+                  <strong>{formatModuleLabel(item.module)}</strong>
+                </div>
+                <div>
+                  <span>期望判断</span>
+                  <strong>{formatSystemTestValue(item.expected)}</strong>
+                </div>
+                <div>
+                  <span>系统输出</span>
+                  <strong>{formatSystemTestValue(item.actual)}</strong>
+                </div>
+              </div>
+              <p>{item.note ? formatReadableDetail(item.note) : '无补充说明'}</p>
+            </article>
+          ))}
         </div>
-        <div id="defect-list" className="scheduler-routing-table-wrap scheduler-system-test-table-wrap">
-          <table className="scheduler-routing-table scheduler-system-test-table">
-            <thead>
-              <tr>
-                <th>编号</th>
-                <th>级别</th>
-                <th>是否可复现</th>
-                <th>建议处理</th>
-                <th>备注</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.defects.length ? (
-                payload.defects.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.severity}</td>
-                    <td>{item.reproducible}</td>
-                    <td>{item.suggestion}</td>
-                    <td>{item.note}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5}>当前没有待处理异常。</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div id="defect-list" className="scheduler-system-test-case-list">
+          {payload.defects.length ? (
+            payload.defects.map((item) => (
+              <article key={item.id} className="scheduler-system-test-case is-failed">
+                <div className="scheduler-system-test-case-top">
+                  <strong>{item.id}</strong>
+                  <span>{item.severity}</span>
+                </div>
+                <p>是否可复现：{formatReadableDetail(item.reproducible)}</p>
+                <p>建议处理：{formatReadableDetail(item.suggestion)}</p>
+                <p>备注：{formatReadableDetail(item.note)}</p>
+              </article>
+            ))
+          ) : (
+            <div className="auto-task-empty">当前没有待处理异常。</div>
+          )}
         </div>
       </details>
     </section>
