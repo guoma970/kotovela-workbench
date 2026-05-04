@@ -192,9 +192,121 @@ const summarizeBusinessBoard = (board: TaskBoardItem[]) => {
   }
 }
 
+const truncateText = (value: unknown, limit = 360) => {
+  if (typeof value !== 'string') return value
+  return value.length > limit ? `${value.slice(0, limit)}...` : value
+}
+
+const compactResult = (result: unknown) => {
+  const source = asObject(result)
+  if (!Object.keys(source).length) return undefined
+  return {
+    type: source.type,
+    content: truncateText(source.content, 360),
+    title: truncateText(source.title, 240),
+    hook: truncateText(source.hook, 360),
+    outline: Array.isArray(source.outline) ? source.outline.slice(0, 5).map((item) => truncateText(item, 180)) : source.outline,
+    structure: Array.isArray(source.structure) ? source.structure.slice(0, 5).map((item) => truncateText(item, 180)) : source.structure,
+    script: truncateText(source.script, 360),
+    full_article: truncateText(source.full_article, 360),
+    publish_text: truncateText(source.publish_text, 360),
+    publish_ready: source.publish_ready,
+    archive_ready: source.archive_ready,
+    asset_type: source.asset_type,
+    generated_at: source.generated_at,
+    generator: source.generator,
+    persona: source.persona,
+    persona_id: source.persona_id,
+    tone_style: source.tone_style,
+    interaction_style: source.interaction_style,
+    structure_type: source.structure_type,
+    structure_id: source.structure_id,
+    section_map: source.section_map,
+    cta_policy: source.cta_policy,
+    structure_summary: truncateText(source.structure_summary, 360),
+    recommend_publish_time: source.recommend_publish_time,
+    recommend_frequency: source.recommend_frequency,
+    publish_today: source.publish_today,
+    suggested_title: truncateText(source.suggested_title, 240),
+    suggested_first_comment: truncateText(source.suggested_first_comment, 360),
+    suggested_interaction_question: truncateText(source.suggested_interaction_question, 360),
+    publish_risk_warning: Array.isArray(source.publish_risk_warning) ? source.publish_risk_warning.slice(0, 6) : source.publish_risk_warning,
+    manual_published_at: source.manual_published_at,
+    manual_published_by: source.manual_published_by,
+  }
+}
+
+const compactDecisionLog = (value: unknown) => {
+  if (!Array.isArray(value)) return []
+  return value.slice(-3).map((entry) => {
+    const item = asObject(entry)
+    return {
+      timestamp: item.timestamp,
+      action: item.action,
+      reason: truncateText(item.reason, 180),
+      detail: truncateText(item.detail, 160),
+      route_target: item.route_target,
+      route_result: item.route_result,
+      account_type: item.account_type,
+      tier: item.tier,
+      brand_display: item.brand_display,
+      mcn_display: item.mcn_display,
+      can_close_deal: item.can_close_deal,
+      rule_hit_reason: truncateText(item.rule_hit_reason, 160),
+      whitelist_hit: item.whitelist_hit,
+      block_reason: item.block_reason,
+      partner_mode: item.partner_mode,
+      publish_rhythm_hit: item.publish_rhythm_hit,
+      persona_hit: item.persona_hit,
+      memory_hit: item.memory_hit,
+      profile_rule: item.profile_rule,
+    }
+  })
+}
+
+const compactHistory = (value: unknown) => {
+  if (!Array.isArray(value)) return []
+  return value.slice(-2).map((entry) => {
+    const item = asObject(entry)
+    return {
+      action: item.action,
+      timestamp: item.timestamp,
+      status_before: item.status_before,
+      status_after: item.status_after,
+      priority_before: item.priority_before,
+      priority_after: item.priority_after,
+      retry_count: item.retry_count,
+      trigger_source: item.trigger_source,
+      decision_type: item.decision_type,
+      decision_reason: truncateText(item.decision_reason, 180),
+      operator: item.operator,
+      error: truncateText(item.error, 180),
+    }
+  })
+}
+
+const compactTaskForResponse = (item: TaskBoardItem): TaskBoardItem => ({
+  ...item,
+  history: compactHistory(item.history),
+  decision_log: compactDecisionLog(item.decision_log),
+  auto_decision_log: Array.isArray(item.auto_decision_log) ? item.auto_decision_log.slice(-3) : item.auto_decision_log,
+  result: process.env.INTERNAL_API_INCLUDE_RESULTS === '1' ? compactResult(item.result) : undefined,
+})
+
+const compactTemplatePool = (value: unknown) => {
+  if (!Array.isArray(value)) return value
+  return value.slice(0, 12).map((item) => {
+    const entry = asObject(item)
+    return {
+      ...entry,
+      content: truncateText(entry.content),
+    }
+  })
+}
+
 const summarizeTaskBoard = (payload: TaskBoardPayload): TaskBoardPayload => {
   const now = new Date().toISOString()
-  const board = (payload.board ?? []).map((item) => enrichTask(item, now))
+  const board = (payload.board ?? []).map((item) => compactTaskForResponse(enrichTask(item, now)))
   const poolStats = new Map(INSTANCE_POOL_ORDER.map((key) => [key, { running: 0, queue: 0, warning: 0 }]))
 
   for (const item of board) {
@@ -209,6 +321,7 @@ const summarizeTaskBoard = (payload: TaskBoardPayload): TaskBoardPayload => {
   return {
     ...payload,
     generated_at: payload.generated_at ?? now,
+    template_pool: compactTemplatePool(payload.template_pool),
     board,
     total: board.length,
     success: board.filter((item) => isDoneStatus(item.status)).length,
