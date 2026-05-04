@@ -60,11 +60,11 @@ type AuditEntry = {
 }
 
 const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string; helperZh: string }> = [
+  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理', helperZh: '需要你或负责人确认下一步，优先看。' },
+  { key: 'paused', label: 'Paused', labelZh: '已暂停', helperZh: '目前有卡点，先看暂停原因。' },
   { key: 'running', label: 'Running', labelZh: '进行中', helperZh: '正在有人推进，优先看下一步和负责人。' },
   { key: 'queue', label: 'Queue', labelZh: '排队中', helperZh: '还没开始处理，等待调度或接单。' },
-  { key: 'paused', label: 'Paused', labelZh: '已暂停', helperZh: '目前有卡点，先看暂停原因。' },
   { key: 'done', label: 'Done', labelZh: '已完成', helperZh: '已经处理完，可回看依据和记录。' },
-  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理', helperZh: '需要你或负责人确认下一步。' },
 ]
 
 const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
@@ -313,6 +313,38 @@ const getTaskFreshnessClass = (task: TaskListItem) => {
   return 'task-freshness-neutral'
 }
 
+const isFallbackTask = (task: TaskListItem) =>
+  /当前缺少\s*live session|暂用\s*snapshot|没有实时会话|快照兜底|超过\s*\d+\s*分钟/i.test(`${task.title} ${task.updated_at}`)
+
+const needsAttention = (task: TaskListItem) =>
+  task.status === 'need_human' || task.status === 'paused' || isFallbackTask(task) || task.priority === 'high'
+
+const getTaskTriageLabel = (task: TaskListItem) => {
+  if (task.status === 'need_human') return '需要确认'
+  if (task.status === 'paused') return '先解卡点'
+  if (isFallbackTask(task)) return '同步异常'
+  if (task.status === 'running') return '跟进进度'
+  if (task.status === 'queue') return '等待接单'
+  return '结果回看'
+}
+
+const getTaskTriageTone = (task: TaskListItem) => {
+  if (task.status === 'need_human' || task.status === 'paused') return 'danger'
+  if (isFallbackTask(task)) return 'warning'
+  if (task.status === 'running') return 'live'
+  if (task.status === 'done') return 'done'
+  return 'waiting'
+}
+
+const getTaskReason = (task: TaskListItem) => {
+  if (task.status === 'need_human') return '系统判断这条需要人工确认。'
+  if (task.status === 'paused') return '任务已停住，需要先处理卡点。'
+  if (isFallbackTask(task)) return '当前不是最新实时会话，建议先恢复同步。'
+  if (task.status === 'running') return '负责人正在推进，等待下一次回报。'
+  if (task.status === 'queue') return '任务已进入队列，等待中枢派发或接单。'
+  return '任务已完成，可复查处理依据。'
+}
+
 const getTaskUpdatedMs = (value?: string) => {
   if (!value || value === '-') return 0
   const recentMatch = value.match(/^最近\s*(\d+)\s*(秒|分钟|小时)/)
@@ -457,6 +489,22 @@ export function TasksPage() {
   )
 
   const effectiveTasks = isInternal && internalTasks.length > 0 ? internalTasks : openSourceTasks
+  const visibleTaskStats = useMemo(() => {
+    const attentionTasks = sortTasksForBoard(effectiveTasks.filter(needsAttention))
+    const activeTasks = sortTasksForBoard(effectiveTasks.filter((task) => task.status === 'running'))
+    const waitingTasks = sortTasksForBoard(effectiveTasks.filter((task) => task.status === 'queue'))
+    const recentlyDoneTasks = sortTasksForBoard(effectiveTasks.filter((task) => task.status === 'done'))
+
+    return {
+      attentionTasks,
+      focusTasks: [...attentionTasks, ...activeTasks, ...waitingTasks, ...recentlyDoneTasks]
+        .filter((task, index, source) => source.findIndex((item) => item.task_id === task.task_id) === index)
+        .slice(0, 5),
+      activeTasks,
+      waitingTasks,
+      recentlyDoneTasks,
+    }
+  }, [effectiveTasks])
 
   const goFocus = (pathname: string, kind: 'project' | 'agent' | 'room' | 'task', id: string) => {
     navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
@@ -603,6 +651,24 @@ export function TasksPage() {
     )
   }
 
+  const renderFocusTask = (task: TaskListItem, index: number) => (
+    <article key={`focus-${task.task_id}`} className={`task-focus-card task-focus-${getTaskTriageTone(task)}`}>
+      <div className="task-focus-rank">{index + 1}</div>
+      <div className="task-focus-body">
+        <div className="task-focus-topline">
+          <span>{getTaskTriageLabel(task)}</span>
+          <small>{formatUpdatedAt(task.updated_at)}</small>
+        </div>
+        <strong>{isInternal ? buildTaskHeadline(task) : task.title}</strong>
+        <p>{getTaskReason(task)}</p>
+        <div className="task-focus-foot">
+          <span>负责人：{isInternal ? formatOwnerLabel(task.owner, true) : task.owner}</span>
+          <span>下一步：{buildNextAction(task)}</span>
+        </div>
+      </div>
+    </article>
+  )
+
   return (
     <section className="page">
       <div className="page-header">
@@ -627,6 +693,38 @@ export function TasksPage() {
         }))}
         internalHint={isInternal ? '内部版优先读取真实任务记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
+
+      {isInternal ? (
+        <section className="task-command-center panel strong-card">
+          <div className="task-command-copy">
+            <span className="eyebrow">今日先看</span>
+            <h3>先处理会影响推进的任务</h3>
+            <p>这里把需人工确认、已暂停、实时同步异常和高优先级任务提前，下面状态列再保留完整清单。</p>
+          </div>
+          <div className="task-command-stats" aria-label="任务处理重点">
+            <div className="task-command-stat is-attention">
+              <span>需要你看</span>
+              <strong>{visibleTaskStats.attentionTasks.length}</strong>
+            </div>
+            <div className="task-command-stat">
+              <span>正在推进</span>
+              <strong>{visibleTaskStats.activeTasks.length}</strong>
+            </div>
+            <div className="task-command-stat">
+              <span>等待接单</span>
+              <strong>{visibleTaskStats.waitingTasks.length}</strong>
+            </div>
+            <div className="task-command-stat">
+              <span>完成记录</span>
+              <strong>{visibleTaskStats.recentlyDoneTasks.length}</strong>
+            </div>
+          </div>
+          <div className="task-focus-list">
+            {visibleTaskStats.focusTasks.map(renderFocusTask)}
+            {visibleTaskStats.focusTasks.length === 0 ? <p className="empty-state">当前没有需要优先看的任务。</p> : null}
+          </div>
+        </section>
+      ) : null}
 
       {isInternal ? (
         <section className="task-read-guide panel strong-card">
