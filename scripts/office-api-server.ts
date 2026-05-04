@@ -8,6 +8,7 @@
  * 再在 Vercel internal 构建里设置对应上游 URL 指向该 HTTPS URL（含路径）。
  */
 import http from 'node:http'
+import { handleInternalWorkbenchRequest } from '../server/internalWorkbench.ts'
 import { fetchModelUsagePayload } from '../server/modelUsage.ts'
 import { fetchOfficeInstancesPayload } from '../server/officeInstances.ts'
 
@@ -67,12 +68,36 @@ const API_HANDLERS = {
   '/api/model-usage': fetchCachedModelUsagePayload,
 } as const
 
+const INTERNAL_API_PATHS = new Set([
+  '/api/tasks-board',
+  '/api/audit-log',
+  '/api/system-mode',
+  '/api/leads',
+  '/api/lead-stats',
+  '/api/content-feedback',
+  '/api/task-notifications',
+  '/api/task-notification-actions',
+])
+
+const readRequestBody = async (req: http.IncomingMessage) => {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(Buffer.from(chunk))
+  const text = Buffer.concat(chunks).toString('utf8')
+  if (!text) return undefined
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return text
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
   const apiHandler = API_HANDLERS[url.pathname as keyof typeof API_HANDLERS]
+  const isInternalApiPath = INTERNAL_API_PATHS.has(url.pathname)
 
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN)
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
 
   if (req.method === 'OPTIONS') {
@@ -80,12 +105,12 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (!apiHandler) {
+  if (!apiHandler && !isInternalApiPath) {
     sendJson(res, 404, { error: 'not_found' })
     return
   }
 
-  if (req.method !== 'GET') {
+  if (apiHandler && req.method !== 'GET') {
     res.setHeader('Allow', 'GET')
     sendJson(res, 405, { error: 'method_not_allowed' })
     return
@@ -103,8 +128,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    const payload = await apiHandler()
-    sendJson(res, 200, payload)
+    if (apiHandler) {
+      const payload = await apiHandler()
+      sendJson(res, 200, payload)
+      return
+    }
+
+    const payload = await handleInternalWorkbenchRequest(url.pathname, req.method ?? 'GET', await readRequestBody(req))
+    if (payload.allow) res.setHeader('Allow', payload.allow)
+    sendJson(res, payload.status, payload.body)
   } catch (error) {
     sendJson(res, 500, {
       error: `${url.pathname} fetch failed`,
@@ -118,7 +150,7 @@ const host = process.env.OFFICE_API_HOST?.trim() || '0.0.0.0'
 server.listen(PORT, host, () => {
   const baseUrl = `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${PORT}`
   console.log(
-    `[office-api] listening ${baseUrl}/api/office-instances and ${baseUrl}/api/model-usage`,
+    `[office-api] listening ${baseUrl}/api/office-instances, ${baseUrl}/api/model-usage and internal workbench APIs`,
   )
   if (TOKEN) {
     console.log('[office-api] token auth enabled (Authorization: Bearer … or ?token=)')
