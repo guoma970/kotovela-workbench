@@ -47,6 +47,7 @@ if ! command -v "$CLOUDFLARED_BIN" >/dev/null 2>&1; then
   echo "Error: cloudflared is not installed or not on PATH." >&2
   exit 69
 fi
+CLOUDFLARED_BIN_PATH="$(command -v "$CLOUDFLARED_BIN")"
 
 if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
@@ -77,6 +78,7 @@ cat > "$TMP_ENV" <<EOF_ENV
 export KOTOVELA_CLOUDFLARE_TUNNEL_NAME=$(shell_quote "$TUNNEL_NAME")
 export KOTOVELA_CLOUDFLARE_HOSTNAME=$(shell_quote "$HOSTNAME")
 export KOTOVELA_CLOUDFLARE_SERVICE_URL=$(shell_quote "$SERVICE_URL")
+export CLOUDFLARED_BIN=$(shell_quote "$CLOUDFLARED_BIN_PATH")
 EOF_ENV
 if [[ -n "$TUNNEL_TOKEN" ]]; then
   cat >> "$TMP_ENV" <<EOF_ENV
