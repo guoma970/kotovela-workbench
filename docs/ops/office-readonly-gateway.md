@@ -58,3 +58,112 @@ After any upstream variable change, redeploy the Vercel production project.
 For a stable fixed HTTPS upstream, prefer a Cloudflare named tunnel pointing to `http://127.0.0.1:8791`.
 
 Temporary quick tunnels can restore live data quickly, but their hostnames can change and they do not provide uptime guarantees.
+
+## Stable Cloudflare Named Tunnel
+
+The final production shape is:
+
+```text
+Vercel internal APIs
+  -> fixed Cloudflare hostname
+  -> Mac mini cloudflared named tunnel
+  -> 127.0.0.1:8791 read-only gateway
+  -> 127.0.0.1:8787 full office API
+```
+
+Security boundary:
+
+- The public hostname must point to `127.0.0.1:8791`, not `8787`.
+- The read-only gateway token must be different from the full office API token.
+- Only the Vercel API routes should know the read-only gateway token.
+- Keep Cloudflare tunnel credentials under `~/.cloudflared/`; do not commit them.
+
+One-time Cloudflare account authorization:
+
+```bash
+cloudflared tunnel login
+```
+
+If this fails with `Failed to write the certificate`, download `cert.pem` from the browser flow and place it at:
+
+```bash
+mkdir -p ~/.cloudflared
+chmod 700 ~/.cloudflared
+mv ~/Downloads/cert.pem ~/.cloudflared/cert.pem
+chmod 600 ~/.cloudflared/cert.pem
+```
+
+Create the fixed read-only tunnel and DNS route:
+
+```bash
+KOTOVELA_CLOUDFLARE_HOSTNAME=office-api.<your-cloudflare-domain> \
+  ./scripts/bootstrap-cloudflare-readonly-tunnel.sh
+```
+
+If a DNS record already exists and you intentionally want to replace it:
+
+```bash
+KOTOVELA_CLOUDFLARE_HOSTNAME=office-api.<your-cloudflare-domain> \
+KOTOVELA_CLOUDFLARE_OVERWRITE_DNS=1 \
+  ./scripts/bootstrap-cloudflare-readonly-tunnel.sh
+```
+
+Install the named tunnel as a user launchd agent:
+
+```bash
+./scripts/install-cloudflare-readonly-tunnel-launchd.sh
+```
+
+Launchd service:
+
+- `com.kotovela.cloudflare-readonly-tunnel`
+
+Logs:
+
+- `logs/cloudflare-readonly-tunnel.log`
+- `logs/cloudflare-readonly-tunnel.error.log`
+
+Local health checks:
+
+```bash
+npm run check:office-readonly-gateway
+```
+
+Public hostname checks:
+
+```bash
+curl -fsS https://office-api.<your-cloudflare-domain>/healthz
+
+OFFICE_READONLY_GATEWAY_CHECK_URL=https://office-api.<your-cloudflare-domain> \
+  npm run check:office-readonly-gateway
+```
+
+## Vercel Cutover To Stable Hostname
+
+After the fixed Cloudflare hostname passes the checks above, update Production environment variables:
+
+```text
+OFFICE_INSTANCES_UPSTREAM_URL=https://office-api.<your-cloudflare-domain>/api/office-instances
+MODEL_USAGE_UPSTREAM_URL=https://office-api.<your-cloudflare-domain>/api/model-usage
+OFFICE_INSTANCES_UPSTREAM_TOKEN=<read-only gateway token>
+MODEL_USAGE_UPSTREAM_TOKEN=<read-only gateway token>
+OFFICE_INSTANCES_UPSTREAM_ALLOW_HOSTS=office-api.<your-cloudflare-domain>
+MODEL_USAGE_UPSTREAM_ALLOW_HOSTS=office-api.<your-cloudflare-domain>
+INTERNAL_API_UPSTREAM_ALLOW_HOSTS=office-api.<your-cloudflare-domain>
+```
+
+Then redeploy `kotovelahub` Production and verify:
+
+```bash
+curl -fsS https://kotovelahub.vercel.app/api/office-instances
+curl -fsS https://kotovelahub.vercel.app/api/model-usage
+curl -fsS https://kotovelahub.vercel.app/api/tasks-board
+```
+
+Expected result:
+
+- `/api/office-instances` returns `source: "live"`.
+- `/api/model-usage` returns `source: "local-openclaw"` or `partial` with explicit warnings.
+- `/api/tasks-board` returns a non-zero `total` when local task data exists.
+
+Only after this cutover is verified should the temporary Cloudflare quick tunnel be stopped.
