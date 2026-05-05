@@ -21,6 +21,7 @@
     "build:internal": "tsc -b && vite build --mode internal",
     "build:opensource": "tsc -b && vite build --mode opensource",
     "serve:office-api": "tsx scripts/office-api-server.ts",
+    "serve:office-readonly-gateway": "tsx scripts/office-readonly-gateway.ts",
     "vercel-build": "node scripts/vercel-build.mjs"
   },
   "dependencies": {
