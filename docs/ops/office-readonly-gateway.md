@@ -100,6 +100,24 @@ KOTOVELA_CLOUDFLARE_HOSTNAME=office-api.<your-cloudflare-domain> \
   ./scripts/bootstrap-cloudflare-readonly-tunnel.sh
 ```
 
+If `cloudflared tunnel login` cannot write `~/.cloudflared/cert.pem`, use the Cloudflare Zero Trust dashboard token flow instead:
+
+1. Open Cloudflare Zero Trust.
+2. Go to `Networks` -> `Tunnels`.
+3. Create a tunnel named `kotovela-office-readonly`.
+4. Add one public hostname, for example `office-api.<your-cloudflare-domain>`.
+5. Set the public hostname service to `http://127.0.0.1:8791`.
+6. Copy the connector token from Cloudflare.
+7. Install the local launchd connector with token mode:
+
+```bash
+KOTOVELA_CLOUDFLARE_HOSTNAME=office-api.<your-cloudflare-domain> \
+KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN=<cloudflare-tunnel-token> \
+  ./scripts/install-cloudflare-readonly-tunnel-launchd.sh
+```
+
+Token mode does not require `cert.pem`. The public hostname and local service target are managed in the Cloudflare dashboard.
+
 If a DNS record already exists and you intentionally want to replace it:
 
 ```bash

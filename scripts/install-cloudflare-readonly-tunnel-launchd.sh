@@ -56,8 +56,9 @@ fi
 TUNNEL_NAME="${KOTOVELA_CLOUDFLARE_TUNNEL_NAME:-kotovela-office-readonly}"
 HOSTNAME="${KOTOVELA_CLOUDFLARE_HOSTNAME:-}"
 SERVICE_URL="${KOTOVELA_CLOUDFLARE_SERVICE_URL:-http://127.0.0.1:8791}"
+TUNNEL_TOKEN="${KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN:-}"
 
-if ! "$CLOUDFLARED_BIN" tunnel info "$TUNNEL_NAME" >/dev/null 2>&1; then
+if [[ -z "$TUNNEL_TOKEN" ]] && ! "$CLOUDFLARED_BIN" tunnel info "$TUNNEL_NAME" >/dev/null 2>&1; then
   cat >&2 <<EOF
 Error: Cloudflare tunnel is not ready: ${TUNNEL_NAME}
 
@@ -77,6 +78,11 @@ export KOTOVELA_CLOUDFLARE_TUNNEL_NAME=$(shell_quote "$TUNNEL_NAME")
 export KOTOVELA_CLOUDFLARE_HOSTNAME=$(shell_quote "$HOSTNAME")
 export KOTOVELA_CLOUDFLARE_SERVICE_URL=$(shell_quote "$SERVICE_URL")
 EOF_ENV
+if [[ -n "$TUNNEL_TOKEN" ]]; then
+  cat >> "$TMP_ENV" <<EOF_ENV
+export KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN=$(shell_quote "$TUNNEL_TOKEN")
+EOF_ENV
+fi
 chmod 600 "$TMP_ENV"
 mv "$TMP_ENV" "$ENV_FILE"
 chmod 600 "$ENV_FILE"
@@ -145,6 +151,9 @@ echo "Service: ${LABEL}"
 echo "Tunnel: ${TUNNEL_NAME}"
 echo "Hostname: ${HOSTNAME:-'(not set)'}"
 echo "Service URL: ${SERVICE_URL}"
+if [[ -n "$TUNNEL_TOKEN" ]]; then
+  echo "Token mode: enabled"
+fi
 echo "Env file: ${ENV_FILE}"
 echo "Logs:"
 echo "  ${LOG_DIR}/cloudflare-readonly-tunnel.log"
