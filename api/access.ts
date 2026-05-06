@@ -91,6 +91,17 @@ const clearAccessCookie = (res: VercelResponse) => {
   res.setHeader('Set-Cookie', `${ACCESS_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`)
 }
 
+const prefersHtml = (req: VercelRequest) => {
+  const accept = Array.isArray(req.headers.accept) ? req.headers.accept.join(',') : req.headers.accept
+  return typeof accept === 'string' && accept.includes('text/html')
+}
+
+const redirectToHome = (res: VercelResponse) => {
+  res.statusCode = 303
+  res.setHeader('Location', '/')
+  return res.end()
+}
+
 export default function handler(req: VercelRequest, res: VercelResponse) {
   setNoStore(res)
 
@@ -104,12 +115,14 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     if (req.query.logout === '1') {
       clearAccessCookie(res)
-      res.statusCode = 303
-      res.setHeader('Location', '/')
-      return res.end()
+      return redirectToHome(res)
     }
 
     const cookieValue = parseCookies(req.headers.cookie).get(ACCESS_COOKIE_NAME)
+    if (prefersHtml(req)) {
+      return redirectToHome(res)
+    }
+
     return res.status(200).json({ ok: cookieValue === hashSecret(secret) })
   }
 
