@@ -20,10 +20,13 @@ if ! command -v "$CLOUDFLARED_BIN" >/dev/null 2>&1; then
 fi
 
 if [[ -n "$TUNNEL_TOKEN" ]]; then
+  unset KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN
   exec "$CLOUDFLARED_BIN" tunnel \
     --edge-ip-version 4 \
     --no-autoupdate \
-    run --token "$TUNNEL_TOKEN"
+    run \
+    --url "$SERVICE_URL" \
+    --token "$TUNNEL_TOKEN"
 fi
 
 exec "$CLOUDFLARED_BIN" tunnel \
