@@ -26,6 +26,24 @@ type TaskListItem = {
   decision_log: Array<{ action: string; reason: string; detail: string; timestamp: string }>
 }
 
+type StudySubject = 'math' | 'writing' | 'reading'
+
+type StudyPlanTask = {
+  localId: string
+  title: string
+  subject: StudySubject
+  durationMinutes: number
+  description: string
+}
+
+type StudyDispatchState = {
+  status: 'idle' | 'sending' | 'success' | 'partial' | 'error'
+  message: string
+  deepLink?: string
+  xiguoOk?: boolean
+  feishuOk?: boolean
+}
+
 type BoardPayload = {
   board?: Array<{
     task_id?: string
@@ -65,6 +83,12 @@ const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: stri
   { key: 'running', label: 'Running', labelZh: '进行中', helperZh: '正在有人推进，优先看下一步和负责人。' },
   { key: 'queue', label: 'Queue', labelZh: '排队中', helperZh: '还没开始处理，等待调度或接单。' },
   { key: 'done', label: 'Done', labelZh: '已完成', helperZh: '已经处理完，可回看依据和记录。' },
+]
+
+const STUDY_SUBJECT_OPTIONS: Array<{ value: StudySubject; label: string }> = [
+  { value: 'math', label: '数学' },
+  { value: 'reading', label: '语文阅读' },
+  { value: 'writing', label: '写作' },
 ]
 
 const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
@@ -405,6 +429,36 @@ const normalizePriority = (priority: number | string | undefined): string => {
   return normalized || 'unknown'
 }
 
+const toDateInputValue = (date = new Date()) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+const createStudyTask = (date: string, index: number, overrides: Partial<StudyPlanTask> = {}): StudyPlanTask => ({
+  localId: overrides.localId ?? `study-${date}-${index}-${Date.now()}`,
+  title: overrides.title ?? '',
+  subject: overrides.subject ?? 'math',
+  durationMinutes: overrides.durationMinutes ?? 20,
+  description: overrides.description ?? '',
+})
+
+const createDefaultStudyTasks = (date: string): StudyPlanTask[] => [
+  createStudyTask(date, 1, {
+    localId: `study-${date}-math`,
+    title: '数学练习',
+    subject: 'math',
+    durationMinutes: 25,
+    description: '按今天计划完成练习并订正错题。',
+  }),
+  createStudyTask(date, 2, {
+    localId: `study-${date}-reading`,
+    title: '语文阅读',
+    subject: 'reading',
+    durationMinutes: 15,
+    description: '完成一篇阅读理解，标出不确定的题目。',
+  }),
+]
+
 export function TasksPage() {
   const { tasks, projects, rooms, agents, mode } = useOfficeInstances()
   const isInternal = mode === 'internal'
@@ -412,6 +466,12 @@ export function TasksPage() {
   const linking = useWorkbenchLinking({ tasks, projects, rooms, agents })
   const [internalTasks, setInternalTasks] = useState<TaskListItem[]>([])
   const [internalAuditEntries, setInternalAuditEntries] = useState<AuditEntry[]>([])
+  const [studyDate, setStudyDate] = useState(() => toDateInputValue())
+  const [studyTasks, setStudyTasks] = useState<StudyPlanTask[]>(() => createDefaultStudyTasks(toDateInputValue()))
+  const [studyDispatchState, setStudyDispatchState] = useState<StudyDispatchState>({
+    status: 'idle',
+    message: '填写后点击确认，会同时派发到羲果陪伴；飞书 webhook 配好后会同步提醒群里。',
+  })
 
   useEffect(() => {
     if (!isInternal) return
@@ -508,6 +568,96 @@ export function TasksPage() {
 
   const goFocus = (pathname: string, kind: 'project' | 'agent' | 'room' | 'task', id: string) => {
     navigate({ pathname, search: createFocusSearch(linking.currentSearch, kind, id) })
+  }
+
+  const updateStudyTask = (localId: string, patch: Partial<StudyPlanTask>) => {
+    setStudyTasks((current) => current.map((task) => (task.localId === localId ? { ...task, ...patch } : task)))
+  }
+
+  const addStudyTask = () => {
+    setStudyTasks((current) => [...current, createStudyTask(studyDate, current.length + 1)])
+  }
+
+  const removeStudyTask = (localId: string) => {
+    setStudyTasks((current) => (current.length > 1 ? current.filter((task) => task.localId !== localId) : current))
+  }
+
+  const resetStudyTasks = () => {
+    setStudyTasks(createDefaultStudyTasks(studyDate))
+    setStudyDispatchState({
+      status: 'idle',
+      message: '已恢复默认学习计划，可按今天情况微调后再派发。',
+    })
+  }
+
+  const handleStudyDispatch = async () => {
+    const cleanedTasks = studyTasks
+      .map((task, index) => ({
+        id: `study-${studyDate}-${index + 1}`,
+        title: task.title.trim(),
+        subject: task.subject,
+        durationMinutes: Number(task.durationMinutes),
+        description: task.description.trim(),
+      }))
+      .filter((task) => task.title && Number.isFinite(task.durationMinutes) && task.durationMinutes > 0)
+
+    if (!studyDate || cleanedTasks.length === 0) {
+      setStudyDispatchState({
+        status: 'error',
+        message: '请至少填写 1 个学习任务，并确认日期、标题和时长。',
+      })
+      return
+    }
+
+    setStudyDispatchState({ status: 'sending', message: '正在派发到羲果陪伴，并尝试同步飞书提醒...' })
+
+    try {
+      const response = await fetch('/api/xiguo-dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: studyDate,
+          confirmedBy: 'parent',
+          tasks: cleanedTasks,
+        }),
+      })
+      const data = await response.json().catch(() => null) as {
+        ok?: boolean
+        deepLink?: string
+        results?: {
+          xiguo?: { ok?: boolean; error?: string }
+          feishu?: { ok?: boolean; error?: string }
+        }
+        error?: string
+      } | null
+
+      if (response.ok && data?.ok) {
+        setStudyDispatchState({
+          status: 'success',
+          message: '已发送到果果的学习 App，并同步飞书学习布置群。',
+          deepLink: data.deepLink,
+          xiguoOk: true,
+          feishuOk: true,
+        })
+        return
+      }
+
+      const xiguoOk = data?.results?.xiguo?.ok === true
+      const feishuOk = data?.results?.feishu?.ok === true
+      const detail = data?.results?.xiguo?.error || data?.results?.feishu?.error || data?.error || '派发未完全成功'
+      setStudyDispatchState({
+        status: response.status === 207 ? 'partial' : 'error',
+        message: response.status === 207 ? `部分完成：${detail}` : `派发失败：${detail}`,
+        deepLink: data?.deepLink,
+        xiguoOk,
+        feishuOk,
+      })
+    } catch (error) {
+      setStudyDispatchState({
+        status: 'error',
+        message: `派发请求失败：${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
   }
 
   const resolveTaskRecord = (task: TaskListItem) =>
@@ -693,6 +843,93 @@ export function TasksPage() {
         }))}
         internalHint={isInternal ? '内部版优先读取真实任务记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
+
+      {isInternal ? (
+        <section className="study-dispatch-panel panel strong-card">
+          <div className="study-dispatch-copy">
+            <span className="eyebrow">羲果陪伴</span>
+            <h3>今日学习计划派发</h3>
+            <p>家长确认后，把学习任务写入果果的学习 App；飞书 webhook 配好后，会同步提醒学习布置群。</p>
+          </div>
+          <div className="study-dispatch-form" aria-label="今日学习计划派发">
+            <label className="study-field">
+              <span>计划日期</span>
+              <input
+                type="date"
+                value={studyDate}
+                onChange={(event) => setStudyDate(event.target.value)}
+              />
+            </label>
+            <div className="study-task-list">
+              {studyTasks.map((task, index) => (
+                <article key={task.localId} className="study-task-row">
+                  <div className="study-task-row-head">
+                    <strong>任务 {index + 1}</strong>
+                    <button type="button" className="ghost-button" onClick={() => removeStudyTask(task.localId)} disabled={studyTasks.length <= 1}>
+                      移除
+                    </button>
+                  </div>
+                  <div className="study-task-grid">
+                    <label className="study-field">
+                      <span>标题</span>
+                      <input
+                        value={task.title}
+                        onChange={(event) => updateStudyTask(task.localId, { title: event.target.value })}
+                        placeholder="例如：数学练习"
+                      />
+                    </label>
+                    <label className="study-field">
+                      <span>科目</span>
+                      <select
+                        value={task.subject}
+                        onChange={(event) => updateStudyTask(task.localId, { subject: event.target.value as StudySubject })}
+                      >
+                        {STUDY_SUBJECT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="study-field">
+                      <span>预计时长</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={240}
+                        value={task.durationMinutes}
+                        onChange={(event) => updateStudyTask(task.localId, { durationMinutes: Number(event.target.value) })}
+                      />
+                    </label>
+                    <label className="study-field study-field-wide">
+                      <span>说明</span>
+                      <input
+                        value={task.description}
+                        onChange={(event) => updateStudyTask(task.localId, { description: event.target.value })}
+                        placeholder="例如：练习册第45-47页"
+                      />
+                    </label>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="study-dispatch-actions">
+              <button type="button" className="ghost-button" onClick={addStudyTask}>添加任务</button>
+              <button type="button" className="ghost-button" onClick={resetStudyTasks}>恢复默认</button>
+              <button type="button" className="focus-header-button" onClick={handleStudyDispatch} disabled={studyDispatchState.status === 'sending'}>
+                {studyDispatchState.status === 'sending' ? '正在派发...' : '确认并发送'}
+              </button>
+            </div>
+            <div className={`study-dispatch-result study-dispatch-${studyDispatchState.status}`}>
+              <span>{studyDispatchState.message}</span>
+              {studyDispatchState.deepLink ? <a href={studyDispatchState.deepLink} target="_blank" rel="noreferrer">打开羲果陪伴</a> : null}
+              {studyDispatchState.status === 'partial' ? (
+                <small>
+                  羲果：{studyDispatchState.xiguoOk ? '已完成' : '未完成'} · 飞书：{studyDispatchState.feishuOk ? '已完成' : '未完成'}
+                </small>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {isInternal ? (
         <section className="task-command-center panel strong-card">
