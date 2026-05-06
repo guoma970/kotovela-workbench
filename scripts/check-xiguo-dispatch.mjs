@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { once } from 'node:events'
-import { dispatchToXiguo, sendFeishuStudyMessage } from '../server/xiugDispatch.ts'
+import { dispatchToXiguo, getXiguoDispatchReadiness, sendFeishuStudyMessage } from '../server/xiugDispatch.ts'
 
 const readBody = async (req) =>
   new Promise((resolve, reject) => {
@@ -64,6 +64,11 @@ try {
   process.env.XIGUO_API_URL = `${baseUrl}/xiguo-ok`
   process.env.FEISHU_STUDY_WEBHOOK = `${baseUrl}/feishu`
 
+  const readiness = getXiguoDispatchReadiness()
+  if (!readiness.allConfigured || readiness.missing.length > 0) {
+    throw new Error(`readiness check failed: ${JSON.stringify(readiness)}`)
+  }
+
   const xiguoOk = await dispatchToXiguo({ date: '2026-05-07', confirmedBy: 'parent', tasks })
   if (!xiguoOk.ok || !xiguoOk.deepLink.includes('date=2026-05-07')) {
     throw new Error(`xiguo success path failed: ${JSON.stringify(xiguoOk)}`)
@@ -88,6 +93,7 @@ try {
 
   console.log('[check:xiguo-dispatch] xiguo success: ok')
   console.log('[check:xiguo-dispatch] feishu success: ok')
+  console.log('[check:xiguo-dispatch] readiness: ok')
   console.log('[check:xiguo-dispatch] xiguo failure returns error: ok')
   console.log(`[check:xiguo-dispatch] observed requests: ${requests.length}`)
 } finally {

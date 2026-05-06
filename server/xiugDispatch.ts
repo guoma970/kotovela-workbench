@@ -33,6 +33,28 @@ const normalizeString = (value: unknown) => String(value ?? '').trim()
 
 const formatSubject = (subject: XiguoSubject): string => SUBJECT_LABELS[subject]
 
+export function getXiguoDispatchReadiness() {
+  const xiguoApiUrlConfigured = Boolean(normalizeString(process.env.XIGUO_API_URL))
+  const xiguoApiKeyConfigured = Boolean(normalizeString(process.env.XIGUO_API_KEY))
+  const feishuWebhookConfigured = Boolean(normalizeString(process.env.FEISHU_STUDY_WEBHOOK))
+  const xiguoConfigured = xiguoApiUrlConfigured && xiguoApiKeyConfigured
+  const missing = [
+    !xiguoApiUrlConfigured || !xiguoApiKeyConfigured ? '羲果陪伴接口' : '',
+    !feishuWebhookConfigured ? '飞书学习布置群机器人' : '',
+  ].filter(Boolean)
+
+  return {
+    xiguoConfigured,
+    feishuConfigured: feishuWebhookConfigured,
+    allConfigured: xiguoConfigured && feishuWebhookConfigured,
+    missing,
+    message:
+      missing.length === 0
+        ? '羲果陪伴和飞书学习布置群都已接好。'
+        : `还需要接好：${missing.join('、')}。`,
+  }
+}
+
 export function buildXiguoFallbackDeepLink(date: string) {
   const url = new URL('/ai-session', DEFAULT_XIGUO_DEEP_LINK_ORIGIN)
   url.searchParams.set('role', 'child')

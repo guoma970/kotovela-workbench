@@ -44,6 +44,14 @@ type StudyDispatchState = {
   feishuOk?: boolean
 }
 
+type StudyIntegrationReadiness = {
+  xiguoConfigured: boolean
+  feishuConfigured: boolean
+  allConfigured: boolean
+  missing: string[]
+  message: string
+}
+
 type BoardPayload = {
   board?: Array<{
     task_id?: string
@@ -459,6 +467,48 @@ const createDefaultStudyTasks = (date: string): StudyPlanTask[] => [
   }),
 ]
 
+const STUDY_DISPATCH_IDLE_MESSAGE = '填写后点击确认，会写入果果的学习 App；飞书群机器人接好后会同步提醒学习布置群。'
+
+const formatStudyDispatchError = (error?: string) => {
+  const raw = String(error ?? '').trim()
+  if (!raw) return ''
+
+  const lower = raw.toLowerCase()
+  if (raw.includes('FEISHU_STUDY_WEBHOOK')) return '飞书学习布置群机器人还没配置，群提醒暂时不会发送。'
+  if (raw.includes('XIGUO_API_URL') || raw.includes('XIGUO_API_KEY')) return '羲果陪伴接口还没有配置完整，暂时不能写入学习 App。'
+  if (lower.includes('xiguo api error 401') || lower.includes('unauthorized')) return '羲果陪伴接口验证没有通过，请检查对接密钥。'
+  if (lower.includes('xiguo api error')) return '羲果陪伴接口返回异常，请稍后重试或联系对接方。'
+  if (lower.includes('feishu webhook error') || lower.includes('feishu error')) return '飞书群机器人返回异常，学习 App 写入结果不受影响。'
+  if (lower.includes('timeout') || lower.includes('aborted')) return '外部服务响应超时，请稍后重试。'
+
+  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw
+}
+
+const buildStudyDispatchFeedback = (
+  responseStatus: number,
+  data: {
+    error?: string
+    results?: {
+      xiguo?: { ok?: boolean; error?: string }
+      feishu?: { ok?: boolean; error?: string }
+    }
+  } | null,
+) => {
+  const xiguoOk = data?.results?.xiguo?.ok === true
+  const feishuOk = data?.results?.feishu?.ok === true
+  const xiguoError = formatStudyDispatchError(data?.results?.xiguo?.error)
+  const feishuError = formatStudyDispatchError(data?.results?.feishu?.error)
+  const fallbackError = formatStudyDispatchError(data?.error)
+
+  if (responseStatus === 207) {
+    if (xiguoOk && !feishuOk) return `羲果陪伴已写入；${feishuError}`
+    if (!xiguoOk && feishuOk) return `飞书学习布置群已提醒；${xiguoError}`
+    return `部分完成：${xiguoError || feishuError || fallbackError || '派发未完全成功。'}`
+  }
+
+  return `派发失败：${xiguoError || feishuError || fallbackError || '派发未完全成功。'}`
+}
+
 export function TasksPage() {
   const { tasks, projects, rooms, agents, mode } = useOfficeInstances()
   const isInternal = mode === 'internal'
@@ -468,9 +518,11 @@ export function TasksPage() {
   const [internalAuditEntries, setInternalAuditEntries] = useState<AuditEntry[]>([])
   const [studyDate, setStudyDate] = useState(() => toDateInputValue())
   const [studyTasks, setStudyTasks] = useState<StudyPlanTask[]>(() => createDefaultStudyTasks(toDateInputValue()))
+  const [studyIntegrationStatus, setStudyIntegrationStatus] = useState<StudyIntegrationReadiness | null>(null)
+  const [studyIntegrationStatusError, setStudyIntegrationStatusError] = useState('')
   const [studyDispatchState, setStudyDispatchState] = useState<StudyDispatchState>({
     status: 'idle',
-    message: '填写后点击确认，会同时派发到羲果陪伴；飞书 webhook 配好后会同步提醒群里。',
+    message: STUDY_DISPATCH_IDLE_MESSAGE,
   })
 
   useEffect(() => {
@@ -506,6 +558,35 @@ export function TasksPage() {
       })
       .catch(() => {
         if (!cancelled) setInternalTasks([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isInternal])
+
+  useEffect(() => {
+    if (!isInternal) return
+
+    let cancelled = false
+    fetch('/api/xiguo-dispatch-status', { cache: 'no-store' })
+      .then((res) => (res.ok ? (res.json() as Promise<{ ok?: boolean; readiness?: StudyIntegrationReadiness }>) : null))
+      .then((payload) => {
+        if (cancelled) return
+        if (payload?.ok && payload.readiness) {
+          setStudyIntegrationStatus(payload.readiness)
+          setStudyIntegrationStatusError('')
+          setStudyDispatchState((current) => (
+            current.status === 'idle'
+              ? { ...current, message: payload.readiness?.message ?? STUDY_DISPATCH_IDLE_MESSAGE }
+              : current
+          ))
+          return
+        }
+        setStudyIntegrationStatusError('暂时无法读取派发连接状态。')
+      })
+      .catch(() => {
+        if (!cancelled) setStudyIntegrationStatusError('暂时无法读取派发连接状态。')
       })
 
     return () => {
@@ -609,7 +690,7 @@ export function TasksPage() {
       return
     }
 
-    setStudyDispatchState({ status: 'sending', message: '正在派发到羲果陪伴，并尝试同步飞书提醒...' })
+    setStudyDispatchState({ status: 'sending', message: '正在写入羲果陪伴，并尝试同步飞书学习布置群...' })
 
     try {
       const response = await fetch('/api/xiguo-dispatch', {
@@ -644,10 +725,9 @@ export function TasksPage() {
 
       const xiguoOk = data?.results?.xiguo?.ok === true
       const feishuOk = data?.results?.feishu?.ok === true
-      const detail = data?.results?.xiguo?.error || data?.results?.feishu?.error || data?.error || '派发未完全成功'
       setStudyDispatchState({
         status: response.status === 207 ? 'partial' : 'error',
-        message: response.status === 207 ? `部分完成：${detail}` : `派发失败：${detail}`,
+        message: buildStudyDispatchFeedback(response.status, data),
         deepLink: data?.deepLink,
         xiguoOk,
         feishuOk,
@@ -655,10 +735,12 @@ export function TasksPage() {
     } catch (error) {
       setStudyDispatchState({
         status: 'error',
-        message: `派发请求失败：${error instanceof Error ? error.message : String(error)}`,
+        message: `派发请求失败：${formatStudyDispatchError(error instanceof Error ? error.message : String(error))}`,
       })
     }
   }
+
+  const studyDispatchDisabled = studyDispatchState.status === 'sending' || studyIntegrationStatus?.xiguoConfigured === false
 
   const resolveTaskRecord = (task: TaskListItem) =>
     tasks.find(
@@ -849,7 +931,23 @@ export function TasksPage() {
           <div className="study-dispatch-copy">
             <span className="eyebrow">羲果陪伴</span>
             <h3>今日学习计划派发</h3>
-            <p>家长确认后，把学习任务写入果果的学习 App；飞书 webhook 配好后，会同步提醒学习布置群。</p>
+            <p>家长确认后，把学习任务写入果果的学习 App；飞书群机器人接好后，会同步提醒学习布置群。</p>
+            <div className="study-dispatch-readiness" aria-label="派发连接状态">
+              {studyIntegrationStatus ? (
+                <>
+                  <span className={studyIntegrationStatus.xiguoConfigured ? 'is-ready' : 'is-missing'}>
+                    羲果陪伴：{studyIntegrationStatus.xiguoConfigured ? '已接好' : '待配置'}
+                  </span>
+                  <span className={studyIntegrationStatus.feishuConfigured ? 'is-ready' : 'is-missing'}>
+                    飞书群提醒：{studyIntegrationStatus.feishuConfigured ? '已接好' : '待配置'}
+                  </span>
+                </>
+              ) : (
+                <span className={studyIntegrationStatusError ? 'is-missing' : 'is-checking'}>
+                  {studyIntegrationStatusError || '正在读取连接状态...'}
+                </span>
+              )}
+            </div>
           </div>
           <div className="study-dispatch-form" aria-label="今日学习计划派发">
             <label className="study-field">
@@ -914,7 +1012,7 @@ export function TasksPage() {
             <div className="study-dispatch-actions">
               <button type="button" className="ghost-button" onClick={addStudyTask}>添加任务</button>
               <button type="button" className="ghost-button" onClick={resetStudyTasks}>恢复默认</button>
-              <button type="button" className="focus-header-button" onClick={handleStudyDispatch} disabled={studyDispatchState.status === 'sending'}>
+              <button type="button" className="focus-header-button" onClick={handleStudyDispatch} disabled={studyDispatchDisabled}>
                 {studyDispatchState.status === 'sending' ? '正在派发...' : '确认并发送'}
               </button>
             </div>
