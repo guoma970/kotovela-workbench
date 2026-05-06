@@ -569,7 +569,7 @@ export function TasksPage() {
     if (!isInternal) return
 
     let cancelled = false
-    fetch('/api/xiguo-dispatch-status', { cache: 'no-store' })
+    fetch('/api/xiguo-dispatch', { cache: 'no-store' })
       .then((res) => (res.ok ? (res.json() as Promise<{ ok?: boolean; readiness?: StudyIntegrationReadiness }>) : null))
       .then((payload) => {
         if (cancelled) return

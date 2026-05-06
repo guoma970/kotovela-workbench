@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   buildXiguoFallbackDeepLink,
   dispatchToXiguo,
+  getXiguoDispatchReadiness,
   sendFeishuStudyMessage,
   type XiguoTask,
 } from '../server/xiugDispatch.js'
@@ -32,20 +33,27 @@ const sendJson = (res: VercelResponse, status: number, body: unknown) => {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, max-age=0')
-  res.setHeader('Allow', 'POST')
+  res.setHeader('Allow', 'GET, POST')
 
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Kotovela-Secret, X-Kotovela-Access-Token')
     return res.status(204).end()
   }
 
-  if (req.method !== 'POST') {
+  if (!['GET', 'POST'].includes(req.method ?? '')) {
     return sendJson(res, 405, { ok: false, error: 'Method not allowed' })
   }
 
   if (!hasKotovelaAccess(req)) {
     return sendJson(res, 401, { ok: false, error: 'Unauthorized' })
+  }
+
+  if (req.method === 'GET') {
+    return sendJson(res, 200, {
+      ok: true,
+      readiness: getXiguoDispatchReadiness(),
+    })
   }
 
   const parsed = dispatchRequestSchema.safeParse(req.body)
