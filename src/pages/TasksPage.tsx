@@ -475,6 +475,9 @@ const formatStudyDispatchError = (error?: string) => {
 
   const lower = raw.toLowerCase()
   if (raw.includes('FEISHU_STUDY_WEBHOOK')) return '飞书学习布置群机器人还没配置，群提醒暂时不会发送。'
+  if (lower.includes('feishu study message sender not configured')) return '飞书学习布置群发送入口还没接好，群提醒暂时不会发送。'
+  if (lower.includes('openclaw relay error')) return 'OpenClaw 飞书代发入口返回异常，请检查 Mac 本机网关。'
+  if (lower.includes('openclaw relay returned unexpected response')) return 'OpenClaw 飞书代发入口返回格式异常，请检查本机网关日志。'
   if (raw.includes('XIGUO_API_URL') || raw.includes('XIGUO_API_KEY')) return '羲果陪伴接口还没有配置完整，暂时不能写入学习 App。'
   if (lower.includes('xiguo api error 401') || lower.includes('unauthorized')) return '羲果陪伴接口验证没有通过，请检查对接密钥。'
   if (lower.includes('xiguo api error')) return '羲果陪伴接口返回异常，请稍后重试或联系对接方。'

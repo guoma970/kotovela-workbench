@@ -11,6 +11,7 @@ import http from 'node:http'
 import { handleInternalWorkbenchRequest } from '../server/internalWorkbench.ts'
 import { fetchModelUsagePayload } from '../server/modelUsage.ts'
 import { fetchOfficeInstancesPayload } from '../server/officeInstances.ts'
+import { sendOpenClawCliStudyMessage } from '../server/xiugDispatch.ts'
 
 const PORT = Number.parseInt(process.env.OFFICE_API_PORT || '8787', 10)
 const TOKEN = process.env.OFFICE_API_TOKEN?.trim()
@@ -79,6 +80,10 @@ const INTERNAL_API_PATHS = new Set([
   '/api/task-notification-actions',
 ])
 
+const CONTROLLED_WRITE_API_PATHS = new Set([
+  '/api/xiguo-study-message',
+])
+
 const readRequestBody = async (req: http.IncomingMessage) => {
   const chunks: Buffer[] = []
   for await (const chunk of req) chunks.push(Buffer.from(chunk))
@@ -93,8 +98,9 @@ const readRequestBody = async (req: http.IncomingMessage) => {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
-  const apiHandler = API_HANDLERS[url.pathname as keyof typeof API_HANDLERS]
+  const apiHandler = (API_HANDLERS as Record<string, (() => Promise<unknown>) | undefined>)[url.pathname]
   const isInternalApiPath = INTERNAL_API_PATHS.has(url.pathname)
+  const isControlledWriteApiPath = CONTROLLED_WRITE_API_PATHS.has(url.pathname)
 
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN)
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS')
@@ -105,7 +111,7 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (!apiHandler && !isInternalApiPath) {
+  if (!apiHandler && !isInternalApiPath && !isControlledWriteApiPath) {
     sendJson(res, 404, { error: 'not_found' })
     return
   }
@@ -131,6 +137,27 @@ const server = http.createServer(async (req, res) => {
     if (apiHandler) {
       const payload = await apiHandler()
       sendJson(res, 200, payload)
+      return
+    }
+
+    if (isControlledWriteApiPath) {
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST')
+        sendJson(res, 405, { error: 'method_not_allowed' })
+        return
+      }
+
+      const body = await readRequestBody(req)
+      const text = typeof body === 'object' && body !== null && 'text' in body
+        ? String((body as { text?: unknown }).text ?? '').trim()
+        : ''
+      if (!text) {
+        sendJson(res, 400, { ok: false, error: 'missing_text' })
+        return
+      }
+
+      const result = await sendOpenClawCliStudyMessage(text)
+      sendJson(res, result.ok ? 200 : 502, result)
       return
     }
 

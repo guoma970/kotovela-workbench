@@ -1,8 +1,9 @@
 /**
- * Public-facing read-only gateway for Kotovela Hub live data.
+ * Public-facing gateway for Kotovela Hub live data.
  *
- * This process is intentionally narrower than `office-api-server.ts`: it only
- * proxies read-only endpoints that Vercel needs, and rejects every write path.
+ * This process is intentionally narrower than `office-api-server.ts`: it proxies
+ * selected read-only endpoints plus one fixed study-message relay for the
+ * existing 果果学习布置群. It still rejects arbitrary write paths.
  * Use it behind Tailscale Funnel or another public HTTPS tunnel instead of
  * exposing the full local office API.
  */
@@ -20,6 +21,10 @@ const READONLY_PATHS = new Set([
   '/api/office-instances',
   '/api/model-usage',
   '/api/tasks-board',
+])
+
+const CONTROLLED_WRITE_PATHS = new Set([
+  '/api/xiguo-study-message',
 ])
 
 const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
@@ -58,11 +63,38 @@ const proxyReadOnlyRequest = async (pathname: string, search: string) => {
   }
 }
 
+const readRequestBody = async (req: http.IncomingMessage) => {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(Buffer.from(chunk))
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+const proxyControlledWriteRequest = async (pathname: string, body: string) => {
+  const upstream = new URL(pathname, UPSTREAM_ORIGIN)
+
+  const response = await fetch(upstream, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(UPSTREAM_TOKEN ? { Authorization: `Bearer ${UPSTREAM_TOKEN}` } : {}),
+    },
+    body,
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  })
+  const text = await response.text()
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    body: text ? JSON.parse(text) as unknown : null,
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
 
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN)
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
   res.setHeader('Vary', 'Origin')
 
@@ -76,17 +108,19 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       service: 'kotovela-office-readonly-gateway',
       readonlyPaths: Array.from(READONLY_PATHS),
+      controlledWritePaths: Array.from(CONTROLLED_WRITE_PATHS),
     })
     return
   }
 
-  if (!READONLY_PATHS.has(url.pathname)) {
-    sendJson(res, 404, { error: 'not_found', message: 'read-only gateway only exposes selected live-data APIs' })
+  if (!READONLY_PATHS.has(url.pathname) && !CONTROLLED_WRITE_PATHS.has(url.pathname)) {
+    sendJson(res, 404, { error: 'not_found', message: 'gateway only exposes selected live-data APIs and fixed study relay' })
     return
   }
 
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.setHeader('Allow', 'GET, HEAD, OPTIONS')
+  const isControlledWrite = CONTROLLED_WRITE_PATHS.has(url.pathname)
+  if (isControlledWrite ? req.method !== 'POST' : (req.method !== 'GET' && req.method !== 'HEAD')) {
+    res.setHeader('Allow', isControlledWrite ? 'POST, OPTIONS' : 'GET, HEAD, OPTIONS')
     sendJson(res, 405, { error: 'method_not_allowed' })
     return
   }
@@ -97,6 +131,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if (isControlledWrite) {
+      const payload = await proxyControlledWriteRequest(url.pathname, await readRequestBody(req))
+      sendJson(res, payload.status, payload.body)
+      return
+    }
+
     const payload = await proxyReadOnlyRequest(url.pathname, url.search)
     if (req.method === 'HEAD') {
       res.writeHead(payload.status, { 'Cache-Control': 'no-store, max-age=0' }).end()
@@ -115,6 +155,7 @@ server.listen(PORT, HOST, () => {
   const baseUrl = `http://${HOST}:${PORT}`
   console.log(`[office-readonly-gateway] listening ${baseUrl}`)
   console.log(`[office-readonly-gateway] readonly paths: ${Array.from(READONLY_PATHS).join(', ')}`)
+  console.log(`[office-readonly-gateway] controlled write paths: ${Array.from(CONTROLLED_WRITE_PATHS).join(', ')}`)
   if (!PUBLIC_TOKEN) {
     console.error('[office-readonly-gateway] OFFICE_READONLY_GATEWAY_TOKEN is required for public exposure')
   }

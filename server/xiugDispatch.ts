@@ -1,3 +1,7 @@
+import { execFile } from 'node:child_process'
+import path from 'node:path'
+import { promisify } from 'node:util'
+
 export type XiguoSubject = 'math' | 'writing' | 'reading'
 
 export type XiguoTask = {
@@ -23,30 +27,51 @@ export type FeishuDispatchResult =
   | { ok: false; error: string }
 
 const DEFAULT_XIGUO_DEEP_LINK_ORIGIN = 'https://xiguo.kotovela.com'
+const DEFAULT_FEISHU_STUDY_CHAT_ID = 'oc_6c11384fb9a6316cfce5eacb84fb7414'
+const DEFAULT_FEISHU_STUDY_ACCOUNT = 'family'
+const USER_HOME = process.env.HOME || process.env.USERPROFILE || ''
 const SUBJECT_LABELS: Record<XiguoSubject, string> = {
   math: '数学',
   writing: '写作',
   reading: '语文阅读',
 }
 
+const execFileAsync = promisify(execFile)
 const normalizeString = (value: unknown) => String(value ?? '').trim()
 
 const formatSubject = (subject: XiguoSubject): string => SUBJECT_LABELS[subject]
+
+const getFeishuStudyChatId = () => normalizeString(process.env.FEISHU_STUDY_CHAT_ID) || DEFAULT_FEISHU_STUDY_CHAT_ID
+
+const hasLocalOpenClawMessageSender = () => {
+  if (process.env.VERCEL === '1') return false
+  return Boolean(getFeishuStudyChatId())
+}
 
 export function getXiguoDispatchReadiness() {
   const xiguoApiUrlConfigured = Boolean(normalizeString(process.env.XIGUO_API_URL))
   const xiguoApiKeyConfigured = Boolean(normalizeString(process.env.XIGUO_API_KEY))
   const feishuWebhookConfigured = Boolean(normalizeString(process.env.FEISHU_STUDY_WEBHOOK))
+  const openclawRelayConfigured = Boolean(normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL))
+  const openclawCliConfigured = hasLocalOpenClawMessageSender()
+  const feishuConfigured = feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
   const xiguoConfigured = xiguoApiUrlConfigured && xiguoApiKeyConfigured
   const missing = [
     !xiguoApiUrlConfigured || !xiguoApiKeyConfigured ? '羲果陪伴接口' : '',
-    !feishuWebhookConfigured ? '飞书学习布置群机器人' : '',
+    !feishuConfigured ? '飞书学习布置群发送入口' : '',
   ].filter(Boolean)
 
   return {
     xiguoConfigured,
-    feishuConfigured: feishuWebhookConfigured,
-    allConfigured: xiguoConfigured && feishuWebhookConfigured,
+    feishuConfigured,
+    feishuTransport: feishuWebhookConfigured
+      ? 'webhook'
+      : openclawRelayConfigured
+        ? 'openclaw-relay'
+        : openclawCliConfigured
+          ? 'openclaw-cli'
+          : 'none',
+    allConfigured: xiguoConfigured && feishuConfigured,
     missing,
     message:
       missing.length === 0
@@ -63,27 +88,23 @@ export function buildXiguoFallbackDeepLink(date: string) {
 }
 
 export function buildFeishuStudyMessage(tasks: XiguoTask[], deepLink: string, date: string): string {
-  const taskLines = tasks
-    .map((task, index) => {
-      const description = task.description ? ` · ${task.description}` : ''
-      return `${index + 1}. ${task.title}｜${formatSubject(task.subject)}｜${task.durationMinutes} 分钟${description}`
-    })
-    .join('\n')
-
-  const totalDuration = tasks.reduce((sum, task) => sum + task.durationMinutes, 0)
+  const currentTask = tasks[0]
+  if (!currentTask) {
+    return ['今日学习提醒', '', `日期：${date}`, '', `开始学习：${deepLink}`].join('\n')
+  }
 
   return [
-    '今日学习计划',
+    '果果，开始今天的第一个学习节点啦～',
     '',
-    `日期：${date}`,
-    `任务数：${tasks.length} 个，预计 ${totalDuration} 分钟`,
+    `现在做：${currentTask.title}`,
+    `科目：${formatSubject(currentTask.subject)}`,
+    `专注：${currentTask.durationMinutes} 分钟`,
+    currentTask.description ? `内容：${currentTask.description}` : '',
     '',
-    taskLines,
-    '',
-    '果妈已确认，可以开始执行。',
+    '先完成这一项，后面再看下一步。',
     '',
     `开始学习：${deepLink}`,
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }
 
 const parseXiguoResponse = async (response: Response): Promise<XiguoDispatchResult> => {
@@ -134,16 +155,60 @@ export async function sendFeishuStudyMessage(
   deepLink: string,
   date: string,
 ): Promise<FeishuDispatchResult> {
-  const webhookUrl = normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
-  if (!webhookUrl) return { ok: false, error: 'FEISHU_STUDY_WEBHOOK not configured' }
+  const text = buildFeishuStudyMessage(tasks, deepLink, date)
+  const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
+  if (relayUrl) return sendOpenClawStudyRelayMessage(text, date)
 
+  const webhookUrl = normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
+  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text)
+
+  if (hasLocalOpenClawMessageSender()) return sendOpenClawCliStudyMessage(text)
+
+  return { ok: false, error: 'Feishu study message sender not configured' }
+}
+
+const sendOpenClawStudyRelayMessage = async (text: string, date: string): Promise<FeishuDispatchResult> => {
+  const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
+  const relayToken = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_TOKEN)
+  try {
+    const response = await fetch(relayUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(relayToken ? { Authorization: `Bearer ${relayToken}` } : {}),
+      },
+      body: JSON.stringify({
+        text,
+        date,
+        chatId: getFeishuStudyChatId(),
+      }),
+      signal: AbortSignal.timeout(10_000),
+    })
+
+    if (!response.ok) {
+      const raw = await response.text().catch(() => '')
+      return { ok: false, error: `OpenClaw relay error ${response.status}: ${raw.slice(0, 500)}` }
+    }
+
+    const data = await response.json().catch(() => null) as { ok?: unknown; error?: unknown } | null
+    if (data?.ok !== true) {
+      return { ok: false, error: `OpenClaw relay returned unexpected response: ${String(data?.error ?? '')}` }
+    }
+
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+const sendFeishuWebhookMessage = async (webhookUrl: string, text: string): Promise<FeishuDispatchResult> => {
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         msg_type: 'text',
-        content: { text: buildFeishuStudyMessage(tasks, deepLink, date) },
+        content: { text },
       }),
       signal: AbortSignal.timeout(8_000),
     })
@@ -158,6 +223,26 @@ export async function sendFeishuStudyMessage(
       return { ok: false, error: `Feishu error code ${data.code}: ${String(data.msg ?? '')}` }
     }
 
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export const sendOpenClawCliStudyMessage = async (text: string): Promise<FeishuDispatchResult> => {
+  const openclawBin = normalizeString(process.env.OPENCLAW_BIN) || (USER_HOME ? path.join(USER_HOME, '.npm-global/bin/openclaw') : 'openclaw')
+  const accountId = normalizeString(process.env.FEISHU_STUDY_ACCOUNT) || DEFAULT_FEISHU_STUDY_ACCOUNT
+  const chatId = getFeishuStudyChatId()
+
+  try {
+    await execFileAsync(
+      openclawBin,
+      ['message', 'send', '--account', accountId, '--channel', 'feishu', '--target', chatId, '--message', text, '--json'],
+      {
+        timeout: 15_000,
+        maxBuffer: 1024 * 1024,
+      },
+    )
     return { ok: true }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }

@@ -87,7 +87,12 @@ try {
 
   const feishuRequest = requests.find((request) => request.url === '/feishu')
   const feishuText = feishuRequest?.body?.content?.text ?? ''
-  if (!feishuText.includes('今日学习计划') || !feishuText.includes('开始学习：https://xiguo.kotovela.com/')) {
+  if (
+    !feishuText.includes('果果，开始今天的第一个学习节点啦') ||
+    !feishuText.includes('现在做：数学练习') ||
+    feishuText.includes('语文阅读') ||
+    !feishuText.includes('开始学习：https://xiguo.kotovela.com/')
+  ) {
     throw new Error(`feishu message format invalid: ${feishuText}`)
   }
 
