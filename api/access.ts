@@ -5,8 +5,14 @@ const ACCESS_COOKIE_NAME = 'kotovela_access'
 const ACCESS_HASH_PREFIX = 'kotovela-hub-access'
 const ACCESS_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
+const normalizeSecret = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+
 const hashSecret = (secret: string) =>
-  createHash('sha256').update(`${ACCESS_HASH_PREFIX}:${secret}`).digest('hex')
+  createHash('sha256').update(`${ACCESS_HASH_PREFIX}:${normalizeSecret(secret)}`).digest('hex')
 
 const parseCookies = (cookieHeader: string | undefined) => {
   const cookies = new Map<string, string>()
@@ -27,7 +33,7 @@ const resolveNextPath = (value: unknown) => {
   return value
 }
 
-const normalizePassword = (value: unknown) => String(value ?? '').trim()
+const normalizePassword = (value: unknown) => normalizeSecret(value)
 
 const extractMultipartPassword = (value: string) => {
   const match = value.match(/name="password"[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n--/)
@@ -88,7 +94,7 @@ const clearAccessCookie = (res: VercelResponse) => {
 export default function handler(req: VercelRequest, res: VercelResponse) {
   setNoStore(res)
 
-  const secret = process.env.KOTOVELA_ACCESS_SECRET?.trim()
+  const secret = normalizeSecret(process.env.KOTOVELA_ACCESS_SECRET)
   if (!secret) {
     return res.status(503).json({ ok: false, error: 'access_protection_not_configured' })
   }

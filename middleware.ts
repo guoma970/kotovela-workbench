@@ -8,8 +8,14 @@ const toHex = (buffer: ArrayBuffer) =>
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 
+const normalizeSecret = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+
 const hashSecret = async (secret: string) =>
-  toHex(await crypto.subtle.digest('SHA-256', textEncoder.encode(`${ACCESS_HASH_PREFIX}:${secret}`)))
+  toHex(await crypto.subtle.digest('SHA-256', textEncoder.encode(`${ACCESS_HASH_PREFIX}:${normalizeSecret(secret)}`)))
 
 const parseCookies = (cookieHeader: string | null) => {
   const cookies = new Map<string, string>()
@@ -33,7 +39,7 @@ const isAuthenticated = async (request: Request, secret: string) => {
   const expected = await hashSecret(secret)
   const cookies = parseCookies(request.headers.get('cookie'))
   const cookieValue = cookies.get(ACCESS_COOKIE_NAME)
-  const automationToken = request.headers.get('x-kotovela-access-token')?.trim()
+  const automationToken = normalizeSecret(request.headers.get('x-kotovela-access-token'))
 
   return cookieValue === expected || automationToken === secret
 }
@@ -56,8 +62,8 @@ const loginPage = (request: Request, missingConfig = false) => {
   const message = missingConfig
     ? '内部访问保护已开启，但服务端还没有配置 KOTOVELA_ACCESS_SECRET。'
     : failed
-      ? '口令不正确，请重新输入。'
-      : '这是个人内部驾驶舱，请输入访问口令继续。'
+      ? '口令不正确。手机输入时请打开“显示口令”核对大小写，系统会自动清理首尾空格和全角字符。'
+      : '这是个人内部驾驶舱，请输入访问口令继续。手机端可打开“显示口令”核对输入。'
 
   return new Response(
     `<!doctype html>
@@ -77,11 +83,16 @@ const loginPage = (request: Request, missingConfig = false) => {
     h1 { margin: 0; font-size: clamp(1.8rem, 8vw, 2.6rem); line-height: 1.05; }
     p { color: #b9c6d8; font-size: 1rem; line-height: 1.7; margin: 1rem 0 1.5rem; }
     form { display: grid; gap: .9rem; }
+    .field { position: relative; }
     input { width: 100%; box-sizing: border-box; border: 1px solid rgba(148, 163, 184, .3); border-radius: 16px;
-      padding: .95rem 1rem; background: rgba(2, 6, 23, .72); color: #f8fafc; font: inherit; outline: none; }
+      padding: .95rem 5rem .95rem 1rem; background: rgba(2, 6, 23, .72); color: #f8fafc; font: inherit; outline: none; }
     input:focus { border-color: #5eead4; box-shadow: 0 0 0 4px rgba(45, 212, 191, .16); }
     button { border: 0; border-radius: 16px; padding: 1rem 1.1rem; background: linear-gradient(135deg, #2dd4bf, #38bdf8);
       color: #04111d; font: inherit; font-weight: 800; cursor: pointer; }
+    button:disabled { cursor: wait; opacity: .72; }
+    .toggle { position: absolute; right: .55rem; top: 50%; transform: translateY(-50%); border-radius: 12px;
+      padding: .52rem .72rem; background: rgba(148, 163, 184, .14); color: #d9f7ff; font-size: .9rem; }
+    .notice { margin-top: .7rem; font-size: .88rem; color: ${failed ? '#fecaca' : '#8fb7c8'}; }
     .hint { margin-top: 1rem; font-size: .86rem; color: #7f8ea3; }
   </style>
 </head>
@@ -94,12 +105,33 @@ const loginPage = (request: Request, missingConfig = false) => {
       missingConfig
         ? ''
         : `<form method="post" action="/api/access?next=${next}">
-      <input name="password" type="password" autocomplete="current-password" placeholder="访问口令" required autofocus />
-      <button type="submit">进入内部驾驶舱</button>
+      <div class="field">
+        <input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="访问口令" required autofocus />
+        <button class="toggle" type="button" aria-controls="password" aria-pressed="false">显示</button>
+      </div>
+      <button id="submit" type="submit">进入内部驾驶舱</button>
+      <div class="notice">${failed ? '如果你确认口令没错，请切换到英文键盘后重试。' : '手机输入会自动兼容全角字符，并清理首尾空格。'}</div>
     </form>`
     }
     <div class="hint">真实实例状态与模型用量仅限本人查看。</div>
   </main>
+  <script>
+    const input = document.getElementById('password')
+    const toggle = document.querySelector('.toggle')
+    const form = document.querySelector('form')
+    const submit = document.getElementById('submit')
+    toggle?.addEventListener('click', () => {
+      const show = input.type === 'password'
+      input.type = show ? 'text' : 'password'
+      toggle.textContent = show ? '隐藏' : '显示'
+      toggle.setAttribute('aria-pressed', String(show))
+      input.focus()
+    })
+    form?.addEventListener('submit', () => {
+      submit.disabled = true
+      submit.textContent = '正在进入...'
+    })
+  </script>
 </body>
 </html>`,
     {
@@ -121,7 +153,7 @@ export default async function middleware(request: Request) {
   const url = new URL(request.url)
   if (url.pathname === '/api/access') return undefined
 
-  const secret = process.env.KOTOVELA_ACCESS_SECRET?.trim()
+  const secret = normalizeSecret(process.env.KOTOVELA_ACCESS_SECRET)
   if (!shouldProtect(secret)) return undefined
 
   if (!secret) {
