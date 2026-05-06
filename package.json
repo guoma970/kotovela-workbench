@@ -18,6 +18,7 @@
     "check:office": "node scripts/check-office-local.mjs",
     "check:office-api": "node scripts/check-office-api.mjs",
     "check:office-readonly-gateway": "node scripts/check-office-readonly-gateway.mjs",
+    "check:xiguo-dispatch": "node --experimental-strip-types scripts/check-xiguo-dispatch.mjs",
     "build:demo": "tsc -b && node scripts/verify-demo-build-safe.mjs && vite build --mode demo",
     "build:internal": "tsc -b && vite build --mode internal",
     "build:opensource": "tsc -b && vite build --mode opensource",

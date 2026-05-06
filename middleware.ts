@@ -40,8 +40,11 @@ const isAuthenticated = async (request: Request, secret: string) => {
   const cookies = parseCookies(request.headers.get('cookie'))
   const cookieValue = cookies.get(ACCESS_COOKIE_NAME)
   const automationToken = normalizeSecret(request.headers.get('x-kotovela-access-token'))
+  const directSecret = normalizeSecret(request.headers.get('x-kotovela-secret'))
+  const authorization = normalizeSecret(request.headers.get('authorization'))
+  const bearerToken = authorization.toLowerCase().startsWith('bearer ') ? normalizeSecret(authorization.slice(7)) : ''
 
-  return cookieValue === expected || automationToken === secret
+  return cookieValue === expected || automationToken === secret || directSecret === secret || bearerToken === secret
 }
 
 const jsonResponse = (body: unknown, status: number) =>
