@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     confirmedBy: body.confirmedBy,
     tasks,
   })
-  const deepLink = xiguoResult.ok ? xiguoResult.deepLink : buildXiguoFallbackDeepLink(body.date)
+  const deepLink = xiguoResult.ok ? xiguoResult.deepLink : buildXiguoFallbackDeepLink(body.date, tasks[0])
   const feishuResult = await sendFeishuStudyMessage(tasks, deepLink, body.date)
   const allOk = xiguoResult.ok && feishuResult.ok
 

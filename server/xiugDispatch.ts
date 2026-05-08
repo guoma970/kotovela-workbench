@@ -1,6 +1,11 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import {
+  appendXiguoTaskLinkParams,
+  buildKotovelaTaskApiUrl,
+  isXiguoTaskLinkSecurityConfigured,
+} from './xiguoTaskAccess.js'
 
 export type XiguoSubject = 'math' | 'writing' | 'reading'
 
@@ -29,6 +34,7 @@ export type FeishuDispatchResult =
 const DEFAULT_XIGUO_DEEP_LINK_ORIGIN = 'https://xiguo.kotovela.com'
 const DEFAULT_FEISHU_STUDY_CHAT_ID = 'oc_6c11384fb9a6316cfce5eacb84fb7414'
 const DEFAULT_FEISHU_STUDY_ACCOUNT = 'family'
+const DEFAULT_FEISHU_OPEN_API_BASE_URL = 'https://open.feishu.cn'
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || ''
 const SUBJECT_LABELS: Record<XiguoSubject, string> = {
   math: '数学',
@@ -42,6 +48,13 @@ const normalizeString = (value: unknown) => String(value ?? '').trim()
 const formatSubject = (subject: XiguoSubject): string => SUBJECT_LABELS[subject]
 
 const getFeishuStudyChatId = () => normalizeString(process.env.FEISHU_STUDY_CHAT_ID) || DEFAULT_FEISHU_STUDY_CHAT_ID
+const getFeishuOpenApiBaseUrl = () => normalizeString(process.env.FEISHU_OPEN_API_BASE_URL) || DEFAULT_FEISHU_OPEN_API_BASE_URL
+const hasFeishuSendMessageConfig = () =>
+  Boolean(
+    normalizeString(process.env.FEISHU_APP_ID)
+    && normalizeString(process.env.FEISHU_APP_SECRET)
+    && getFeishuStudyChatId(),
+  )
 
 const hasLocalOpenClawMessageSender = () => {
   if (process.env.VERCEL === '1') return false
@@ -51,27 +64,33 @@ const hasLocalOpenClawMessageSender = () => {
 export function getXiguoDispatchReadiness() {
   const xiguoApiUrlConfigured = Boolean(normalizeString(process.env.XIGUO_API_URL))
   const xiguoApiKeyConfigured = Boolean(normalizeString(process.env.XIGUO_API_KEY))
+  const xiguoLinkSecurityConfigured = isXiguoTaskLinkSecurityConfigured()
+  const feishuSendMessageConfigured = hasFeishuSendMessageConfig()
   const feishuWebhookConfigured = Boolean(normalizeString(process.env.FEISHU_STUDY_WEBHOOK))
   const openclawRelayConfigured = Boolean(normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL))
   const openclawCliConfigured = hasLocalOpenClawMessageSender()
-  const feishuConfigured = feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
+  const feishuConfigured = feishuSendMessageConfigured || feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
   const xiguoConfigured = xiguoApiUrlConfigured && xiguoApiKeyConfigured
   const missing = [
     !xiguoApiUrlConfigured || !xiguoApiKeyConfigured ? '羲果陪伴接口' : '',
+    !xiguoLinkSecurityConfigured ? '作业链接安全密钥' : '',
     !feishuConfigured ? '飞书学习布置群发送入口' : '',
   ].filter(Boolean)
 
   return {
     xiguoConfigured,
+    xiguoLinkSecurityConfigured,
     feishuConfigured,
-    feishuTransport: feishuWebhookConfigured
-      ? 'webhook'
-      : openclawRelayConfigured
-        ? 'openclaw-relay'
-        : openclawCliConfigured
-          ? 'openclaw-cli'
-          : 'none',
-    allConfigured: xiguoConfigured && feishuConfigured,
+    feishuTransport: feishuSendMessageConfigured
+      ? 'sendMessage'
+      : feishuWebhookConfigured
+        ? 'webhook'
+        : openclawRelayConfigured
+          ? 'openclaw-relay'
+          : openclawCliConfigured
+            ? 'openclaw-cli'
+            : 'none',
+    allConfigured: xiguoConfigured && xiguoLinkSecurityConfigured && feishuConfigured,
     missing,
     message:
       missing.length === 0
@@ -80,11 +99,12 @@ export function getXiguoDispatchReadiness() {
   }
 }
 
-export function buildXiguoFallbackDeepLink(date: string) {
+export function buildXiguoFallbackDeepLink(date: string, task?: Pick<XiguoTask, 'id'> & { projectId?: string }) {
   const url = new URL('/ai-session', DEFAULT_XIGUO_DEEP_LINK_ORIGIN)
   url.searchParams.set('role', 'child')
   url.searchParams.set('date', date)
-  return url.toString()
+  if (!task) return url.toString()
+  return appendXiguoTaskLinkParams(url.toString(), { taskId: task.id, projectId: task.projectId })
 }
 
 export function buildFeishuStudyMessage(tasks: XiguoTask[], deepLink: string, date: string): string {
@@ -134,7 +154,11 @@ export async function dispatchToXiguo(payload: XiguoDispatchPayload): Promise<Xi
         date: payload.date,
         confirmedBy: payload.confirmedBy,
         dispatchedAt: new Date().toISOString(),
-        tasks: payload.tasks,
+        tasks: payload.tasks.map((task) => ({
+          ...task,
+          hubTaskUrl: buildKotovelaTaskApiUrl('/api/xiguo-task', { taskId: task.id }),
+          statusCallbackUrl: buildKotovelaTaskApiUrl('/api/xiguo-task-status', { taskId: task.id }),
+        })),
       }),
       signal: AbortSignal.timeout(12_000),
     })
@@ -155,7 +179,11 @@ export async function sendFeishuStudyMessage(
   deepLink: string,
   date: string,
 ): Promise<FeishuDispatchResult> {
-  const text = buildFeishuStudyMessage(tasks, deepLink, date)
+  const firstTask = tasks[0]
+  const taskDeepLink = firstTask ? appendXiguoTaskLinkParams(deepLink, { taskId: firstTask.id }) : deepLink
+  const text = buildFeishuStudyMessage(tasks, taskDeepLink, date)
+  if (hasFeishuSendMessageConfig()) return sendFeishuOpenApiMessage(text)
+
   const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
   if (relayUrl) return sendOpenClawStudyRelayMessage(text, date)
 
@@ -165,6 +193,94 @@ export async function sendFeishuStudyMessage(
   if (hasLocalOpenClawMessageSender()) return sendOpenClawCliStudyMessage(text)
 
   return { ok: false, error: 'Feishu study message sender not configured' }
+}
+
+export const sendFeishuNeedHumanMessage = async (input: {
+  taskId: string
+  taskName: string
+  reason: string
+  deepLink?: string
+}): Promise<FeishuDispatchResult> => {
+  const text = [
+    '羲果学习任务需要人工确认',
+    '',
+    `任务：${input.taskName}`,
+    `原因：${input.reason}`,
+    `任务编号：${input.taskId}`,
+    input.deepLink ? `查看：${input.deepLink}` : '',
+    '',
+    '请小羲 / family 协作群确认下一步。',
+  ].filter(Boolean).join('\n')
+
+  if (hasFeishuSendMessageConfig()) return sendFeishuOpenApiMessage(text)
+
+  const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
+  if (relayUrl) return sendOpenClawStudyRelayMessage(text, new Date().toISOString().slice(0, 10))
+
+  const webhookUrl = normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
+  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text)
+
+  if (hasLocalOpenClawMessageSender()) return sendOpenClawCliStudyMessage(text)
+
+  return { ok: false, error: 'Feishu need-human message sender not configured' }
+}
+
+const fetchFeishuTenantAccessToken = async () => {
+  const appId = normalizeString(process.env.FEISHU_APP_ID)
+  const appSecret = normalizeString(process.env.FEISHU_APP_SECRET)
+  if (!appId || !appSecret) throw new Error('FEISHU_APP_ID or FEISHU_APP_SECRET not configured')
+
+  const response = await fetch(`${getFeishuOpenApiBaseUrl()}/open-apis/auth/v3/tenant_access_token/internal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+    signal: AbortSignal.timeout(8_000),
+  })
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => '')
+    throw new Error(`Feishu token error ${response.status}: ${raw.slice(0, 500)}`)
+  }
+
+  const data = await response.json().catch(() => null) as { code?: unknown; msg?: unknown; tenant_access_token?: unknown } | null
+  if (data?.code !== 0 || typeof data.tenant_access_token !== 'string' || !data.tenant_access_token.trim()) {
+    throw new Error(`Feishu token response invalid: ${String(data?.msg ?? data?.code ?? 'unknown')}`)
+  }
+
+  return data.tenant_access_token.trim()
+}
+
+const sendFeishuOpenApiMessage = async (text: string): Promise<FeishuDispatchResult> => {
+  try {
+    const tenantAccessToken = await fetchFeishuTenantAccessToken()
+    const response = await fetch(`${getFeishuOpenApiBaseUrl()}/open-apis/im/v1/messages?receive_id_type=chat_id`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tenantAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        receive_id: getFeishuStudyChatId(),
+        msg_type: 'text',
+        content: JSON.stringify({ text }),
+      }),
+      signal: AbortSignal.timeout(8_000),
+    })
+
+    if (!response.ok) {
+      const raw = await response.text().catch(() => '')
+      return { ok: false, error: `Feishu sendMessage error ${response.status}: ${raw.slice(0, 500)}` }
+    }
+
+    const data = await response.json().catch(() => null) as { code?: unknown; msg?: unknown } | null
+    if (data?.code !== 0) {
+      return { ok: false, error: `Feishu sendMessage code ${String(data?.code)}: ${String(data?.msg ?? '')}` }
+    }
+
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 const sendOpenClawStudyRelayMessage = async (text: string, date: string): Promise<FeishuDispatchResult> => {

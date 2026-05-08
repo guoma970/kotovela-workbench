@@ -78,6 +78,9 @@ const INTERNAL_API_PATHS = new Set([
   '/api/content-feedback',
   '/api/task-notifications',
   '/api/task-notification-actions',
+  '/api/xiguo-task',
+  '/api/xiguo-task-status',
+  '/api/xiguo-task-alerts',
 ])
 
 const CONTROLLED_WRITE_API_PATHS = new Set([
@@ -93,6 +96,18 @@ const readRequestBody = async (req: http.IncomingMessage) => {
     return JSON.parse(text) as unknown
   } catch {
     return text
+  }
+}
+
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+
+const buildInternalRequestInput = async (url: URL, req: http.IncomingMessage) => {
+  const query = Object.fromEntries(url.searchParams)
+  if (req.method === 'GET') return query
+  return {
+    ...query,
+    ...asObject(await readRequestBody(req)),
   }
 }
 
@@ -161,7 +176,7 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
-    const payload = await handleInternalWorkbenchRequest(url.pathname, req.method ?? 'GET', await readRequestBody(req))
+    const payload = await handleInternalWorkbenchRequest(url.pathname, req.method ?? 'GET', await buildInternalRequestInput(url, req))
     if (payload.allow) res.setHeader('Allow', payload.allow)
     sendJson(res, payload.status, payload.body)
   } catch (error) {

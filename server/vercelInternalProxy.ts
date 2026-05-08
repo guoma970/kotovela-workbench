@@ -79,6 +79,9 @@ const readRequestBody = (req: VercelRequest) => {
   return req.body
 }
 
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+
 const proxyToUpstream = async (pathname: string, req: VercelRequest) => {
   const origin = resolveUpstreamOrigin()
   if (!origin) return undefined
@@ -135,7 +138,11 @@ export async function handleInternalApiRoute(req: VercelRequest, res: VercelResp
   }
 
   try {
-    const fallback = await handleInternalWorkbenchRequest(pathname, req.method ?? 'GET', req.body)
+    const requestQuery = Object.fromEntries(new URL(req.url ?? pathname, `https://${req.headers.host ?? 'kotovelahub.vercel.app'}`).searchParams)
+    const fallbackInput = req.method === 'GET'
+      ? requestQuery
+      : { ...requestQuery, ...asObject(req.body) }
+    const fallback = await handleInternalWorkbenchRequest(pathname, req.method ?? 'GET', fallbackInput)
     if (fallback.allow) res.setHeader('Allow', fallback.allow)
     return res.status(fallback.status).json(fallback.body)
   } catch (error) {

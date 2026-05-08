@@ -61,6 +61,7 @@ const tasks = [
 
 try {
   process.env.XIGUO_API_KEY = 'test-xiguo-key'
+  process.env.XIGUO_LINK_SECRET = 'test-link-secret'
   process.env.XIGUO_API_URL = `${baseUrl}/xiguo-ok`
   process.env.FEISHU_STUDY_WEBHOOK = `${baseUrl}/feishu`
 
