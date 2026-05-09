@@ -18,6 +18,10 @@
       "destination": "/api/xiguo/task-alerts"
     },
     {
+      "source": "/api/task-notification-actions",
+      "destination": "/api/task-notifications?action=actions"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
