@@ -32,6 +32,12 @@ const parseCookies = (cookieHeader: string | null) => {
 
 const isApiRequest = (pathname: string) => pathname.startsWith('/api/')
 
+const isTaskScopedXiguoApi = (pathname: string) =>
+  pathname === '/api/xiguo-task' ||
+  pathname === '/api/xiguo-task-status' ||
+  pathname === '/api/xiguo/task' ||
+  pathname === '/api/xiguo/task-status'
+
 const shouldProtect = (secret: string | undefined) =>
   Boolean(secret) || process.env.VERCEL_BUILD_MODE === 'internal' || process.env.KOTOVELA_ACCESS_REQUIRED === '1'
 
@@ -155,6 +161,7 @@ export const config = {
 export default async function middleware(request: Request) {
   const url = new URL(request.url)
   if (url.pathname === '/api/access') return undefined
+  if (isTaskScopedXiguoApi(url.pathname)) return undefined
 
   const secret = normalizeSecret(process.env.KOTOVELA_ACCESS_SECRET)
   if (!shouldProtect(secret)) return undefined
