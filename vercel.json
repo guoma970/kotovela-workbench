@@ -6,6 +6,18 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/xiguo-task",
+      "destination": "/api/xiguo/task"
+    },
+    {
+      "source": "/api/xiguo-task-status",
+      "destination": "/api/xiguo/task-status"
+    },
+    {
+      "source": "/api/xiguo-task-alerts",
+      "destination": "/api/xiguo/task-alerts"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
