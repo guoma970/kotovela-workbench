@@ -13,7 +13,7 @@ export type XiguoTaskTokenCheck =
   | { ok: false; error: string }
 
 const DEFAULT_XIGUO_TASK_LINK_TTL_SECONDS = 60 * 60 * 24 * 3
-const DEFAULT_KOTOVELA_PUBLIC_ORIGIN = 'https://kotovelahub.vercel.app'
+const DEFAULT_KOTOVELA_PUBLIC_ORIGIN = 'https://hub.kotovela.com'
 
 const normalizeString = (value: unknown) => String(value ?? '').trim()
 

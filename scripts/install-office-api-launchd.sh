@@ -19,6 +19,14 @@ xml_escape() {
   printf '%s' "$value"
 }
 
+append_env_var() {
+  local key="$1"
+  local value="${(P)key:-}"
+  if [[ -n "$value" ]]; then
+    ENV_XML+=$'\n    <key>'"$(xml_escape "$key")"$'</key>\n    <string>'"$(xml_escape "$value")"$'</string>'
+  fi
+}
+
 restore_previous_plist() {
   local backup_path="$1"
   local had_previous="$2"
@@ -58,6 +66,11 @@ fi
 if [[ -n "${OFFICE_API_CORS_ORIGIN:-}" ]]; then
   ENV_XML+=$'\n    <key>OFFICE_API_CORS_ORIGIN</key>\n    <string>'"$(xml_escape "$OFFICE_API_CORS_ORIGIN")"$'</string>'
 fi
+
+append_env_var KOTOVELA_PUBLIC_ORIGIN
+append_env_var KOTOVELA_ACCESS_SECRET
+append_env_var XIGUO_LINK_SECRET
+append_env_var XIGUO_API_KEY
 
 ENV_XML+=$'\n  </dict>'
 
