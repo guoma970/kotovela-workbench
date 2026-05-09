@@ -21,10 +21,12 @@ const READONLY_PATHS = new Set([
   '/api/office-instances',
   '/api/model-usage',
   '/api/tasks-board',
+  '/api/xiguo-task',
 ])
 
 const CONTROLLED_WRITE_PATHS = new Set([
   '/api/xiguo-study-message',
+  '/api/xiguo-task-status',
 ])
 
 const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
