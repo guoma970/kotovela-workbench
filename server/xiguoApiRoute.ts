@@ -4,7 +4,7 @@ import { hasKotovelaAccess } from './kotovelaAccess.js'
 import { verifyXiguoTaskLinkToken } from './xiguoTaskAccess.js'
 
 type XiguoRouteOptions = {
-  pathname: '/api/xiguo-task' | '/api/xiguo-task-status' | '/api/xiguo-task-alerts'
+  pathname: '/api/xiguo-task' | '/api/xiguo-task-status' | '/api/xiguo-task-create' | '/api/xiguo-task-alerts'
   allow: string[]
   internalOnly?: boolean
 }

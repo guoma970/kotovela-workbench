@@ -74,6 +74,17 @@ type XiguoHomeworkTask = {
   statusCallbackUrl: string
 }
 
+type XiguoHomeworkCreateTaskInput = {
+  id: string
+  projectId?: string
+  title: string
+  subject?: string
+  durationMinutes?: number
+  description?: string
+  dueAt?: string
+  priority?: number
+}
+
 type SystemState = {
   app_mode: 'internal' | 'opensource'
   system_mode: 'dev' | 'test' | 'live'
@@ -660,6 +671,152 @@ const createXiguoNeedHumanNotification = (item: TaskBoardItem, taskId: string, r
   message: `【羲果学习任务需要人工确认】\n任务：${String(item.task_name ?? item.title ?? taskId)}\n原因：${reason}\n状态：Need Human`,
 })
 
+const normalizeXiguoCreateTask = (value: unknown): XiguoHomeworkCreateTaskInput | undefined => {
+  const item = asObject(value)
+  const id = String(item.id ?? item.taskId ?? item.task_id ?? '').trim()
+  const title = String(item.title ?? item.task_name ?? id).trim()
+  if (!id || !title) return undefined
+
+  const durationMinutes = Number(item.durationMinutes ?? item.duration_minutes ?? item.focus_minutes)
+  const priority = Number(item.priority)
+  return {
+    id,
+    projectId: String(item.projectId ?? item.project_id ?? 'family_study').trim() || 'family_study',
+    title,
+    subject: String(item.subject ?? 'study').trim() || 'study',
+    durationMinutes: Number.isFinite(durationMinutes) && durationMinutes > 0 ? Math.round(durationMinutes) : undefined,
+    description: String(item.description ?? item.summary ?? '').trim(),
+    dueAt: String(item.dueAt ?? item.due_at ?? item.deadlineAt ?? item.deadline_at ?? '').trim() || undefined,
+    priority: Number.isFinite(priority) ? normalizePriority(priority) : 1,
+  }
+}
+
+const buildXiguoHomeworkBoardItem = (
+  task: XiguoHomeworkCreateTaskInput,
+  input: JsonObject,
+  now: string,
+  existing?: TaskBoardItem,
+): TaskBoardItem => {
+  const previousDecisionLog = Array.isArray(existing?.decision_log) ? existing.decision_log : []
+  const previousHistory = Array.isArray(existing?.history) ? existing.history : []
+  const projectId = task.projectId || 'family_study'
+  const status = String(existing?.status ?? input.status ?? 'doing')
+  const decisionAction = existing ? 'xiguo_task_upserted' : 'xiguo_task_created'
+
+  return enrichTask({
+    ...asObject(existing),
+    task_name: task.title,
+    title: task.title,
+    description: task.description,
+    taskId: task.id,
+    task_id: task.id,
+    xiguo_task_id: task.id,
+    xiguo_status: normalizeXiguoStatus(existing?.xiguo_status ?? input.xiguo_status ?? status) ?? 'doing',
+    source_system: 'kotovela-hub',
+    target_system: 'xiguo-companion',
+    agent: 'family',
+    assigned_agent: 'family',
+    preferred_agent: 'family',
+    domain: 'family',
+    subdomain: 'study',
+    projectId,
+    project_id: projectId,
+    project_line: projectId,
+    target_group_id: projectId,
+    notify_mode: 'feishu',
+    type: 'family_task',
+    status,
+    priority: task.priority ?? normalizePriority(existing?.priority ?? 1),
+    durationMinutes: task.durationMinutes,
+    duration_minutes: task.durationMinutes,
+    subject: task.subject,
+    due_at: task.dueAt,
+    updated_at: now,
+    timestamp: String(existing?.timestamp ?? now),
+    queued_at: String(existing?.queued_at ?? now),
+    attention: Boolean(existing?.attention ?? false),
+    abnormal: Boolean(existing?.abnormal ?? false),
+    need_human: Boolean(existing?.need_human ?? false),
+    user_id: String(input.userId ?? input.user_id ?? existing?.user_id ?? 'guoguo'),
+    profile_tags: Array.isArray(existing?.profile_tags) ? existing.profile_tags : ['晚间学习', '需要陪伴', '飞书作业'],
+    decision_log: [
+      ...previousDecisionLog,
+      {
+        timestamp: now,
+        action: decisionAction,
+        reason: 'xiguo_homework_dispatch',
+        detail: existing ? '羲果作业任务已更新，准备重新发送提醒。' : '羲果作业任务已创建，准备发送飞书提醒。',
+      },
+    ].slice(-50),
+    history: [
+      ...previousHistory,
+      {
+        action: decisionAction,
+        operator: String(input.confirmedBy ?? input.confirmed_by ?? 'kotovela-hub'),
+        trigger_source: 'xiguo-dispatch',
+        timestamp: now,
+        status_after: status,
+        priority_after: task.priority ?? normalizePriority(existing?.priority ?? 1),
+      },
+    ].slice(-80),
+  }, now)
+}
+
+export async function createXiguoHomeworkTasks(input: JsonObject): Promise<InternalApiResult> {
+  if (process.env.VERCEL_BUILD_MODE === 'opensource') {
+    return { status: 404, body: { ok: false, error: 'not_found' } }
+  }
+
+  const tasks = Array.isArray(input.tasks)
+    ? input.tasks.map(normalizeXiguoCreateTask).filter((task): task is XiguoHomeworkCreateTaskInput => Boolean(task))
+    : []
+  if (!tasks.length) return { status: 400, body: { ok: false, error: 'missing_tasks' } }
+
+  const now = new Date().toISOString()
+  const payload = await readInternalTaskBoard()
+  const board = payload.board ?? []
+  const created: string[] = []
+  const updated: string[] = []
+
+  for (const task of tasks) {
+    const existingIndex = board.findIndex((item) => matchesTaskId(item, task.id, task.projectId))
+    const existing = existingIndex >= 0 ? board[existingIndex] : undefined
+    const next = buildXiguoHomeworkBoardItem(task, input, now, existing)
+    if (existingIndex >= 0) {
+      board[existingIndex] = next
+      updated.push(task.id)
+    } else {
+      board.unshift(next)
+      created.push(task.id)
+    }
+  }
+
+  payload.board = board
+  await writeInternalTaskBoard(payload)
+
+  const audit = await appendAuditLog({
+    action: 'xiguo_homework_tasks_upserted',
+    user: String(input.confirmedBy ?? input.confirmed_by ?? 'kotovela-hub'),
+    time: now,
+    target: tasks.map((task) => task.id).join(', '),
+    result: `created=${created.length} updated=${updated.length}`,
+  })
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      created,
+      updated,
+      audit,
+      tasks: tasks.map((task) => formatXiguoHomeworkTask(
+        board.find((item) => matchesTaskId(item, task.id, task.projectId)) ?? buildXiguoHomeworkBoardItem(task, input, now),
+        task.id,
+      )),
+    },
+  }
+}
+
 const applyXiguoStatus = (item: TaskBoardItem, input: {
   status: XiguoPublicStatus
   taskId: string
@@ -1035,6 +1192,11 @@ export async function handleInternalWorkbenchRequest(pathname: string, method: s
       return { status: 405, allow: 'POST, PATCH', body: { error: 'method_not_allowed' } }
     }
     return updateXiguoHomeworkTaskStatus(input)
+  }
+
+  if (pathname === '/api/xiguo-task-create') {
+    if (normalizedMethod !== 'POST') return { status: 405, allow: 'POST', body: { error: 'method_not_allowed' } }
+    return createXiguoHomeworkTasks(input)
   }
 
   if (pathname === '/api/xiguo-task-alerts') {

@@ -11,10 +11,13 @@ export type XiguoSubject = 'math' | 'writing' | 'reading'
 
 export type XiguoTask = {
   id: string
+  projectId?: string
   title: string
   subject: XiguoSubject
   durationMinutes: number
   description: string
+  dueAt?: string
+  priority?: number
 }
 
 export type XiguoDispatchPayload = {
@@ -156,8 +159,8 @@ export async function dispatchToXiguo(payload: XiguoDispatchPayload): Promise<Xi
         dispatchedAt: new Date().toISOString(),
         tasks: payload.tasks.map((task) => ({
           ...task,
-          hubTaskUrl: buildKotovelaTaskApiUrl('/api/xiguo-task', { taskId: task.id }),
-          statusCallbackUrl: buildKotovelaTaskApiUrl('/api/xiguo-task-status', { taskId: task.id }),
+          hubTaskUrl: buildKotovelaTaskApiUrl('/api/xiguo-task', { taskId: task.id, projectId: task.projectId }),
+          statusCallbackUrl: buildKotovelaTaskApiUrl('/api/xiguo-task-status', { taskId: task.id, projectId: task.projectId }),
         })),
       }),
       signal: AbortSignal.timeout(12_000),
@@ -180,7 +183,7 @@ export async function sendFeishuStudyMessage(
   date: string,
 ): Promise<FeishuDispatchResult> {
   const firstTask = tasks[0]
-  const taskDeepLink = firstTask ? appendXiguoTaskLinkParams(deepLink, { taskId: firstTask.id }) : deepLink
+  const taskDeepLink = firstTask ? appendXiguoTaskLinkParams(deepLink, { taskId: firstTask.id, projectId: firstTask.projectId }) : deepLink
   const text = buildFeishuStudyMessage(tasks, taskDeepLink, date)
   if (hasFeishuSendMessageConfig()) return sendFeishuOpenApiMessage(text)
 

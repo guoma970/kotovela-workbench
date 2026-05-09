@@ -79,6 +79,7 @@ const INTERNAL_API_PATHS = new Set([
   '/api/task-notifications',
   '/api/task-notification-actions',
   '/api/xiguo-task',
+  '/api/xiguo-task-create',
   '/api/xiguo-task-status',
   '/api/xiguo-task-alerts',
 ])

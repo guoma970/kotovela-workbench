@@ -8,14 +8,18 @@ import {
   type XiguoTask,
 } from '../server/xiugDispatch.js'
 import { hasKotovelaAccess } from '../server/kotovelaAccess.js'
+import { callInternalApiRoute } from '../server/vercelInternalProxy.js'
 
 const taskSchema = z
   .object({
     id: z.string().trim().min(1).max(120),
+    projectId: z.string().trim().min(1).max(120).optional(),
     title: z.string().trim().min(1).max(120),
     subject: z.enum(['math', 'writing', 'reading']),
     durationMinutes: z.number().int().positive().max(240),
     description: z.string().trim().max(1000).default(''),
+    dueAt: z.string().trim().max(80).optional(),
+    priority: z.number().int().min(0).max(3).optional(),
   })
   .strict()
 
@@ -70,6 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = parsed.data
   const tasks: XiguoTask[] = body.tasks
+  const createResult = await callInternalApiRoute('/api/xiguo-task-create', 'POST', {
+    date: body.date,
+    confirmedBy: body.confirmedBy,
+    tasks,
+  })
+  const createBody = createResult.body as { ok?: unknown; error?: unknown; message?: unknown } | null
+  if (createResult.status < 200 || createResult.status >= 300 || createBody?.ok !== true) {
+    return sendJson(res, 502, {
+      ok: false,
+      date: body.date,
+      error: 'Task creation failed; Feishu message was not sent.',
+      results: {
+        taskCreate: createResult.body,
+      },
+    })
+  }
+
   const xiguoResult = await dispatchToXiguo({
     date: body.date,
     confirmedBy: body.confirmedBy,
@@ -84,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     date: body.date,
     deepLink,
     results: {
+      taskCreate: createResult.body,
       xiguo: xiguoResult,
       feishu: feishuResult,
     },

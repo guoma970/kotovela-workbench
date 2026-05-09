@@ -14,6 +14,10 @@
       "destination": "/api/xiguo/task-status"
     },
     {
+      "source": "/api/xiguo-task-create",
+      "destination": "/api/xiguo/task-create"
+    },
+    {
       "source": "/api/xiguo-task-alerts",
       "destination": "/api/xiguo/task-alerts"
     },

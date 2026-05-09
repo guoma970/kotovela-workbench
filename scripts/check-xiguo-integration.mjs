@@ -126,6 +126,7 @@ try {
     sendFeishuStudyMessage,
   } = await import('../server/xiugDispatch.ts')
   const {
+    createXiguoHomeworkTasks,
     readXiguoHomeworkTask,
     scanXiguoHomeworkAlerts,
     updateXiguoHomeworkTaskStatus,
@@ -134,6 +135,29 @@ try {
   const token = createXiguoTaskLinkToken({ taskId: 'study-001', projectId: 'family-study', nowMs: Date.parse('2026-05-09T00:00:00.000Z') })
   const tokenCheck = verifyXiguoTaskLinkToken({ taskId: 'study-001', projectId: 'family-study', token, nowMs: Date.parse('2026-05-09T00:01:00.000Z') })
   if (!tokenCheck.ok) throw new Error(`token check failed: ${JSON.stringify(tokenCheck)}`)
+
+  const createdTask = await createXiguoHomeworkTasks({
+    date: '2026-05-09',
+    confirmedBy: 'parent',
+    tasks: [
+      {
+        id: 'study-created',
+        projectId: 'family-study',
+        title: '新建作业联调',
+        subject: 'reading',
+        durationMinutes: 15,
+        description: '从 Hub 受控创建作业任务。',
+      },
+    ],
+  })
+  if (createdTask.status !== 200 || createdTask.body?.created?.[0] !== 'study-created') {
+    throw new Error(`task create failed: ${JSON.stringify(createdTask)}`)
+  }
+
+  const createdDetail = await readXiguoHomeworkTask({ taskId: 'study-created', projectId: 'family-study' })
+  if (createdDetail.status !== 200 || createdDetail.body?.task?.title !== '新建作业联调') {
+    throw new Error(`created task detail failed: ${JSON.stringify(createdDetail)}`)
+  }
 
   const detail = await readXiguoHomeworkTask({ taskId: 'study-001', projectId: 'family-study' })
   if (detail.status !== 200 || detail.body?.task?.title !== '数学练习') {
@@ -214,6 +238,7 @@ try {
   }
 
   console.log('[check:xiguo-integration] signed task link: ok')
+  console.log('[check:xiguo-integration] controlled task create: ok')
   console.log('[check:xiguo-integration] task detail api contract: ok')
   console.log('[check:xiguo-integration] status Doing/Done/Blocker sync: ok')
   console.log('[check:xiguo-integration] audit_log and decision_log writes: ok')

@@ -82,20 +82,24 @@ const readRequestBody = (req: VercelRequest) => {
 const asObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 
-const proxyToUpstream = async (pathname: string, req: VercelRequest) => {
+const proxyToUpstreamRaw = async (input: {
+  pathname: string
+  method?: string
+  body?: unknown
+  search?: string
+}) => {
   const origin = resolveUpstreamOrigin()
   if (!origin) return undefined
 
-  const target = new URL(pathname, origin)
-  const requestUrl = new URL(req.url ?? pathname, `https://${req.headers.host ?? 'kotovelahub.vercel.app'}`)
-  target.search = requestUrl.search
+  const target = new URL(input.pathname, origin)
+  target.search = input.search ?? ''
 
   const token = process.env.INTERNAL_API_UPSTREAM_TOKEN?.trim()
     || process.env.OFFICE_INSTANCES_UPSTREAM_TOKEN?.trim()
     || process.env.MODEL_USAGE_UPSTREAM_TOKEN?.trim()
-  const body = readRequestBody(req)
+  const body = input.method === 'GET' || input.method === 'HEAD' ? undefined : input.body
   const response = await fetch(target, {
-    method: req.method,
+    method: input.method,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -107,6 +111,41 @@ const proxyToUpstream = async (pathname: string, req: VercelRequest) => {
   const text = await response.text()
   const parsed = text ? JSON.parse(text) as unknown : null
   return { status: response.status, body: parsed }
+}
+
+const proxyToUpstream = async (pathname: string, req: VercelRequest) => {
+  const requestUrl = new URL(req.url ?? pathname, `https://${req.headers.host ?? 'kotovelahub.vercel.app'}`)
+  return proxyToUpstreamRaw({
+    pathname,
+    method: req.method,
+    body: readRequestBody(req),
+    search: requestUrl.search,
+  })
+}
+
+export async function callInternalApiRoute(pathname: string, method: string, body?: unknown, search = '') {
+  const normalizedMethod = method.toUpperCase()
+
+  try {
+    const proxied = await proxyToUpstreamRaw({ pathname, method: normalizedMethod, body, search })
+    if (proxied) return proxied
+  } catch (error) {
+    if (normalizedMethod !== 'GET') {
+      return {
+        status: 502,
+        body: {
+          error: 'internal upstream unavailable',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      }
+    }
+  }
+
+  const fallbackInput = normalizedMethod === 'GET'
+    ? Object.fromEntries(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search))
+    : body
+  const fallback = await handleInternalWorkbenchRequest(pathname, normalizedMethod, fallbackInput)
+  return { status: fallback.status, body: fallback.body }
 }
 
 export async function handleInternalApiRoute(req: VercelRequest, res: VercelResponse, pathname: string) {

@@ -26,6 +26,7 @@ const READONLY_PATHS = new Set([
 
 const CONTROLLED_WRITE_PATHS = new Set([
   '/api/xiguo-study-message',
+  '/api/xiguo-task-create',
   '/api/xiguo-task-status',
 ])
 
