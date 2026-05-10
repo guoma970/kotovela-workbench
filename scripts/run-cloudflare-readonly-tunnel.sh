@@ -13,6 +13,7 @@ fi
 TUNNEL_NAME="${KOTOVELA_CLOUDFLARE_TUNNEL_NAME:-kotovela-office-readonly}"
 SERVICE_URL="${KOTOVELA_CLOUDFLARE_SERVICE_URL:-http://127.0.0.1:8791}"
 TUNNEL_TOKEN="${KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN:-}"
+TUNNEL_PROTOCOL="${KOTOVELA_CLOUDFLARE_TUNNEL_PROTOCOL:-http2}"
 
 if ! command -v "$CLOUDFLARED_BIN" >/dev/null 2>&1; then
   echo "Error: cloudflared is not installed or not on PATH." >&2
@@ -22,6 +23,7 @@ fi
 if [[ -n "$TUNNEL_TOKEN" ]]; then
   unset KOTOVELA_CLOUDFLARE_TUNNEL_TOKEN
   exec "$CLOUDFLARED_BIN" tunnel \
+    --protocol "$TUNNEL_PROTOCOL" \
     --edge-ip-version 4 \
     --no-autoupdate \
     run \
@@ -30,6 +32,7 @@ if [[ -n "$TUNNEL_TOKEN" ]]; then
 fi
 
 exec "$CLOUDFLARED_BIN" tunnel \
+  --protocol "$TUNNEL_PROTOCOL" \
   --edge-ip-version 4 \
   --no-autoupdate \
   --url "$SERVICE_URL" \
