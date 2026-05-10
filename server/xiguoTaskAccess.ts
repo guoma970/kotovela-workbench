@@ -17,10 +17,16 @@ const DEFAULT_KOTOVELA_PUBLIC_ORIGIN = 'https://hub.kotovela.com'
 
 const normalizeString = (value: unknown) => String(value ?? '').trim()
 
-const getTaskLinkSecret = () =>
-  normalizeString(process.env.XIGUO_LINK_SECRET)
-  || normalizeString(process.env.KOTOVELA_ACCESS_SECRET)
-  || normalizeString(process.env.XIGUO_API_KEY)
+const getTaskLinkSecrets = () =>
+  [
+    process.env.XIGUO_LINK_SECRET,
+    process.env.KOTOVELA_ACCESS_SECRET,
+    process.env.XIGUO_API_KEY,
+  ]
+    .map(normalizeString)
+    .filter((secret, index, source) => secret && source.indexOf(secret) === index)
+
+const getTaskLinkSecret = () => getTaskLinkSecrets()[0] ?? ''
 
 const encodeBase64Url = (value: string | Buffer) => Buffer.from(value).toString('base64url')
 
@@ -35,7 +41,7 @@ const safeCompare = (left: string, right: string) => {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-export const isXiguoTaskLinkSecurityConfigured = () => Boolean(getTaskLinkSecret())
+export const isXiguoTaskLinkSecurityConfigured = () => getTaskLinkSecrets().length > 0
 
 export const resolveKotovelaPublicOrigin = () =>
   normalizeString(process.env.KOTOVELA_PUBLIC_ORIGIN) || DEFAULT_KOTOVELA_PUBLIC_ORIGIN
@@ -71,14 +77,14 @@ export const verifyXiguoTaskLinkToken = (input: {
   projectId?: string
   nowMs?: number
 }): XiguoTaskTokenCheck => {
-  const secret = getTaskLinkSecret()
-  if (!secret) return { ok: false, error: 'xiguo_link_secret_not_configured' }
+  const secrets = getTaskLinkSecrets()
+  if (!secrets.length) return { ok: false, error: 'xiguo_link_secret_not_configured' }
 
   const [payloadBase64, signature] = input.token.split('.')
   if (!payloadBase64 || !signature) return { ok: false, error: 'invalid_token_format' }
 
-  const expected = signPayload(payloadBase64, secret)
-  if (!safeCompare(signature, expected)) return { ok: false, error: 'invalid_token_signature' }
+  const hasMatchingSignature = secrets.some((secret) => safeCompare(signature, signPayload(payloadBase64, secret)))
+  if (!hasMatchingSignature) return { ok: false, error: 'invalid_token_signature' }
 
   let payload: XiguoTaskTokenPayload
   try {

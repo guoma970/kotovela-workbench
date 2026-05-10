@@ -3,6 +3,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { once } from 'node:events'
+import { createHmac } from 'node:crypto'
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kotovela-xiguo-'))
 const taskBoardFile = path.join(tempDir, 'tasks-board.json')
@@ -24,6 +25,12 @@ const readBody = async (req) =>
 const sendJson = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify(body))
+}
+
+const createTaskTokenWithSecret = (payload, secret) => {
+  const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const signature = createHmac('sha256', secret).update(payloadBase64).digest('base64url')
+  return `${payloadBase64}.${signature}`
 }
 
 const requests = []
@@ -135,6 +142,21 @@ try {
   const token = createXiguoTaskLinkToken({ taskId: 'study-001', projectId: 'family-study', nowMs: Date.parse('2026-05-09T00:00:00.000Z') })
   const tokenCheck = verifyXiguoTaskLinkToken({ taskId: 'study-001', projectId: 'family-study', token, nowMs: Date.parse('2026-05-09T00:01:00.000Z') })
   if (!tokenCheck.ok) throw new Error(`token check failed: ${JSON.stringify(tokenCheck)}`)
+
+  const fallbackSecretToken = createTaskTokenWithSecret({
+    v: 1,
+    purpose: 'xiguo-homework',
+    taskId: 'study-fallback-secret',
+    projectId: 'family-study',
+    exp: Math.floor(Date.parse('2026-05-09T00:10:00.000Z') / 1000),
+  }, process.env.XIGUO_API_KEY)
+  const fallbackSecretCheck = verifyXiguoTaskLinkToken({
+    taskId: 'study-fallback-secret',
+    projectId: 'family-study',
+    token: fallbackSecretToken,
+    nowMs: Date.parse('2026-05-09T00:01:00.000Z'),
+  })
+  if (!fallbackSecretCheck.ok) throw new Error(`fallback token check failed: ${JSON.stringify(fallbackSecretCheck)}`)
 
   const createdTask = await createXiguoHomeworkTasks({
     date: '2026-05-09',
