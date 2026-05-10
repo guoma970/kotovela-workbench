@@ -40,16 +40,39 @@ type StudyDispatchState = {
   status: 'idle' | 'sending' | 'success' | 'partial' | 'error'
   message: string
   deepLink?: string
+  hubOk?: boolean
   xiguoOk?: boolean
   feishuOk?: boolean
+  createdCount?: number
+  updatedCount?: number
 }
 
 type StudyIntegrationReadiness = {
   xiguoConfigured: boolean
+  xiguoLinkSecurityConfigured?: boolean
   feishuConfigured: boolean
+  feishuTransport?: string
   allConfigured: boolean
   missing: string[]
   message: string
+}
+
+type StudyTaskCreateResult = {
+  ok?: boolean
+  created?: string[]
+  updated?: string[]
+  error?: string
+}
+
+type StudyDispatchResponse = {
+  ok?: boolean
+  deepLink?: string
+  results?: {
+    taskCreate?: StudyTaskCreateResult
+    xiguo?: { ok?: boolean; error?: string }
+    feishu?: { ok?: boolean; error?: string }
+  }
+  error?: string
 }
 
 type BoardPayload = {
@@ -467,13 +490,15 @@ const createDefaultStudyTasks = (date: string): StudyPlanTask[] => [
   }),
 ]
 
-const STUDY_DISPATCH_IDLE_MESSAGE = '填写后点击确认，会写入果果的学习 App；飞书群机器人接好后会同步提醒学习布置群。'
+const STUDY_DISPATCH_IDLE_MESSAGE = '填写后点击确认：先写入驾驶舱任务板，再同步到羲果陪伴，并通过飞书提醒果果。'
 
 const formatStudyDispatchError = (error?: string) => {
   const raw = String(error ?? '').trim()
   if (!raw) return ''
 
   const lower = raw.toLowerCase()
+  if (lower.includes('task creation failed')) return '驾驶舱任务还没有落账成功，已停止发送飞书，避免孩子收到无效链接。'
+  if (lower.includes('missing_tasks')) return '没有可写入的学习任务，请至少保留 1 条任务。'
   if (raw.includes('FEISHU_STUDY_WEBHOOK')) return '飞书学习布置群机器人还没配置，群提醒暂时不会发送。'
   if (lower.includes('feishu study message sender not configured')) return '飞书学习布置群发送入口还没接好，群提醒暂时不会发送。'
   if (lower.includes('openclaw relay error')) return 'OpenClaw 飞书代发入口返回异常，请检查 Mac 本机网关。'
@@ -489,27 +514,34 @@ const formatStudyDispatchError = (error?: string) => {
 
 const buildStudyDispatchFeedback = (
   responseStatus: number,
-  data: {
-    error?: string
-    results?: {
-      xiguo?: { ok?: boolean; error?: string }
-      feishu?: { ok?: boolean; error?: string }
-    }
-  } | null,
+  data: StudyDispatchResponse | null,
 ) => {
+  const taskCreate = data?.results?.taskCreate
+  const hubOk = taskCreate?.ok === true
   const xiguoOk = data?.results?.xiguo?.ok === true
   const feishuOk = data?.results?.feishu?.ok === true
+  const taskCreateError = formatStudyDispatchError(taskCreate?.error)
   const xiguoError = formatStudyDispatchError(data?.results?.xiguo?.error)
   const feishuError = formatStudyDispatchError(data?.results?.feishu?.error)
   const fallbackError = formatStudyDispatchError(data?.error)
 
+  if (taskCreate && !hubOk) {
+    return `驾驶舱任务未落账：${taskCreateError || fallbackError || '请检查任务同步接口。'}`
+  }
+
   if (responseStatus === 207) {
-    if (xiguoOk && !feishuOk) return `羲果陪伴已写入；${feishuError}`
-    if (!xiguoOk && feishuOk) return `飞书学习布置群已提醒；${xiguoError}`
+    if (hubOk && xiguoOk && !feishuOk) return `驾驶舱已落账，羲果陪伴已接收；${feishuError}`
+    if (hubOk && !xiguoOk && feishuOk) return `驾驶舱已落账，飞书学习布置群已提醒；${xiguoError}`
     return `部分完成：${xiguoError || feishuError || fallbackError || '派发未完全成功。'}`
   }
 
   return `派发失败：${xiguoError || feishuError || fallbackError || '派发未完全成功。'}`
+}
+
+const summarizeStudyTaskCreate = (taskCreate?: StudyTaskCreateResult) => {
+  const createdCount = Array.isArray(taskCreate?.created) ? taskCreate.created.length : 0
+  const updatedCount = Array.isArray(taskCreate?.updated) ? taskCreate.updated.length : 0
+  return { createdCount, updatedCount }
 }
 
 export function TasksPage() {
@@ -678,10 +710,13 @@ export function TasksPage() {
     const cleanedTasks = studyTasks
       .map((task, index) => ({
         id: `study-${studyDate}-${index + 1}`,
+        projectId: 'family_study',
         title: task.title.trim(),
         subject: task.subject,
         durationMinutes: Number(task.durationMinutes),
         description: task.description.trim(),
+        dueAt: `${studyDate}T21:00:00+08:00`,
+        priority: index === 0 ? 2 : 1,
       }))
       .filter((task) => task.title && Number.isFinite(task.durationMinutes) && task.durationMinutes > 0)
 
@@ -693,7 +728,7 @@ export function TasksPage() {
       return
     }
 
-    setStudyDispatchState({ status: 'sending', message: '正在写入羲果陪伴，并尝试同步飞书学习布置群...' })
+    setStudyDispatchState({ status: 'sending', message: '正在写入驾驶舱任务板，并同步羲果陪伴与飞书学习布置群...' })
 
     try {
       const response = await fetch('/api/xiguo-dispatch', {
@@ -705,35 +740,36 @@ export function TasksPage() {
           tasks: cleanedTasks,
         }),
       })
-      const data = await response.json().catch(() => null) as {
-        ok?: boolean
-        deepLink?: string
-        results?: {
-          xiguo?: { ok?: boolean; error?: string }
-          feishu?: { ok?: boolean; error?: string }
-        }
-        error?: string
-      } | null
+      const data = await response.json().catch(() => null) as StudyDispatchResponse | null
+      const taskCreate = data?.results?.taskCreate
+      const { createdCount, updatedCount } = summarizeStudyTaskCreate(taskCreate)
 
       if (response.ok && data?.ok) {
         setStudyDispatchState({
           status: 'success',
-          message: '已发送到果果的学习 App，并同步飞书学习布置群。',
+          message: '已在驾驶舱创建/更新任务，羲果陪伴已接收，飞书学习群已提醒。',
           deepLink: data.deepLink,
+          hubOk: taskCreate?.ok === true,
           xiguoOk: true,
           feishuOk: true,
+          createdCount,
+          updatedCount,
         })
         return
       }
 
+      const hubOk = taskCreate?.ok === true
       const xiguoOk = data?.results?.xiguo?.ok === true
       const feishuOk = data?.results?.feishu?.ok === true
       setStudyDispatchState({
         status: response.status === 207 ? 'partial' : 'error',
         message: buildStudyDispatchFeedback(response.status, data),
         deepLink: data?.deepLink,
+        hubOk,
         xiguoOk,
         feishuOk,
+        createdCount,
+        updatedCount,
       })
     } catch (error) {
       setStudyDispatchState({
@@ -934,7 +970,13 @@ export function TasksPage() {
           <div className="study-dispatch-copy">
             <span className="eyebrow">羲果陪伴</span>
             <h3>今日学习计划派发</h3>
-            <p>家长确认后，把学习任务写入果果的学习 App；飞书群机器人接好后，会同步提醒学习布置群。</p>
+            <p>这是驾驶舱和羲果陪伴的桥：确认后先在任务板落账，再写入羲果网页、推送飞书，孩子端开始/完成/卡住会回写状态。</p>
+            <div className="study-dispatch-flow" aria-label="互通链路">
+              <span>1 驾驶舱落账</span>
+              <span>2 羲果接收</span>
+              <span>3 飞书提醒</span>
+              <span>4 状态回写</span>
+            </div>
             <div className="study-dispatch-readiness" aria-label="派发连接状态">
               {studyIntegrationStatus ? (
                 <>
@@ -943,6 +985,9 @@ export function TasksPage() {
                   </span>
                   <span className={studyIntegrationStatus.feishuConfigured ? 'is-ready' : 'is-missing'}>
                     飞书群提醒：{studyIntegrationStatus.feishuConfigured ? '已接好' : '待配置'}
+                  </span>
+                  <span className={studyIntegrationStatus.xiguoLinkSecurityConfigured ? 'is-ready' : 'is-missing'}>
+                    安全链接：{studyIntegrationStatus.xiguoLinkSecurityConfigured ? '已启用' : '待配置'}
                   </span>
                 </>
               ) : (
@@ -1021,10 +1066,31 @@ export function TasksPage() {
             </div>
             <div className={`study-dispatch-result study-dispatch-${studyDispatchState.status}`}>
               <span>{studyDispatchState.message}</span>
+              {studyDispatchState.status !== 'idle' ? (
+                <div className="study-dispatch-bridge" aria-label="本次互通结果">
+                  <span className={studyDispatchState.status === 'sending' ? 'is-checking' : studyDispatchState.hubOk ? 'is-ready' : 'is-missing'}>
+                    驾驶舱任务：{studyDispatchState.status === 'sending' ? '写入中' : studyDispatchState.hubOk ? '已落账' : '待确认'}
+                  </span>
+                  <span className={studyDispatchState.status === 'sending' ? 'is-checking' : studyDispatchState.xiguoOk ? 'is-ready' : 'is-missing'}>
+                    羲果陪伴：{studyDispatchState.status === 'sending' ? '同步中' : studyDispatchState.xiguoOk ? '已接收' : '未完成'}
+                  </span>
+                  <span className={studyDispatchState.status === 'sending' ? 'is-checking' : studyDispatchState.feishuOk ? 'is-ready' : 'is-missing'}>
+                    飞书提醒：{studyDispatchState.status === 'sending' ? '发送中' : studyDispatchState.feishuOk ? '已发送' : '未完成'}
+                  </span>
+                  <span className={studyDispatchState.hubOk ? 'is-ready' : 'is-checking'}>
+                    状态回写：{studyDispatchState.hubOk ? '已准备好' : '等待落账'}
+                  </span>
+                </div>
+              ) : null}
+              {studyDispatchState.createdCount !== undefined || studyDispatchState.updatedCount !== undefined ? (
+                <small>
+                  本次任务板：新增 {studyDispatchState.createdCount ?? 0} 条 · 更新 {studyDispatchState.updatedCount ?? 0} 条
+                </small>
+              ) : null}
               {studyDispatchState.deepLink ? <a href={studyDispatchState.deepLink} target="_blank" rel="noreferrer">打开羲果陪伴</a> : null}
               {studyDispatchState.status === 'partial' ? (
                 <small>
-                  羲果：{studyDispatchState.xiguoOk ? '已完成' : '未完成'} · 飞书：{studyDispatchState.feishuOk ? '已完成' : '未完成'}
+                  驾驶舱：{studyDispatchState.hubOk ? '已落账' : '未完成'} · 羲果：{studyDispatchState.xiguoOk ? '已完成' : '未完成'} · 飞书：{studyDispatchState.feishuOk ? '已完成' : '未完成'}
                 </small>
               ) : null}
             </div>
