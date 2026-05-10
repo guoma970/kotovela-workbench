@@ -2,8 +2,8 @@
  * Public-facing gateway for Kotovela Hub live data.
  *
  * This process is intentionally narrower than `office-api-server.ts`: it proxies
- * selected read-only endpoints plus one fixed study-message relay for the
- * existing 果果学习布置群. It still rejects arbitrary write paths.
+ * selected read-only endpoints plus one constrained study-message relay for
+ * the configured 果果学习协同群 / 布置群 targets. It still rejects arbitrary write paths.
  * Use it behind Tailscale Funnel or another public HTTPS tunnel instead of
  * exposing the full local office API.
  */

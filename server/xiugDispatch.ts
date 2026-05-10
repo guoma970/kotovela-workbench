@@ -8,6 +8,7 @@ import {
 } from './xiguoTaskAccess.js'
 
 export type XiguoSubject = 'math' | 'writing' | 'reading'
+export type FeishuStudyAudience = 'collab' | 'assign'
 
 export type XiguoTask = {
   id: string
@@ -24,6 +25,7 @@ export type XiguoDispatchPayload = {
   date: string
   confirmedBy: string
   tasks: XiguoTask[]
+  audience?: FeishuStudyAudience
 }
 
 export type XiguoDispatchResult =
@@ -31,11 +33,12 @@ export type XiguoDispatchResult =
   | { ok: false; error: string }
 
 export type FeishuDispatchResult =
-  | { ok: true }
-  | { ok: false; error: string }
+  | { ok: true; audience: FeishuStudyAudience; targetLabel: string }
+  | { ok: false; error: string; audience?: FeishuStudyAudience; targetLabel?: string }
 
 const DEFAULT_XIGUO_DEEP_LINK_ORIGIN = 'https://xiguo.kotovela.com'
-const DEFAULT_FEISHU_STUDY_CHAT_ID = 'oc_6c11384fb9a6316cfce5eacb84fb7414'
+const DEFAULT_FEISHU_STUDY_COLLAB_CHAT_ID = 'oc_068e697875747d8b0d6c5b63e015229e'
+const DEFAULT_FEISHU_STUDY_ASSIGN_CHAT_ID = 'oc_6c11384fb9a6316cfce5eacb84fb7414'
 const DEFAULT_FEISHU_STUDY_ACCOUNT = 'family'
 const DEFAULT_FEISHU_OPEN_API_BASE_URL = 'https://open.feishu.cn'
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || ''
@@ -44,43 +47,78 @@ const SUBJECT_LABELS: Record<XiguoSubject, string> = {
   writing: '写作',
   reading: '语文阅读',
 }
+const FEISHU_STUDY_AUDIENCE_LABELS: Record<FeishuStudyAudience, string> = {
+  collab: '果果学习协同群',
+  assign: '果果学习布置群',
+}
 
 const execFileAsync = promisify(execFile)
 const normalizeString = (value: unknown) => String(value ?? '').trim()
 
 const formatSubject = (subject: XiguoSubject): string => SUBJECT_LABELS[subject]
 
-const getFeishuStudyChatId = () => normalizeString(process.env.FEISHU_STUDY_CHAT_ID) || DEFAULT_FEISHU_STUDY_CHAT_ID
+export const normalizeFeishuStudyAudience = (value: unknown): FeishuStudyAudience =>
+  normalizeString(value) === 'assign' ? 'assign' : 'collab'
+
+export const getFeishuStudyTargetLabel = (audience?: unknown) =>
+  FEISHU_STUDY_AUDIENCE_LABELS[normalizeFeishuStudyAudience(audience)]
+
+const getFeishuStudyChatId = (audience: FeishuStudyAudience = 'collab') => {
+  if (audience === 'assign') {
+    return normalizeString(process.env.FEISHU_STUDY_ASSIGN_CHAT_ID)
+      || normalizeString(process.env.FEISHU_STUDY_CHAT_ID)
+      || DEFAULT_FEISHU_STUDY_ASSIGN_CHAT_ID
+  }
+
+  return normalizeString(process.env.FEISHU_STUDY_COLLAB_CHAT_ID)
+    || normalizeString(process.env.FEISHU_STUDY_TEST_CHAT_ID)
+    || DEFAULT_FEISHU_STUDY_COLLAB_CHAT_ID
+}
+
+const getFeishuStudyWebhookUrl = (audience: FeishuStudyAudience) => {
+  if (audience === 'assign') {
+    return normalizeString(process.env.FEISHU_STUDY_ASSIGN_WEBHOOK)
+      || normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
+  }
+
+  return normalizeString(process.env.FEISHU_STUDY_COLLAB_WEBHOOK)
+    || normalizeString(process.env.FEISHU_STUDY_TEST_WEBHOOK)
+}
+
 const getFeishuOpenApiBaseUrl = () => normalizeString(process.env.FEISHU_OPEN_API_BASE_URL) || DEFAULT_FEISHU_OPEN_API_BASE_URL
-const hasFeishuSendMessageConfig = () =>
+const hasFeishuSendMessageConfig = (audience: FeishuStudyAudience = 'collab') =>
   Boolean(
     normalizeString(process.env.FEISHU_APP_ID)
     && normalizeString(process.env.FEISHU_APP_SECRET)
-    && getFeishuStudyChatId(),
+    && getFeishuStudyChatId(audience),
   )
 
-const hasLocalOpenClawMessageSender = () => {
+const hasLocalOpenClawMessageSender = (audience: FeishuStudyAudience = 'collab') => {
   if (process.env.VERCEL === '1') return false
-  return Boolean(getFeishuStudyChatId())
+  return Boolean(getFeishuStudyChatId(audience))
 }
 
-export function getXiguoDispatchReadiness() {
+export function getXiguoDispatchReadiness(input?: { audience?: unknown }) {
+  const audience = normalizeFeishuStudyAudience(input?.audience)
+  const targetLabel = getFeishuStudyTargetLabel(audience)
   const xiguoApiUrlConfigured = Boolean(normalizeString(process.env.XIGUO_API_URL))
   const xiguoApiKeyConfigured = Boolean(normalizeString(process.env.XIGUO_API_KEY))
   const xiguoLinkSecurityConfigured = isXiguoTaskLinkSecurityConfigured()
-  const feishuSendMessageConfigured = hasFeishuSendMessageConfig()
-  const feishuWebhookConfigured = Boolean(normalizeString(process.env.FEISHU_STUDY_WEBHOOK))
+  const feishuSendMessageConfigured = hasFeishuSendMessageConfig(audience)
+  const feishuWebhookConfigured = Boolean(getFeishuStudyWebhookUrl(audience))
   const openclawRelayConfigured = Boolean(normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL))
-  const openclawCliConfigured = hasLocalOpenClawMessageSender()
+  const openclawCliConfigured = hasLocalOpenClawMessageSender(audience)
   const feishuConfigured = feishuSendMessageConfigured || feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
   const xiguoConfigured = xiguoApiUrlConfigured && xiguoApiKeyConfigured
   const missing = [
     !xiguoApiUrlConfigured || !xiguoApiKeyConfigured ? '羲果陪伴接口' : '',
     !xiguoLinkSecurityConfigured ? '作业链接安全密钥' : '',
-    !feishuConfigured ? '飞书学习布置群发送入口' : '',
+    !feishuConfigured ? `${targetLabel}发送入口` : '',
   ].filter(Boolean)
 
   return {
+    audience,
+    targetLabel,
     xiguoConfigured,
     xiguoLinkSecurityConfigured,
     feishuConfigured,
@@ -97,7 +135,7 @@ export function getXiguoDispatchReadiness() {
     missing,
     message:
       missing.length === 0
-        ? '羲果陪伴和飞书学习布置群都已接好。'
+        ? `羲果陪伴和${targetLabel}都已接好。`
         : `还需要接好：${missing.join('、')}。`,
   }
 }
@@ -110,21 +148,34 @@ export function buildXiguoFallbackDeepLink(date: string, task?: Pick<XiguoTask, 
   return appendXiguoTaskLinkParams(url.toString(), { taskId: task.id, projectId: task.projectId })
 }
 
-export function buildFeishuStudyMessage(tasks: XiguoTask[], deepLink: string, date: string): string {
+export function buildFeishuStudyMessage(
+  tasks: XiguoTask[],
+  deepLink: string,
+  date: string,
+  audience: FeishuStudyAudience = 'collab',
+): string {
   const currentTask = tasks[0]
+  const isCollab = audience === 'collab'
   if (!currentTask) {
-    return ['今日学习提醒', '', `日期：${date}`, '', `开始学习：${deepLink}`].join('\n')
+    return [
+      isCollab ? '【测试确认】今日学习任务待确认' : '今日学习提醒',
+      '',
+      `日期：${date}`,
+      isCollab ? '先发到协同群确认，确认后再发到布置群。' : '',
+      '',
+      `开始学习：${deepLink}`,
+    ].filter(Boolean).join('\n')
   }
 
   return [
-    '果果，开始今天的第一个学习节点啦～',
+    isCollab ? '【测试确认】果果学习任务待确认' : '果果，开始今天的第一个学习节点啦～',
     '',
     `现在做：${currentTask.title}`,
     `科目：${formatSubject(currentTask.subject)}`,
     `专注：${currentTask.durationMinutes} 分钟`,
     currentTask.description ? `内容：${currentTask.description}` : '',
     '',
-    '先完成这一项，后面再看下一步。',
+    isCollab ? '这是测试任务，先在协同群确认内容和链接；确认后再发到学习布置群。' : '先完成这一项，后面再看下一步。',
     '',
     `开始学习：${deepLink}`,
   ].filter(Boolean).join('\n')
@@ -181,21 +232,28 @@ export async function sendFeishuStudyMessage(
   tasks: XiguoTask[],
   deepLink: string,
   date: string,
+  audienceInput: FeishuStudyAudience = 'collab',
 ): Promise<FeishuDispatchResult> {
+  const audience = normalizeFeishuStudyAudience(audienceInput)
   const firstTask = tasks[0]
   const taskDeepLink = firstTask ? appendXiguoTaskLinkParams(deepLink, { taskId: firstTask.id, projectId: firstTask.projectId }) : deepLink
-  const text = buildFeishuStudyMessage(tasks, taskDeepLink, date)
-  if (hasFeishuSendMessageConfig()) return sendFeishuOpenApiMessage(text)
+  const text = buildFeishuStudyMessage(tasks, taskDeepLink, date, audience)
+  if (hasFeishuSendMessageConfig(audience)) return sendFeishuOpenApiMessage(text, audience)
 
   const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
-  if (relayUrl) return sendOpenClawStudyRelayMessage(text, date)
+  if (relayUrl) return sendOpenClawStudyRelayMessage(text, date, audience)
 
-  const webhookUrl = normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
-  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text)
+  const webhookUrl = getFeishuStudyWebhookUrl(audience)
+  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text, audience)
 
-  if (hasLocalOpenClawMessageSender()) return sendOpenClawCliStudyMessage(text)
+  if (hasLocalOpenClawMessageSender(audience)) return sendOpenClawCliStudyMessage(text, audience)
 
-  return { ok: false, error: 'Feishu study message sender not configured' }
+  return {
+    ok: false,
+    error: 'Feishu study message sender not configured',
+    audience,
+    targetLabel: getFeishuStudyTargetLabel(audience),
+  }
 }
 
 export const sendFeishuNeedHumanMessage = async (input: {
@@ -215,17 +273,22 @@ export const sendFeishuNeedHumanMessage = async (input: {
     '请小羲 / family 协作群确认下一步。',
   ].filter(Boolean).join('\n')
 
-  if (hasFeishuSendMessageConfig()) return sendFeishuOpenApiMessage(text)
+  if (hasFeishuSendMessageConfig('collab')) return sendFeishuOpenApiMessage(text, 'collab')
 
   const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
-  if (relayUrl) return sendOpenClawStudyRelayMessage(text, new Date().toISOString().slice(0, 10))
+  if (relayUrl) return sendOpenClawStudyRelayMessage(text, new Date().toISOString().slice(0, 10), 'collab')
 
-  const webhookUrl = normalizeString(process.env.FEISHU_STUDY_WEBHOOK)
-  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text)
+  const webhookUrl = getFeishuStudyWebhookUrl('collab')
+  if (webhookUrl) return sendFeishuWebhookMessage(webhookUrl, text, 'collab')
 
-  if (hasLocalOpenClawMessageSender()) return sendOpenClawCliStudyMessage(text)
+  if (hasLocalOpenClawMessageSender('collab')) return sendOpenClawCliStudyMessage(text, 'collab')
 
-  return { ok: false, error: 'Feishu need-human message sender not configured' }
+  return {
+    ok: false,
+    error: 'Feishu need-human message sender not configured',
+    audience: 'collab',
+    targetLabel: getFeishuStudyTargetLabel('collab'),
+  }
 }
 
 const fetchFeishuTenantAccessToken = async () => {
@@ -253,9 +316,11 @@ const fetchFeishuTenantAccessToken = async () => {
   return data.tenant_access_token.trim()
 }
 
-const sendFeishuOpenApiMessage = async (text: string): Promise<FeishuDispatchResult> => {
+const sendFeishuOpenApiMessage = async (text: string, audience: FeishuStudyAudience): Promise<FeishuDispatchResult> => {
+  const targetLabel = getFeishuStudyTargetLabel(audience)
   try {
     const tenantAccessToken = await fetchFeishuTenantAccessToken()
+    const receiveId = getFeishuStudyChatId(audience)
     const response = await fetch(`${getFeishuOpenApiBaseUrl()}/open-apis/im/v1/messages?receive_id_type=chat_id`, {
       method: 'POST',
       headers: {
@@ -263,7 +328,7 @@ const sendFeishuOpenApiMessage = async (text: string): Promise<FeishuDispatchRes
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        receive_id: getFeishuStudyChatId(),
+        receive_id: receiveId,
         msg_type: 'text',
         content: JSON.stringify({ text }),
       }),
@@ -272,23 +337,28 @@ const sendFeishuOpenApiMessage = async (text: string): Promise<FeishuDispatchRes
 
     if (!response.ok) {
       const raw = await response.text().catch(() => '')
-      return { ok: false, error: `Feishu sendMessage error ${response.status}: ${raw.slice(0, 500)}` }
+      return { ok: false, error: `Feishu sendMessage error ${response.status}: ${raw.slice(0, 500)}`, audience, targetLabel }
     }
 
     const data = await response.json().catch(() => null) as { code?: unknown; msg?: unknown } | null
     if (data?.code !== 0) {
-      return { ok: false, error: `Feishu sendMessage code ${String(data?.code)}: ${String(data?.msg ?? '')}` }
+      return { ok: false, error: `Feishu sendMessage code ${String(data?.code)}: ${String(data?.msg ?? '')}`, audience, targetLabel }
     }
 
-    return { ok: true }
+    return { ok: true, audience, targetLabel }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: error instanceof Error ? error.message : String(error), audience, targetLabel }
   }
 }
 
-const sendOpenClawStudyRelayMessage = async (text: string, date: string): Promise<FeishuDispatchResult> => {
+const sendOpenClawStudyRelayMessage = async (
+  text: string,
+  date: string,
+  audience: FeishuStudyAudience,
+): Promise<FeishuDispatchResult> => {
   const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
   const relayToken = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_TOKEN)
+  const targetLabel = getFeishuStudyTargetLabel(audience)
   try {
     const response = await fetch(relayUrl, {
       method: 'POST',
@@ -299,28 +369,35 @@ const sendOpenClawStudyRelayMessage = async (text: string, date: string): Promis
       body: JSON.stringify({
         text,
         date,
-        chatId: getFeishuStudyChatId(),
+        audience,
+        targetLabel,
+        chatId: getFeishuStudyChatId(audience),
       }),
       signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {
       const raw = await response.text().catch(() => '')
-      return { ok: false, error: `OpenClaw relay error ${response.status}: ${raw.slice(0, 500)}` }
+      return { ok: false, error: `OpenClaw relay error ${response.status}: ${raw.slice(0, 500)}`, audience, targetLabel }
     }
 
     const data = await response.json().catch(() => null) as { ok?: unknown; error?: unknown } | null
     if (data?.ok !== true) {
-      return { ok: false, error: `OpenClaw relay returned unexpected response: ${String(data?.error ?? '')}` }
+      return { ok: false, error: `OpenClaw relay returned unexpected response: ${String(data?.error ?? '')}`, audience, targetLabel }
     }
 
-    return { ok: true }
+    return { ok: true, audience, targetLabel }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: error instanceof Error ? error.message : String(error), audience, targetLabel }
   }
 }
 
-const sendFeishuWebhookMessage = async (webhookUrl: string, text: string): Promise<FeishuDispatchResult> => {
+const sendFeishuWebhookMessage = async (
+  webhookUrl: string,
+  text: string,
+  audience: FeishuStudyAudience,
+): Promise<FeishuDispatchResult> => {
+  const targetLabel = getFeishuStudyTargetLabel(audience)
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -334,24 +411,29 @@ const sendFeishuWebhookMessage = async (webhookUrl: string, text: string): Promi
 
     if (!response.ok) {
       const text = await response.text().catch(() => '')
-      return { ok: false, error: `Feishu webhook error ${response.status}: ${text.slice(0, 500)}` }
+      return { ok: false, error: `Feishu webhook error ${response.status}: ${text.slice(0, 500)}`, audience, targetLabel }
     }
 
     const data = await response.json().catch(() => null) as { code?: unknown; msg?: unknown } | null
     if (typeof data?.code === 'number' && data.code !== 0) {
-      return { ok: false, error: `Feishu error code ${data.code}: ${String(data.msg ?? '')}` }
+      return { ok: false, error: `Feishu error code ${data.code}: ${String(data.msg ?? '')}`, audience, targetLabel }
     }
 
-    return { ok: true }
+    return { ok: true, audience, targetLabel }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: error instanceof Error ? error.message : String(error), audience, targetLabel }
   }
 }
 
-export const sendOpenClawCliStudyMessage = async (text: string): Promise<FeishuDispatchResult> => {
+export const sendOpenClawCliStudyMessage = async (
+  text: string,
+  audienceInput: FeishuStudyAudience = 'collab',
+): Promise<FeishuDispatchResult> => {
+  const audience = normalizeFeishuStudyAudience(audienceInput)
+  const targetLabel = getFeishuStudyTargetLabel(audience)
   const openclawBin = normalizeString(process.env.OPENCLAW_BIN) || (USER_HOME ? path.join(USER_HOME, '.npm-global/bin/openclaw') : 'openclaw')
   const accountId = normalizeString(process.env.FEISHU_STUDY_ACCOUNT) || DEFAULT_FEISHU_STUDY_ACCOUNT
-  const chatId = getFeishuStudyChatId()
+  const chatId = getFeishuStudyChatId(audience)
 
   try {
     await execFileAsync(
@@ -362,8 +444,8 @@ export const sendOpenClawCliStudyMessage = async (text: string): Promise<FeishuD
         maxBuffer: 1024 * 1024,
       },
     )
-    return { ok: true }
+    return { ok: true, audience, targetLabel }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: error instanceof Error ? error.message : String(error), audience, targetLabel }
   }
 }

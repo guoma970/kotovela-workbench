@@ -81,6 +81,8 @@ process.env.XIGUO_API_KEY = 'test-xiguo-key'
 process.env.FEISHU_APP_ID = 'cli_test_app'
 process.env.FEISHU_APP_SECRET = 'cli_test_secret'
 process.env.FEISHU_STUDY_CHAT_ID = 'oc_family_study'
+process.env.FEISHU_STUDY_COLLAB_CHAT_ID = 'oc_family_collab'
+process.env.FEISHU_STUDY_ASSIGN_CHAT_ID = 'oc_family_assign'
 process.env.FEISHU_OPEN_API_BASE_URL = baseUrl
 process.env.KOTOVELA_PUBLIC_ORIGIN = 'https://kotovelahub.vercel.app'
 
@@ -234,7 +236,7 @@ try {
   ]
   const xiguo = await dispatchToXiguo({ date: '2026-05-09', confirmedBy: 'parent', tasks })
   if (!xiguo.ok) throw new Error(`dispatch failed: ${JSON.stringify(xiguo)}`)
-  const feishu = await sendFeishuStudyMessage(tasks, xiguo.deepLink, '2026-05-09')
+  const feishu = await sendFeishuStudyMessage(tasks, xiguo.deepLink, '2026-05-09', 'collab')
   if (!feishu.ok) throw new Error(`sendMessage failed: ${JSON.stringify(feishu)}`)
 
   const dispatchRequest = requests.find((request) => request.url === '/xiguo-dispatch')
@@ -246,6 +248,10 @@ try {
   const feishuText = feishuRequests.map((request) => JSON.parse(request.body.content).text).join('\n')
   if (!feishuText.includes('taskId=study-001') || !feishuText.includes('数学练习')) {
     throw new Error(`feishu message missing task link: ${feishuText}`)
+  }
+  const latestFeishuRequest = feishuRequests.at(-1)
+  if (latestFeishuRequest?.body?.receive_id !== 'oc_family_collab') {
+    throw new Error(`feishu default target should be collab group: ${JSON.stringify(latestFeishuRequest?.body)}`)
   }
 
   const auditPayload = JSON.parse(await fs.readFile(auditFile, 'utf8'))

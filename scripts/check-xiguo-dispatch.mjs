@@ -60,10 +60,14 @@ const tasks = [
 ]
 
 try {
+  delete process.env.FEISHU_APP_ID
+  delete process.env.FEISHU_APP_SECRET
+  delete process.env.FEISHU_STUDY_WEBHOOK
+  delete process.env.OPENCLAW_STUDY_MESSAGE_API_URL
   process.env.XIGUO_API_KEY = 'test-xiguo-key'
   process.env.XIGUO_LINK_SECRET = 'test-link-secret'
   process.env.XIGUO_API_URL = `${baseUrl}/xiguo-ok`
-  process.env.FEISHU_STUDY_WEBHOOK = `${baseUrl}/feishu`
+  process.env.FEISHU_STUDY_TEST_WEBHOOK = `${baseUrl}/feishu`
 
   const readiness = getXiguoDispatchReadiness()
   if (!readiness.allConfigured || readiness.missing.length > 0) {
@@ -75,7 +79,7 @@ try {
     throw new Error(`xiguo success path failed: ${JSON.stringify(xiguoOk)}`)
   }
 
-  const feishuOk = await sendFeishuStudyMessage(tasks, xiguoOk.deepLink, '2026-05-07')
+  const feishuOk = await sendFeishuStudyMessage(tasks, xiguoOk.deepLink, '2026-05-07', 'collab')
   if (!feishuOk.ok) {
     throw new Error(`feishu success path failed: ${JSON.stringify(feishuOk)}`)
   }
@@ -89,8 +93,9 @@ try {
   const feishuRequest = requests.find((request) => request.url === '/feishu')
   const feishuText = feishuRequest?.body?.content?.text ?? ''
   if (
-    !feishuText.includes('果果，开始今天的第一个学习节点啦') ||
+    !feishuText.includes('【测试确认】果果学习任务待确认') ||
     !feishuText.includes('现在做：数学练习') ||
+    !feishuText.includes('确认后再发到学习布置群') ||
     feishuText.includes('语文阅读') ||
     !feishuText.includes('开始学习：https://xiguo.kotovela.com/')
   ) {

@@ -11,7 +11,7 @@ import http from 'node:http'
 import { handleInternalWorkbenchRequest } from '../server/internalWorkbench.ts'
 import { fetchModelUsagePayload } from '../server/modelUsage.ts'
 import { fetchOfficeInstancesPayload } from '../server/officeInstances.ts'
-import { sendOpenClawCliStudyMessage } from '../server/xiugDispatch.ts'
+import { normalizeFeishuStudyAudience, sendOpenClawCliStudyMessage } from '../server/xiugDispatch.ts'
 
 const PORT = Number.parseInt(process.env.OFFICE_API_PORT || '8787', 10)
 const TOKEN = process.env.OFFICE_API_TOKEN?.trim()
@@ -167,12 +167,15 @@ const server = http.createServer(async (req, res) => {
       const text = typeof body === 'object' && body !== null && 'text' in body
         ? String((body as { text?: unknown }).text ?? '').trim()
         : ''
+      const audience = typeof body === 'object' && body !== null && 'audience' in body
+        ? normalizeFeishuStudyAudience((body as { audience?: unknown }).audience)
+        : 'collab'
       if (!text) {
         sendJson(res, 400, { ok: false, error: 'missing_text' })
         return
       }
 
-      const result = await sendOpenClawCliStudyMessage(text)
+      const result = await sendOpenClawCliStudyMessage(text, audience)
       sendJson(res, result.ok ? 200 : 502, result)
       return
     }

@@ -3429,6 +3429,11 @@ button,
   font-size: 0.8rem;
 }
 
+.study-field small {
+  color: #a8b8d6;
+  line-height: 1.45;
+}
+
 .study-field-wide {
   grid-column: 1 / -1;
 }

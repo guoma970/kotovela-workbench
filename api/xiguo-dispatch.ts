@@ -4,7 +4,9 @@ import {
   buildXiguoFallbackDeepLink,
   dispatchToXiguo,
   getXiguoDispatchReadiness,
+  normalizeFeishuStudyAudience,
   sendFeishuStudyMessage,
+  type FeishuStudyAudience,
   type XiguoTask,
 } from '../server/xiugDispatch.js'
 import { hasKotovelaAccess } from '../server/kotovelaAccess.js'
@@ -27,6 +29,7 @@ const dispatchRequestSchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     confirmedBy: z.string().trim().min(1).max(80).default('parent'),
+    audience: z.enum(['collab', 'assign']).default('collab'),
     tasks: z.array(taskSchema).min(1).max(20),
   })
   .strict()
@@ -54,9 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
+    const audience = normalizeFeishuStudyAudience(req.query.audience)
     return sendJson(res, 200, {
       ok: true,
-      readiness: getXiguoDispatchReadiness(),
+      readiness: getXiguoDispatchReadiness({ audience }),
     })
   }
 
@@ -73,10 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = parsed.data
+  const audience = body.audience as FeishuStudyAudience
   const tasks: XiguoTask[] = body.tasks
   const createResult = await callInternalApiRoute('/api/xiguo-task-create', 'POST', {
     date: body.date,
     confirmedBy: body.confirmedBy,
+    audience,
     tasks,
   })
   const createBody = createResult.body as { ok?: unknown; error?: unknown; message?: unknown } | null
@@ -94,15 +100,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const xiguoResult = await dispatchToXiguo({
     date: body.date,
     confirmedBy: body.confirmedBy,
+    audience,
     tasks,
   })
   const deepLink = xiguoResult.ok ? xiguoResult.deepLink : buildXiguoFallbackDeepLink(body.date, tasks[0])
-  const feishuResult = await sendFeishuStudyMessage(tasks, deepLink, body.date)
+  const feishuResult = await sendFeishuStudyMessage(tasks, deepLink, body.date, audience)
   const allOk = xiguoResult.ok && feishuResult.ok
 
   return sendJson(res, allOk ? 200 : 207, {
     ok: allOk,
     date: body.date,
+    audience,
     deepLink,
     results: {
       taskCreate: createResult.body,
