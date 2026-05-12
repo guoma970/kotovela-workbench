@@ -3107,6 +3107,12 @@ export default defineConfig(({ mode }) => {
           buildConsultantRecords,
         },
         isInternal,
+        leadStats: {
+          taskBoardFile: TASK_BOARD_FILE,
+          readTaskBoard,
+          summarizeTaskBoard,
+          summarizeBusinessBoard,
+        },
         leadUpdate: {
           taskBoardFile: TASK_BOARD_FILE,
           consultantDirectory: CONSULTANT_DIRECTORY,
@@ -3153,24 +3159,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/lead-stats', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-            try {
-              const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify(payload.business_summary ?? summarizeBusinessBoard(payload.board)))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'lead-stats fetch failed', message: error instanceof Error ? error.message : String(error) }))
-            }
-          })
-
           server.middlewares.use('/api/memory', async (req, res, next) => {
             if (req.method === 'GET') {
               try {
