@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fetchOfficeInstancesPayload } from './server/officeInstances'
+import { devApiPlugin } from './server/devApi'
 import { fetchModelUsagePayload } from './server/modelUsage'
 import { inferTaskBoardEvidenceContext, type StableEvidenceRoutingHints } from './src/lib/evidenceContext'
 
@@ -3136,6 +3136,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      devApiPlugin(),
       {
         name: 'pwa-html-by-mode',
         transformIndexHtml(html) {
@@ -3144,31 +3145,8 @@ export default defineConfig(({ mode }) => {
         },
       },
       {
-        name: 'office-instances-api',
+        name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/office-instances', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-
-            try {
-              const payload = await fetchOfficeInstancesPayload()
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify(payload))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(
-                JSON.stringify({
-                  error: 'office-instances fetch failed',
-                  message: error instanceof Error ? error.message : String(error),
-                }),
-              )
-            }
-          })
-
           server.middlewares.use('/api/model-usage', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
