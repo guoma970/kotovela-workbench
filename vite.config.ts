@@ -3183,9 +3183,6 @@ export default defineConfig(({ mode }) => {
           return html.replace('/manifest.demo.webmanifest', '/manifest.internal.webmanifest')
         },
       },
-      {
-        name: 'workbench-dev-api-inline',
-      },
     ],
   }
 })
