@@ -37,8 +37,6 @@ export type FeishuDispatchResult =
   | { ok: false; error: string; audience?: FeishuStudyAudience; targetLabel?: string }
 
 const DEFAULT_XIGUO_DEEP_LINK_ORIGIN = 'https://xiguo.kotovela.com'
-const DEFAULT_FEISHU_STUDY_COLLAB_CHAT_ID = 'oc_068e697875747d8b0d6c5b63e015229e'
-const DEFAULT_FEISHU_STUDY_ASSIGN_CHAT_ID = 'oc_6c11384fb9a6316cfce5eacb84fb7414'
 const DEFAULT_FEISHU_STUDY_ACCOUNT = 'family'
 const DEFAULT_FEISHU_OPEN_API_BASE_URL = 'https://open.feishu.cn'
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || ''
@@ -67,13 +65,20 @@ const getFeishuStudyChatId = (audience: FeishuStudyAudience = 'collab') => {
   if (audience === 'assign') {
     return normalizeString(process.env.FEISHU_STUDY_ASSIGN_CHAT_ID)
       || normalizeString(process.env.FEISHU_STUDY_CHAT_ID)
-      || DEFAULT_FEISHU_STUDY_ASSIGN_CHAT_ID
+      || ''
   }
 
   return normalizeString(process.env.FEISHU_STUDY_COLLAB_CHAT_ID)
     || normalizeString(process.env.FEISHU_STUDY_TEST_CHAT_ID)
-    || DEFAULT_FEISHU_STUDY_COLLAB_CHAT_ID
+    || ''
 }
+
+const getMissingFeishuChatIdResult = (audience: FeishuStudyAudience): FeishuDispatchResult => ({
+  ok: false,
+  error: 'feishu_chat_id_not_configured',
+  audience,
+  targetLabel: getFeishuStudyTargetLabel(audience),
+})
 
 const getFeishuStudyWebhookUrl = (audience: FeishuStudyAudience) => {
   if (audience === 'assign') {
@@ -104,16 +109,19 @@ export function getXiguoDispatchReadiness(input?: { audience?: unknown }) {
   const xiguoApiUrlConfigured = Boolean(normalizeString(process.env.XIGUO_API_URL))
   const xiguoApiKeyConfigured = Boolean(normalizeString(process.env.XIGUO_API_KEY))
   const xiguoLinkSecurityConfigured = isXiguoTaskLinkSecurityConfigured()
+  const feishuChatIdConfigured = Boolean(getFeishuStudyChatId(audience))
   const feishuSendMessageConfigured = hasFeishuSendMessageConfig(audience)
   const feishuWebhookConfigured = Boolean(getFeishuStudyWebhookUrl(audience))
   const openclawRelayConfigured = Boolean(normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL))
   const openclawCliConfigured = hasLocalOpenClawMessageSender(audience)
-  const feishuConfigured = feishuSendMessageConfigured || feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
+  const feishuTransportConfigured = feishuSendMessageConfigured || feishuWebhookConfigured || openclawRelayConfigured || openclawCliConfigured
+  const feishuConfigured = feishuChatIdConfigured && feishuTransportConfigured
   const xiguoConfigured = xiguoApiUrlConfigured && xiguoApiKeyConfigured
   const missing = [
     !xiguoApiUrlConfigured || !xiguoApiKeyConfigured ? '羲果陪伴接口' : '',
     !xiguoLinkSecurityConfigured ? '作业链接安全密钥' : '',
-    !feishuConfigured ? `${targetLabel}发送入口` : '',
+    !feishuChatIdConfigured ? '飞书目标群 chatId' : '',
+    feishuChatIdConfigured && !feishuTransportConfigured ? `${targetLabel}发送入口` : '',
   ].filter(Boolean)
 
   return {
@@ -235,6 +243,8 @@ export async function sendFeishuStudyMessage(
   audienceInput: FeishuStudyAudience = 'collab',
 ): Promise<FeishuDispatchResult> {
   const audience = normalizeFeishuStudyAudience(audienceInput)
+  if (!getFeishuStudyChatId(audience)) return getMissingFeishuChatIdResult(audience)
+
   const firstTask = tasks[0]
   const taskDeepLink = firstTask ? appendXiguoTaskLinkParams(deepLink, { taskId: firstTask.id, projectId: firstTask.projectId }) : deepLink
   const text = buildFeishuStudyMessage(tasks, taskDeepLink, date, audience)
@@ -262,6 +272,8 @@ export const sendFeishuNeedHumanMessage = async (input: {
   reason: string
   deepLink?: string
 }): Promise<FeishuDispatchResult> => {
+  if (!getFeishuStudyChatId('collab')) return getMissingFeishuChatIdResult('collab')
+
   const text = [
     '羲果学习任务需要人工确认',
     '',
@@ -318,9 +330,11 @@ const fetchFeishuTenantAccessToken = async () => {
 
 const sendFeishuOpenApiMessage = async (text: string, audience: FeishuStudyAudience): Promise<FeishuDispatchResult> => {
   const targetLabel = getFeishuStudyTargetLabel(audience)
+  const receiveId = getFeishuStudyChatId(audience)
+  if (!receiveId) return getMissingFeishuChatIdResult(audience)
+
   try {
     const tenantAccessToken = await fetchFeishuTenantAccessToken()
-    const receiveId = getFeishuStudyChatId(audience)
     const response = await fetch(`${getFeishuOpenApiBaseUrl()}/open-apis/im/v1/messages?receive_id_type=chat_id`, {
       method: 'POST',
       headers: {
@@ -359,6 +373,9 @@ const sendOpenClawStudyRelayMessage = async (
   const relayUrl = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_API_URL)
   const relayToken = normalizeString(process.env.OPENCLAW_STUDY_MESSAGE_TOKEN)
   const targetLabel = getFeishuStudyTargetLabel(audience)
+  const chatId = getFeishuStudyChatId(audience)
+  if (!chatId) return getMissingFeishuChatIdResult(audience)
+
   try {
     const response = await fetch(relayUrl, {
       method: 'POST',
@@ -371,7 +388,7 @@ const sendOpenClawStudyRelayMessage = async (
         date,
         audience,
         targetLabel,
-        chatId: getFeishuStudyChatId(audience),
+        chatId,
       }),
       signal: AbortSignal.timeout(10_000),
     })
@@ -434,6 +451,7 @@ export const sendOpenClawCliStudyMessage = async (
   const openclawBin = normalizeString(process.env.OPENCLAW_BIN) || (USER_HOME ? path.join(USER_HOME, '.npm-global/bin/openclaw') : 'openclaw')
   const accountId = normalizeString(process.env.FEISHU_STUDY_ACCOUNT) || DEFAULT_FEISHU_STUDY_ACCOUNT
   const chatId = getFeishuStudyChatId(audience)
+  if (!chatId) return getMissingFeishuChatIdResult(audience)
 
   try {
     await execFileAsync(
