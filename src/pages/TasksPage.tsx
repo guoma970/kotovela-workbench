@@ -114,11 +114,11 @@ type AuditEntry = {
 }
 
 const STATUS_COLUMNS: Array<{ key: TaskBoardStatus; label: string; labelZh: string; helperZh: string }> = [
-  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理', helperZh: '需要你或负责人确认下一步，优先看。' },
-  { key: 'paused', label: 'Paused', labelZh: '已暂停', helperZh: '目前有卡点，先看暂停原因。' },
-  { key: 'running', label: 'Running', labelZh: '进行中', helperZh: '正在有人推进，优先看下一步和负责人。' },
-  { key: 'queue', label: 'Queue', labelZh: '排队中', helperZh: '还没开始处理，等待调度或接单。' },
-  { key: 'done', label: 'Done', labelZh: '已完成', helperZh: '已经处理完，可回看依据和记录。' },
+  { key: 'need_human', label: '需人工处理', labelZh: '需人工处理', helperZh: '需要你或负责人确认下一步，优先看。' },
+  { key: 'paused', label: '已暂停', labelZh: '已暂停', helperZh: '目前卡住了，先看暂停原因。' },
+  { key: 'running', label: '正在做', labelZh: '正在做', helperZh: '正在有人推进，优先看下一步和负责人。' },
+  { key: 'queue', label: '排队中', labelZh: '排队中', helperZh: '还没开始处理，等待调度或接单。' },
+  { key: 'done', label: '已完成', labelZh: '已完成', helperZh: '已经处理完，可回看依据和记录。' },
 ]
 
 const STUDY_SUBJECT_OPTIONS: Array<{ value: StudySubject; label: string }> = [
@@ -136,7 +136,7 @@ const getStudyAudienceLabel = (audience: StudyAudience) =>
   STUDY_AUDIENCE_OPTIONS.find((option) => option.value === audience)?.label ?? '飞书学习群'
 
 const TASK_STATUS_LABEL_ZH: Record<TaskBoardStatus, string> = {
-  running: '进行中',
+  running: '正在做',
   queue: '排队中',
   paused: '已暂停',
   done: '已完成',
@@ -207,7 +207,7 @@ const BUSINESS_SIGNAL_LABELS: Record<string, string> = {
 
 const TASK_ACTION_LABELS: Record<string, string> = {
   consultant_assigned: '已完成分配',
-  blocked: '有卡点',
+  blocked: '卡住',
   dependency_waiting: '等待依赖完成',
   notify_result: '已同步结果',
   priority_up: '已提高优先级',
@@ -267,7 +267,7 @@ const formatBusinessSignal = (value?: string, fallback = '暂未同步') => {
   if (BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]) return BUSINESS_SIGNAL_LABELS[compact.toLowerCase()]
   return formatReadableDetail(compact)
     .replace(/^oc_[a-z0-9]+$/i, '飞书群会话')
-    .replace(/^room-/i, '频道 ')
+    .replace(/^room-/i, '协作群 ')
     .replace(/^task-/i, '任务 ')
     .replace(/^project-/i, '项目 ')
     .replace(/kotovela/gi, 'Kotovela')
@@ -340,7 +340,7 @@ const buildTaskHeadline = (task: TaskListItem) => {
 
 const buildTaskSummary = (task: TaskListItem) => {
   if (/当前缺少\s*live session|暂用\s*snapshot/i.test(task.title)) {
-    return '这条不是最新实时回报，建议先确认对应协作者是否在线或是否有新会话。'
+    return '这条不是最新实时回报，建议先确认对应同事是否在线或是否有新会话。'
   }
   if (/oc_[a-z0-9]+|飞书群会话/i.test(task.title)) {
     return '来自飞书研发群的会话任务，先看负责人是否已经接手，再看是否需要人工确认。'
@@ -354,9 +354,9 @@ const buildTaskSummary = (task: TaskListItem) => {
 
 const buildNextAction = (task: TaskListItem) => {
   if (task.status === 'need_human') return '人工确认处理方式，并补充清晰任务说明。'
-  if (/当前缺少\s*live session|暂用\s*snapshot/i.test(task.title)) return '让对应协作者上线或产生新会话，再刷新驾驶舱。'
+  if (/当前缺少\s*live session|暂用\s*snapshot/i.test(task.title)) return '让对应同事上线或产生新会话，再刷新驾驶舱。'
   if (/oc_[a-z0-9]+|飞书群会话/i.test(task.title)) return '由小树确认是否派发；需要开发时转给小筑。'
-  if (task.status === 'running') return '等待负责人回报进度；如超时，进入执行验证页排查。'
+  if (task.status === 'running') return '等待负责人回报进度；如超时，进入结果验收页排查。'
   if (task.status === 'queue') return '等待中枢调度接单或明确负责人。'
   if (task.status === 'paused') return '先处理卡点，再恢复任务。'
   return '查看处理记录，确认是否需要复盘或追加任务。'
@@ -366,7 +366,7 @@ const buildTaskSignals = (task: TaskListItem) =>
   [
     { label: '项目线', value: task.project_line },
     { label: '来源', value: task.source_line },
-    { label: '账号/频道', value: task.account_line },
+    { label: '账号/协作群', value: task.account_line },
     { label: '内容线', value: task.content_line },
     { label: '顾问', value: task.consultant_id },
     { label: '渠道', value: task.attribution?.source },
@@ -866,20 +866,20 @@ export function TasksPage() {
           </div>
         ) : null}
         <details className="task-raw-details">
-          <summary>{isInternal ? '查看原始信息与关联对象' : 'Details'}</summary>
+          <summary>查看原始信息与关联对象</summary>
           <div className="queue-meta dense-meta">
-            <span>{isInternal ? '任务编号' : 'task_id'}：{task.task_id}</span>
+            <span>任务编号：{task.task_id}</span>
           </div>
           <div className="queue-meta dense-meta">
-            <span>{isInternal ? '原始标题' : 'title'}：{humanizeTaskText(task.title)}</span>
+            <span>原始标题：{humanizeTaskText(task.title)}</span>
           </div>
           <div className="queue-meta dense-meta">
-            <span>{isInternal ? '状态' : 'status'}：{isInternal ? TASK_STATUS_LABEL_ZH[task.status] : task.status}</span>
+            <span>状态：{TASK_STATUS_LABEL_ZH[task.status]}</span>
           </div>
           {taskRecord ? (
             <div className="relation-stack" style={{ marginTop: 12 }}>
               <div>
-                <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
+                <span className="section-label">关联项目</span>
                 <div className="object-row top-gap">
                   {project ? (
                     <ObjectBadge
@@ -898,7 +898,7 @@ export function TasksPage() {
                 </div>
               </div>
               <div>
-                <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
+                <span className="section-label">关联协作群</span>
                 <div className="object-row top-gap">
                   {linkedRooms.length > 0 ? (
                     linkedRooms.slice(0, 2).map((room) => (
@@ -919,7 +919,7 @@ export function TasksPage() {
                 </div>
               </div>
               <div>
-                <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
+                <span className="section-label">关联同事</span>
                 <div className="object-row top-gap">
                   {agent ? (
                     <ObjectBadge
@@ -968,22 +968,20 @@ export function TasksPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? '任务' : 'Tasks'}</p>
-          <h2>{isInternal ? '任务看板' : 'Task List'}</h2>
+          <p className="eyebrow">任务</p>
+          <h2>任务看板</h2>
         </div>
         <p className="page-note">
-          {isInternal
-            ? '默认展示给人看的任务摘要、负责人和下一步；原始编号与排障信息可展开查看。'
-            : 'Task list with unified fields: task_id, title, status, priority, owner, updated_at.'}
+          默认展示给人看的任务摘要、负责人和下一步；原始编号与排障信息可展开查看。
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '任务快照' : 'Task Queue'}
-        intro={isInternal ? '先看进行中、已暂停和需人工处理；每张卡片都会告诉你“现在是什么事”和“下一步做什么”。' : 'Track task status results by queue state.'}
+        heading="任务一览"
+        intro="先看正在做、已暂停和需人工处理；每张卡片都会告诉你“现在是什么事”和“下一步做什么”。"
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
-          label: isInternal ? column.labelZh : column.label,
+          label: column.labelZh,
           value: effectiveTasks.filter((task) => task.status === column.key).length,
         }))}
         internalHint={isInternal ? '内部版优先读取真实任务记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
@@ -1175,7 +1173,7 @@ export function TasksPage() {
           <div>
             <span className="eyebrow">怎么读</span>
             <h3>先判断任务是否需要你介入</h3>
-            <p>默认只展示每列最重要、最近的任务；任务编号、频道编号、处理依据都收在“查看原始信息”或“较早记录”里。</p>
+            <p>默认只展示每列最重要、最近的任务；任务编号、协作群编号、处理依据都收在“查看原始信息”或“较早记录”里。</p>
           </div>
           <div className="task-read-guide-steps">
             <span>1. 看状态列</span>

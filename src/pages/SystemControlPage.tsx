@@ -11,6 +11,7 @@ import {
 } from '../config/systemControl'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
+import { UI_TERMS } from '../lib/uiTerms'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type AuditEntry = {
@@ -133,8 +134,8 @@ export function SystemControlPage() {
     <section className="page consultant-settings-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">系统设置</p>
-          <h2>系统设置</h2>
+          <p className="eyebrow">{UI_TERMS.systemControl}</p>
+          <h2>{UI_TERMS.systemControl}</h2>
         </div>
         <p className="page-note">统一查看当前如何运行、发布节奏是否放开，以及遇到异常时是否会立即拦停。</p>
       </div>

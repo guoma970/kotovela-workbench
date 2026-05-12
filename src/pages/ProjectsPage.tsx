@@ -3,6 +3,7 @@ import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { projectStatusLabel } from '../lib/statusLabels'
+import { UI_TERMS } from '../lib/uiTerms'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function ProjectsPage() {
@@ -37,38 +38,36 @@ export function ProjectsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{showCockpitDetail ? '项目' : 'Projects'}</p>
-          <h2>{showCockpitDetail ? '项目看板总览' : 'Project Board'}</h2>
+          <p className="eyebrow">{UI_TERMS.project}</p>
+          <h2>项目看板总览</h2>
         </div>
         <p className="page-note">
-          {showCockpitDetail
-            ? '每个项目展示阶段、负责人、有卡点与关联协作者。'
-            : 'Each project shows status, stage, blockers, linked agents, and linked tasks.'}
+          每个项目展示阶段、负责人、卡住的事与关联同事。
         </p>
       </div>
 
       <PageLeadPanel
-        heading={showCockpitDetail ? '项目' : 'Projects'}
+        heading={UI_TERMS.project}
         intro={
           showCockpitDetail
-            ? '先看项目数量与有卡点情况，再进入任务、频道与协作者。'
-            : 'Start with project volume and blockers, then jump into Tasks, Rooms, and Agents.'
+            ? `先看项目数量与${UI_TERMS.blocker}，再进入任务、协作群与同事。`
+            : `先看项目数量与${UI_TERMS.blocker}，再进入任务、协作群与同事。`
         }
         internalMode={showCockpitDetail}
         metrics={[
-          { label: showCockpitDetail ? '项目' : 'Projects', value: projects.length, to: { pathname: '/projects' } },
-          { label: showCockpitDetail ? '活跃项目' : 'Active projects', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
-          { label: showCockpitDetail ? '有卡点总数' : 'Total blockers', value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
-          { label: showCockpitDetail ? '频道' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
+          { label: UI_TERMS.project, value: projects.length, to: { pathname: '/projects' } },
+          { label: '正在做的项目', value: projects.filter((project) => project.status === 'active').length, to: { pathname: '/projects' } },
+          { label: UI_TERMS.blocker, value: blockedCount, to: { pathname: '/tasks', search: '?status=blocked' } },
+          { label: UI_TERMS.room, value: rooms.length, to: { pathname: '/rooms' } },
         ]}
         actions={[
-          { label: showCockpitDetail ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
-          { label: showCockpitDetail ? '进入频道' : 'Go to rooms', to: { pathname: '/rooms' } },
-          { label: showCockpitDetail ? '查看协作者' : 'Go to agents', to: { pathname: '/agents' } },
+          { label: '进入任务', to: { pathname: '/tasks' } },
+          { label: '进入协作群', to: { pathname: '/rooms' } },
+          { label: '查看同事', to: { pathname: '/agents' } },
         ]}
         internalHint={
           showCockpitDetail
-            ? '项目：多协作者、多任务下的成果与阶段归属；在飞书群里布置的具体事，落在「任务」里。'
+            ? '项目：多同事、多任务下的成果与阶段归属；在飞书群里布置的具体事，落在「任务」里。'
             : undefined
         }
       />
@@ -97,21 +96,21 @@ export function ProjectsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>{showCockpitDetail ? '阶段' : 'Stage'}</span>
+                  <span>阶段</span>
                   <strong>{project.stage}</strong>
                 </div>
                 <div>
-                  <span>{showCockpitDetail ? '负责人' : 'Owner'}</span>
+                  <span>负责人</span>
                   <strong>{project.owner}</strong>
                 </div>
                 {showCockpitDetail && (project.instanceCount ?? 0) > 1 ? (
                   <div>
-                    <span>协作者</span>
+                    <span>{UI_TERMS.agent}</span>
                     <strong>{project.instanceCount}</strong>
                   </div>
                 ) : null}
                 <div>
-                  <span>{showCockpitDetail ? '有卡点' : 'Blocker'}</span>
+                  <span>{UI_TERMS.blocker}</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -138,13 +137,13 @@ export function ProjectsPage() {
                 </div>
               ) : null}
               <div className="info-block emphasis-block">
-                <span>{showCockpitDetail ? '项目焦点 / 下一步' : 'Focus / next step'}</span>
+                <span>项目焦点 / 下一步</span>
                 <strong>{project.focus}</strong>
                 <strong style={{ marginTop: '4px', fontWeight: 400, color: '#97a7c5', fontSize: '0.85em' }}>→ {project.nextStep}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">{showCockpitDetail ? '协作者' : 'Agents'}</span>
+                  <span className="section-label">{UI_TERMS.agent}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.length > 0 ? (
                       linkedAgents.map((agent) => (
@@ -167,7 +166,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">{showCockpitDetail ? '频道' : 'Rooms'}</span>
+                  <span className="section-label">{UI_TERMS.room}</span>
                   <div className="object-row top-gap">
                     {linkedRooms.length > 0 ? (
                       linkedRooms.map((room) => (
@@ -189,7 +188,7 @@ export function ProjectsPage() {
                 </div>
                 <div>
                   <span className="section-label">
-                    {showCockpitDetail ? '任务' : 'Tasks'} {linkedTasks.length > 3 ? `(${linkedTasks.length}${showCockpitDetail ? ' 个' : ' total'})` : ''}
+                    {UI_TERMS.task} {linkedTasks.length > 3 ? `(${linkedTasks.length} 个)` : ''}
                   </span>
                   <div className="object-row top-gap">
                     {linkedTasks.slice(0, 3).map((task) => (
@@ -214,7 +213,7 @@ export function ProjectsPage() {
                   to={{ pathname: '/tasks', search: focusSearch }}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  {showCockpitDetail ? '关联任务' : 'Related tasks'}
+                  关联任务
                 </NavLink>
               </div>
             </article>

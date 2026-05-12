@@ -3,6 +3,7 @@ import { ObjectBadge } from '../components/ObjectBadge'
 import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { roomStatusLabel } from '../lib/statusLabels'
+import { UI_TERMS } from '../lib/uiTerms'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function RoomsPage() {
@@ -37,30 +38,30 @@ export function RoomsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? '频道' : 'Rooms'}</p>
-          <h2>{isInternal ? '房间状态总览' : 'Room Status'}</h2>
+          <p className="eyebrow">{UI_TERMS.room}</p>
+          <h2>协作群状态总览</h2>
         </div>
-        <p className="page-note">{isInternal ? '查看每个房间的状态、用途与最近动作。' : 'Each room shows its name, status, purpose, and most recent action.'}</p>
+        <p className="page-note">查看每个协作群的状态、用途与最近动作。</p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '频道' : 'Rooms'}
-        intro={isInternal ? '先看房间容量与待处理量，再跳转任务、项目和协作者。' : 'Start with room capacity and pending load, then jump to Tasks, Projects, and Agents.'}
+        heading={UI_TERMS.room}
+        intro="先看协作群容量与待处理量，再跳转任务、项目和同事。"
         internalMode={isInternal}
         metrics={[
-          { label: isInternal ? '房间' : 'Rooms', value: rooms.length, to: { pathname: '/rooms' } },
-          { label: isInternal ? '活跃房间' : 'Active rooms', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
-          { label: isInternal ? '待处理总数' : 'Pending total', value: pendingCount, to: { pathname: '/tasks' } },
-          { label: isInternal ? '协作者' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
+          { label: UI_TERMS.room, value: rooms.length, to: { pathname: '/rooms' } },
+          { label: '活跃协作群', value: rooms.filter((room) => room.status === 'active').length, to: { pathname: '/rooms' } },
+          { label: '待处理总数', value: pendingCount, to: { pathname: '/tasks' } },
+          { label: UI_TERMS.agent, value: agents.length, to: { pathname: '/agents' } },
         ]}
         actions={[
-          { label: isInternal ? '进入任务' : 'Go to tasks', to: { pathname: '/tasks' } },
-          { label: isInternal ? '进入项目' : 'Go to projects', to: { pathname: '/projects' } },
-          { label: isInternal ? '查看协作者' : 'Go to agents', to: { pathname: '/agents' } },
+          { label: '进入任务', to: { pathname: '/tasks' } },
+          { label: '进入项目', to: { pathname: '/projects' } },
+          { label: '查看同事', to: { pathname: '/agents' } },
         ]}
         internalHint={
           isInternal
-            ? '房间：协作入口（如飞书群或话题），表达「在哪个频道对接」；具体执行项以「任务」为准。'
+            ? '协作群：协作入口（如飞书群或话题），表达「在哪个群里对接」；具体执行项以「任务」为准。'
             : undefined
         }
       />
@@ -78,11 +79,11 @@ export function RoomsPage() {
               </div>
               <div className="context-strip">
                 <div>
-                  <span>{isInternal ? '状态' : 'Status'}</span>
+                  <span>状态</span>
                   <strong className={`status-dot status-${room.status}`}>{roomStatusLabel(room.status, isInternal)}</strong>
                 </div>
                 <div>
-                  <span>{isInternal ? '待处理' : 'Pending'}</span>
+                  <span>待处理</span>
                   <strong>
                     <NavLink
                       className="context-strip-metric-link"
@@ -95,16 +96,16 @@ export function RoomsPage() {
                 </div>
               </div>
               <div className="info-block emphasis-block">
-                <span>{isInternal ? '用途' : 'Purpose'}</span>
+                <span>用途</span>
                 <strong>{room.purpose}</strong>
               </div>
               <div className="info-block">
-                <span>{isInternal ? '最近动作' : 'Recent action'}</span>
+                <span>最近动作</span>
                 <strong>{room.recentAction}</strong>
               </div>
               <div className="relation-stack">
                 <div>
-                  <span className="section-label">{isInternal ? '项目' : 'Project'}</span>
+                  <span className="section-label">{UI_TERMS.project}</span>
                   <div className="object-row top-gap">
                     {project && (
                       <ObjectBadge
@@ -121,7 +122,7 @@ export function RoomsPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="section-label">{isInternal ? '协作者' : 'Agents'} {linkedAgents.length > 0 ? '' : '—'}</span>
+                  <span className="section-label">{UI_TERMS.agent} {linkedAgents.length > 0 ? '' : '—'}</span>
                   <div className="object-row top-gap">
                     {linkedAgents.map((agent) => (
                       <ObjectBadge
@@ -142,13 +143,13 @@ export function RoomsPage() {
               </div>
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '关联任务' : 'Related tasks'}
+                  关联任务
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '关联项目' : 'Related project'}
+                  关联项目
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/agents', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '关联协作者' : 'Related agents'}
+                  关联同事
                 </NavLink>
               </div>
             </article>

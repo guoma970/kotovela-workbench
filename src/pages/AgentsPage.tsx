@@ -3,6 +3,7 @@ import { PageLeadPanel } from '../components/PageLeadPanel'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { ObjectBadge } from '../components/ObjectBadge'
 import { agentStatusLabel } from '../lib/statusLabels'
+import { UI_TERMS } from '../lib/uiTerms'
 import { createFocusSearch, useWorkbenchLinking } from '../lib/workbenchLinking'
 
 export function AgentsPage() {
@@ -51,27 +52,27 @@ export function AgentsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? '协作者状态' : 'Agents'}</p>
-          <h2>{isInternal ? '协作者状态总览' : 'Agent Status'}</h2>
+          <p className="eyebrow">{UI_TERMS.agent}</p>
+          <h2>{UI_TERMS.agent}状态总览</h2>
         </div>
-        <p className="page-note">{isInternal ? '快速查看谁有卡点、正在推进或空闲。' : 'See who is blocked, active, or idle at a glance.'}</p>
+        <p className="page-note">快速查看谁卡住、谁正在做、谁在待命。</p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '协作者' : 'Agents'}
-        intro={isInternal ? '优先处理有卡点的协作者，再确认当前执行链。' : 'Start with blocked agents, then confirm the active execution chain.'}
+        heading={UI_TERMS.agent}
+        intro={`优先处理${UI_TERMS.blocker}，再确认当前执行链。`}
         internalMode={isInternal}
         metrics={[
-          { label: isInternal ? '协作者' : 'Agents', value: agents.length, to: { pathname: '/agents' } },
-          { label: isInternal ? '推进中' : 'Active', value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
-          { label: isInternal ? '有卡点' : 'Blocked', value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
-          { label: isInternal ? '空闲' : 'Idle', value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
+          { label: UI_TERMS.agent, value: agents.length, to: { pathname: '/agents' } },
+          { label: UI_TERMS.doing, value: activeAgents.length, to: { pathname: '/agents', search: '?status=active' } },
+          { label: UI_TERMS.blocker, value: blockedAgents.length, to: { pathname: '/agents', search: '?status=blocked' } },
+          { label: UI_TERMS.idle, value: idleAgents.length, to: { pathname: '/agents', search: '?status=idle' } },
         ]}
         actions={
           targetAgent
             ? [
                 {
-                  label: isInternal ? '查看有卡点的协作者' : 'View blocked agent',
+                  label: `查看${UI_TERMS.blocker}`,
                   to: { pathname: '/agents', search: targetFocusSearch },
                 },
               ]
@@ -105,7 +106,7 @@ export function AgentsPage() {
               {agent.role ? <p className="agent-card-role">{agent.role}</p> : null}
 
               <div className="info-block emphasis-block">
-                <span>{isInternal ? '当前任务' : 'Current task'}</span>
+                <span>当前任务</span>
                 <strong>{agent.currentTask}</strong>
               </div>
 
@@ -142,30 +143,30 @@ export function AgentsPage() {
               ) : null}
 
               <div className="queue-meta dense-meta" style={{ marginTop: '8px' }}>
-                <span className="soft-tag">{isInternal ? '更新：' : 'Updated: '}{agent.updatedAt}</span>
+                <span className="soft-tag">更新：{agent.updatedAt}</span>
                 {linkedRooms.length > 0 && (
-                  <span className="soft-tag">· {linkedRooms.length} {isInternal ? '个频道' : 'rooms'}</span>
+                  <span className="soft-tag">· {linkedRooms.length} 个{UI_TERMS.room}</span>
                 )}
                 {linkedTasks.length > 0 && (
-                  <span className="soft-tag">· {linkedTasks.length} {isInternal ? '个任务' : 'tasks'}</span>
+                  <span className="soft-tag">· {linkedTasks.length} 个{UI_TERMS.task}</span>
                 )}
               </div>
 
               <div className="cross-link-row">
                 <NavLink className="inline-link-chip" to={{ pathname: '/tasks', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '查看关联任务' : 'View related tasks'}
+                  查看关联任务
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/rooms', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '查看关联频道' : 'View related rooms'}
+                  查看关联协作群
                 </NavLink>
                 <NavLink className="inline-link-chip" to={{ pathname: '/projects', search: focusSearch }} onClick={(event) => event.stopPropagation()}>
-                  {isInternal ? '查看关联项目' : 'View related project'}
+                  查看关联项目
                 </NavLink>
               </div>
             </article>
           )
         })}
-        {filteredAgents.length === 0 ? <p className="empty-state">{isInternal ? '协作者数据加载中，请稍候。' : 'No agent data yet.'}</p> : null}
+        {filteredAgents.length === 0 ? <p className="empty-state">{UI_TERMS.agent}数据加载中，请稍候。</p> : null}
       </div>
     </section>
   )

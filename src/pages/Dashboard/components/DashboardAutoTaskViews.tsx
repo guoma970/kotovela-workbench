@@ -224,7 +224,7 @@ export function AutoTaskDebugMainView({
           <div className="scheduler-overview-metric is-concurrency"><span>并发数</span><strong>{currentConcurrency}/{maxConcurrency}</strong></div>
           <div className="scheduler-overview-metric"><span>执行中</span><strong>{runningCount}</strong></div>
           <div className="scheduler-overview-metric"><span>待调度</span><strong>{queueCount}</strong></div>
-          <div className="scheduler-overview-metric is-warning"><span>有卡点</span><strong>{blockedCount}</strong></div>
+          <div className="scheduler-overview-metric is-warning"><span>卡住</span><strong>{blockedCount}</strong></div>
           <div className="scheduler-overview-metric is-failed"><span>执行失败</span><strong>{failedCount}</strong></div>
           <div className="scheduler-overview-metric is-warning"><span>异常提醒</span><strong>{abnormalCount}</strong></div>
         </div>
@@ -343,13 +343,13 @@ export function AutoTaskDebugSidebar({
             <p>{formatReadableTaskTitle(notice.task_name)}</p>
             <small>
               {notice.event_type === 'task_warning' ? '任务告警' : notice.event_type === 'task_need_human' ? '需要人工处理' : '任务完成'}
-              {' · '}执行协作者：{formatReadableOwner(notice.assigned_agent)}
+              {' · '}执行同事：{formatReadableOwner(notice.assigned_agent)}
               {' · '}状态：{formatTaskStatus(notice.status)}
               {' · '}摘要：{formatReadableDetail(notice.summary)}
             </small>
             <details className="scheduler-debug-block" style={{ marginTop: 8 }}>
               <summary className="scheduler-task-result-head"><strong>查看原始群回报</strong></summary>
-              <pre>{notice.message || `任务编号：${notice.task_id ?? '-'}\n任务名称：${notice.task_name}\n领域：${notice.domain}\n执行协作者：${notice.assigned_agent}\n状态：${formatTaskStatus(notice.status)}\n摘要：${notice.summary}`}</pre>
+              <pre>{notice.message || `任务编号：${notice.task_id ?? '-'}\n任务名称：${notice.task_name}\n领域：${notice.domain}\n执行同事：${notice.assigned_agent}\n状态：${formatTaskStatus(notice.status)}\n摘要：${notice.summary}`}</pre>
             </details>
             {notice.event_type === 'task_need_human' ? (
               <div className="auto-task-actions scheduler-human-actions">

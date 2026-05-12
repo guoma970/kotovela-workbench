@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { UI_TERMS } from '../lib/uiTerms'
 
 type UsageBucket = {
   key: string
@@ -266,7 +267,7 @@ export function ModelUsagePage() {
 
   useEffect(() => {
     const previousTitle = document.title
-    document.title = 'Kotovela Hub · 用量统计'
+    document.title = 'Kotovela Hub · AI 用量'
 
     return () => {
       document.title = previousTitle
@@ -278,7 +279,7 @@ export function ModelUsagePage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Kotovela Hub</p>
-          <h2>模型额度与调用用量</h2>
+          <h2>{UI_TERMS.modelUsage}</h2>
         </div>
         <p className="page-note">第一屏先看剩余额度、近 24 小时总用量和账号是否可用；模型明细与原始提醒只读展示，并默认脱敏。</p>
       </div>
@@ -382,7 +383,7 @@ export function ModelUsagePage() {
 
       <section className="panel strong-card">
         <div className="panel-header">
-          <h3>协作者与账号顺序</h3>
+          <h3>同事与账号顺序</h3>
           <span className="badge-count">{payload?.agents.length ?? 0}</span>
         </div>
         <div className="model-usage-agent-grid">
@@ -390,7 +391,7 @@ export function ModelUsagePage() {
             <article key={agent.id} className="model-usage-agent-card">
               <div className="model-usage-agent-head">
                 <strong>{agent.label}</strong>
-                <span>{agent.id === 'main' ? '中枢位' : agent.id === 'builder' ? '研发位' : '协作者'}</span>
+                <span>{agent.id === 'main' ? '中枢位' : agent.id === 'builder' ? '研发位' : '同事'}</span>
               </div>
               <p>当前模型：<b>{formatModelName(agent.configured_model)}</b></p>
               <p>备用模型：{formatModelList(agent.fallback_models)}</p>
@@ -417,7 +418,7 @@ export function ModelUsagePage() {
 
       <div className="model-usage-rank-grid">
         <UsageRankList title="按模型查看" items={payload?.recent_usage.by_model ?? []} />
-        <UsageRankList title="按协作者查看" items={payload?.recent_usage.by_agent ?? []} />
+        <UsageRankList title="按同事查看" items={payload?.recent_usage.by_agent ?? []} />
       </div>
 
       <section className="panel strong-card">

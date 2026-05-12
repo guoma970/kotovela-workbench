@@ -122,7 +122,7 @@ export function AutoTaskSystemSummaryCard() {
         </div>
       </div>
       <button className="auto-task-go-btn" type="button" onClick={() => navigate('/scheduler')}>
-        进入执行中枢查看任务进度
+        进入自动化查看任务进度
       </button>
     </section>
   )

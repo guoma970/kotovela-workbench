@@ -529,7 +529,7 @@ export function AutoTaskSystemPanel() {
     <section className="home-section panel strong-card auto-task-panel scheduler-hub-panel">
       <div className="home-section-head scheduler-hub-head">
         <div>
-          <h3>执行中枢</h3>
+          <h3>自动化</h3>
           <p className="scheduler-hub-subtitle">集中查看任务分配、执行进度、结果回报和待人工事项</p>
         </div>
         <span className="home-count">{data?.board?.length ?? 0}</span>
@@ -614,7 +614,7 @@ export function AutoTaskSystemPanel() {
       <div className="scheduler-view-switch" role="tablist" aria-label="调度视图切换">
         {[
           { key: 'operations', label: '运营概览', note: '进度 / 风险 / 待人工' },
-          { key: 'execution', label: '执行进展', note: '协作者 / 排队 / 结果' },
+          { key: 'execution', label: '执行进展', note: '同事 / 排队 / 结果' },
           { key: 'routing', label: '分配去向', note: '判断规则 / 去向 / 拦截说明' },
           { key: 'debug', label: '排障记录', note: '原始数据 / 处理日志' },
         ].map((view) => (

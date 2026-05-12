@@ -66,11 +66,11 @@ type AuditEntry = {
 }
 
 const STATUS_COLUMNS: Array<{ key: LeadStatus; label: string; labelZh: string }> = [
-  { key: 'queue', label: 'Queue', labelZh: '排队中' },
-  { key: 'running', label: 'Running', labelZh: '跟进中' },
-  { key: 'done', label: 'Done', labelZh: '已转化' },
-  { key: 'lost', label: 'Lost', labelZh: '已流失' },
-  { key: 'need_human', label: 'Need Human', labelZh: '需人工处理' },
+  { key: 'queue', label: '排队中', labelZh: '排队中' },
+  { key: 'running', label: '跟进中', labelZh: '跟进中' },
+  { key: 'done', label: '已转化', labelZh: '已转化' },
+  { key: 'lost', label: '已流失', labelZh: '已流失' },
+  { key: 'need_human', label: '需人工处理', labelZh: '需人工处理' },
 ]
 
 const LEAD_STATUS_LABEL_ZH: Record<LeadStatus, string> = {
@@ -115,7 +115,7 @@ const buildLeadSummary = (lead: LeadListItem) => {
 }
 
 const buildLeadNextAction = (lead: LeadListItem) => {
-  if (lead.status === 'queue') return '确认负责人，必要时进入执行中枢派发。'
+  if (lead.status === 'queue') return '确认负责人，必要时进入自动化派发。'
   if (lead.status === 'running') return '等待负责人回报下一步，或补充客户关键需求。'
   if (lead.status === 'need_human') return '人工确认是否继续跟进、改派或关闭。'
   if (lead.status === 'done') return '确认转化记录是否完整，必要时沉淀案例。'
@@ -125,8 +125,8 @@ const buildLeadNextAction = (lead: LeadListItem) => {
 const buildLeadSignals = (lead: LeadListItem) =>
   [
     { label: '来源', value: lead.source },
-    { label: '来源频道', value: lead.source_line },
-    { label: '账号/频道', value: lead.account_line },
+    { label: '来源协作群', value: lead.source_line },
+    { label: '账号/协作群', value: lead.account_line },
     { label: '内容线', value: lead.content_line },
     { label: '顾问', value: lead.consultant_id },
     { label: '渠道', value: lead.attribution?.source },
@@ -269,34 +269,32 @@ export function LeadsPage() {
     <section className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{isInternal ? '待跟进' : 'Leads'}</p>
-          <h2>{isInternal ? '待跟进看板' : 'Lead List'}</h2>
+          <p className="eyebrow">待跟进</p>
+          <h2>待跟进看板</h2>
         </div>
         <p className="page-note">
-          {isInternal
-            ? '默认展示待跟进事项的业务摘要、负责人和下一步；编号、字段和关联对象可展开查看。'
-            : 'Mode-isolated lead list with unified fields: lead_id, name, source, status, owner, updated_at.'}
+          默认展示待跟进事项的业务摘要、负责人和下一步；编号、字段和关联对象可展开查看。
         </p>
       </div>
 
       <PageLeadPanel
-        heading={isInternal ? '待跟进快照' : 'Lead Queue'}
-        intro={isInternal ? '先看需人工处理和跟进中；每张卡片都给出来源、负责人和下一步。' : 'Track leads with normalized status labels.'}
+        heading="待跟进一览"
+        intro="先看需人工处理和跟进中；每张卡片都给出来源、负责人和下一步。"
         internalMode={isInternal}
         metrics={STATUS_COLUMNS.map((column) => ({
-          label: isInternal ? column.labelZh : column.label,
+          label: column.labelZh,
           value: effectiveLeads.filter((lead) => lead.status === column.key).length,
         }))}
         actions={[
-          { label: isInternal ? '进入总览' : 'Go to Dashboard', to: { pathname: '/' } },
-          { label: isInternal ? '进入执行中枢' : 'Go to Scheduler', to: { pathname: '/scheduler' } },
+          { label: '进入总览', to: { pathname: '/' } },
+          { label: '进入自动化', to: { pathname: '/scheduler' } },
         ]}
         internalHint={isInternal ? '内部版优先读取真实待跟进记录；暂时没有同步数据时，会先显示演示样例。' : undefined}
       />
 
       <section className="panel strong-card queue-column">
         <div className="panel-header">
-          <h3>{isInternal ? '当前待跟进列表' : 'Current Leads'}</h3>
+          <h3>当前待跟进列表</h3>
           <span className="badge-count">{effectiveLeads.length}</span>
         </div>
         <div className="queue-list">
@@ -313,14 +311,14 @@ export function LeadsPage() {
               >
                 <div className="task-card-kicker">
                   <span className={`task-status-chip task-status-${lead.status}`}>
-                    {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}
+                    {LEAD_STATUS_LABEL_ZH[lead.status]}
                   </span>
                   <span className={`priority-badge priority-${lead.status === 'done' ? 'low' : lead.status === 'running' ? 'medium' : 'high'}`}>
-                    {isInternal ? LEAD_STATUS_LABEL_ZH[lead.status] : lead.status}
+                    {LEAD_STATUS_LABEL_ZH[lead.status]}
                   </span>
                 </div>
-                <h4 className="task-readable-title">{isInternal ? formatReadableTaskTitle(lead.name) : lead.name}</h4>
-                <p className="task-readable-summary">{isInternal ? buildLeadSummary(lead) : lead.lead_id}</p>
+                <h4 className="task-readable-title">{formatReadableTaskTitle(lead.name)}</h4>
+                <p className="task-readable-summary">{buildLeadSummary(lead)}</p>
                 {isInternal ? (
                   <div className="task-next-action">
                     <span>下一步</span>
@@ -342,14 +340,14 @@ export function LeadsPage() {
                   </div>
                 ) : null}
                 <details className="task-raw-details">
-                  <summary>{isInternal ? '查看编号、来源与关联对象' : 'Details'}</summary>
-                  <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>{isInternal ? '待跟进编号' : 'lead_id'}：{lead.lead_id}</span></div>
-                  <div className="queue-meta dense-meta"><span>{isInternal ? '原始来源' : 'source'}：{formatReadableKey(lead.source)}</span></div>
-                  <div className="queue-meta dense-meta"><span>{isInternal ? '展示口径' : 'mode'}：{lead.source_mode === 'internal' ? '内部实时/快照数据' : '演示数据'}</span></div>
+                  <summary>查看编号、来源与关联对象</summary>
+                  <div className="queue-meta dense-meta" style={{ marginTop: 8 }}><span>待跟进编号：{lead.lead_id}</span></div>
+                  <div className="queue-meta dense-meta"><span>原始来源：{formatReadableKey(lead.source)}</span></div>
+                  <div className="queue-meta dense-meta"><span>展示口径：{lead.source_mode === 'internal' ? '内部实时/快照数据' : '演示数据'}</span></div>
                   {(relatedProject || relatedAgent || relatedRooms.length > 0) ? (
                     <div className="relation-stack" style={{ marginTop: 12 }}>
                     <div>
-                      <span className="section-label">{isInternal ? '关联项目' : 'Linked project'}</span>
+                      <span className="section-label">关联项目</span>
                       <div className="object-row top-gap">
                         {relatedProject ? (
                           <ObjectBadge
@@ -366,7 +364,7 @@ export function LeadsPage() {
                       </div>
                     </div>
                     <div>
-                      <span className="section-label">{isInternal ? '关联频道' : 'Linked rooms'}</span>
+                      <span className="section-label">关联协作群</span>
                       <div className="object-row top-gap">
                         {relatedRooms.length > 0 ? relatedRooms.slice(0, 2).map((room) => (
                           <ObjectBadge
@@ -383,7 +381,7 @@ export function LeadsPage() {
                       </div>
                     </div>
                     <div>
-                      <span className="section-label">{isInternal ? '关联协作者' : 'Linked agent'}</span>
+                      <span className="section-label">关联同事</span>
                       <div className="object-row top-gap">
                         {relatedAgent ? (
                           <ObjectBadge

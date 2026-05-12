@@ -82,7 +82,7 @@ export function DashboardAutoTaskTaskCard({
     item.auto_generated ? '自动生成' : '',
     item.trigger_source ? `来源：${formatReadableDetail(item.trigger_source)}` : '',
     item.predicted_risk ? `风险：${formatRiskLevel(item.predicted_risk)}` : '',
-    item.predicted_block ? '预测有卡点' : '',
+    item.predicted_block ? '预测卡住' : '',
     item.attention ? '需要关注' : '',
     item.stuck ? '任务卡住' : '',
     item.abnormal ? '发现异常' : '',
@@ -123,7 +123,7 @@ export function DashboardAutoTaskTaskCard({
       <details className="scheduler-task-result-block" open={showTechnicalDetails}>
         <summary className="scheduler-task-result-head"><strong>分配与执行摘要</strong></summary>
         <div className="scheduler-task-result-content">
-          <div><span>执行协作者</span><strong>{formatReadableOwner(item.agent)}</strong></div>
+          <div><span>执行同事</span><strong>{formatReadableOwner(item.agent)}</strong></div>
           <div><span>协作池</span><strong>{formatPoolKey(item.instance_pool)}</strong></div>
           <div><span>领域</span><strong>{formatReadableDetail(item.domain)}</strong></div>
           <div><span>任务组</span><strong>{formatReadableTaskTitle(item.task_group_label)}</strong></div>

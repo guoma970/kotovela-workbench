@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
 import { createFocusSearch } from '../lib/workbenchLinking'
+import { UI_TERMS } from '../lib/uiTerms'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../lib/formatSyncTime'
 import { BRAND_NAME, brandConfig } from '../config/brand'
@@ -10,30 +11,30 @@ import { brandAssets } from '../config/brandAssets'
 const getNavItems = (isInternal: boolean) =>
   isInternal
     ? [
-        { group: '工作台', to: '/', step: 1, label: '总览', note: '系统状态 · 同步概览' },
-        { group: '工作台', to: '/projects', step: 2, label: '项目', note: '项目组合 · 负责人 · 有卡点' },
-        { group: '工作台', to: '/rooms', step: 3, label: '频道', note: '协作频道 · 关联协作者' },
-        { group: '工作台', to: '/tasks', step: 4, label: '任务', note: '执行进展 · 卡点优先' },
+        { group: '工作台', to: '/', step: 1, label: '首页', note: '系统状态 · 同步概览' },
+        { group: '工作台', to: '/projects', step: 2, label: UI_TERMS.project, note: '项目组合 · 负责人 · 卡住优先' },
+        { group: '工作台', to: '/rooms', step: 3, label: UI_TERMS.room, note: '协作入口 · 关联同事' },
+        { group: '工作台', to: '/tasks', step: 4, label: UI_TERMS.task, note: '执行进展 · 卡住优先' },
         { group: '工作台', to: '/leads', step: 5, label: '待跟进', note: '跟进列表 · 状态归一' },
-        { group: '管理配置', to: '/scheduler', step: 6, label: '执行中枢', note: '执行推进 · 结果跟进' },
-        { group: '管理配置', to: '/consultants', step: 7, label: '角色配置', note: '顾问配置 · 分配规则' },
-        { group: '管理配置', to: '/model-usage', step: 8, label: '用量统计', note: '额度 · 用量 · 调用顺序' },
-        { group: '管理配置', to: '/system-control', step: 9, label: '系统设置', note: '系统模式 · 安全规则' },
-        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: '执行验证', note: '关联结果 · 未关联原因 · 命中情况' },
-        { group: '协作者', to: '/agents', step: 11, label: '协作者状态', note: '协作者状态 · 分配去向' },
+        { group: '管理配置', to: '/scheduler', step: 6, label: '自动化', note: '自动安排 · 结果跟进' },
+        { group: '管理配置', to: '/consultants', step: 7, label: '顾问', note: '顾问配置 · 分配规则' },
+        { group: '管理配置', to: '/model-usage', step: 8, label: UI_TERMS.modelUsage, note: '额度 · 用量 · 调用顺序' },
+        { group: '管理配置', to: '/system-control', step: 9, label: UI_TERMS.systemControl, note: '运行方式 · 安全规则' },
+        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: UI_TERMS.evidence, note: '关联结果 · 待补原因 · 命中情况' },
+        { group: '同事', to: '/agents', step: 11, label: UI_TERMS.agent, note: '同事状态 · 分配去向' },
       ]
     : [
-        { group: 'Cockpit', to: '/', step: 1, label: 'Dashboard', note: 'Overview and system status' },
-        { group: 'Cockpit', to: '/projects', step: 2, label: 'Projects', note: 'Portfolio and ownership' },
-        { group: 'Cockpit', to: '/rooms', step: 3, label: 'Rooms', note: 'Channels and coordination' },
-        { group: 'Cockpit', to: '/tasks', step: 4, label: 'Tasks', note: 'Execution and blockers' },
-        { group: 'Cockpit', to: '/leads', step: 5, label: 'Leads', note: 'Lead list and normalized status' },
-        { group: 'Scheduling', to: '/scheduler', step: 6, label: 'Scheduler', note: 'Execution control and queue' },
-        { group: 'Scheduling', to: '/consultants', step: 7, label: 'Consultants', note: 'Consultant settings and routing' },
-        { group: 'Scheduling', to: '/model-usage', step: 8, label: 'Model Usage', note: 'Quota, tokens, and OAuth order' },
-        { group: 'Scheduling', to: '/system-control', step: 9, label: 'System Control', note: 'system mode and safety rules' },
-        { group: 'Scheduling', to: '/evidence-acceptance', step: 10, label: 'Evidence Acceptance', note: 'Hit rate, misses, and link-back success' },
-        { group: 'Execution', to: '/agents', step: 11, label: 'Agents', note: 'Agent activity and routing' },
+        { group: '工作台', to: '/', step: 1, label: '首页', note: '系统状态 · 同步概览' },
+        { group: '工作台', to: '/projects', step: 2, label: UI_TERMS.project, note: '项目组合 · 负责人' },
+        { group: '工作台', to: '/rooms', step: 3, label: UI_TERMS.room, note: '协作入口 · 信息流转' },
+        { group: '工作台', to: '/tasks', step: 4, label: UI_TERMS.task, note: '执行进展 · 卡住优先' },
+        { group: '工作台', to: '/leads', step: 5, label: '待跟进', note: '跟进列表 · 状态归一' },
+        { group: '管理配置', to: '/scheduler', step: 6, label: '自动化', note: '自动安排 · 队列' },
+        { group: '管理配置', to: '/consultants', step: 7, label: '顾问', note: '顾问配置 · 分配规则' },
+        { group: '管理配置', to: '/model-usage', step: 8, label: UI_TERMS.modelUsage, note: '额度 · 用量 · 调用顺序' },
+        { group: '管理配置', to: '/system-control', step: 9, label: UI_TERMS.systemControl, note: '运行方式 · 安全规则' },
+        { group: '管理配置', to: '/evidence-acceptance', step: 10, label: UI_TERMS.evidence, note: '命中率 · 待补原因 · 回链结果' },
+        { group: '同事', to: '/agents', step: 11, label: UI_TERMS.agent, note: '同事状态 · 分配去向' },
       ]
 
 const getSyncMetaLabel = (
@@ -70,7 +71,7 @@ export function AppShell() {
   const navItems = getNavItems(mode === 'internal')
   /** 中英文结合：主标题英文，其下先中文再英文补充（公开版同样双语，便于国内叙事 + 国际访客扫读）。 */
   const productSubtitleZh =
-    mode === 'internal' ? '内部驾驶舱 · 协作者状态与项目跟进' : brandConfig.subtitleZh
+    mode === 'internal' ? '内部驾驶舱 · 同事状态与项目跟进' : brandConfig.subtitleZh
   /** 内部版不再堆叠英文「Internal / Target」调试行，仅公开版保留中英副线。 */
   const productTaglineEn =
     mode === 'internal' ? null : brandConfig.taglineEn
@@ -270,7 +271,7 @@ export function AppShell() {
             ref={menuButtonRef}
             type="button"
             className="mobile-nav-toggle"
-            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((open) => !open)}
           >
@@ -289,7 +290,7 @@ export function AppShell() {
             <div className="mobile-nav-meta">
               <span>{productName}</span>
               <span className={hasLinkedFocus ? 'mobile-nav-pill' : 'mobile-nav-pill mobile-nav-pill-muted'}>
-                {hasLinkedFocus ? (mode === 'internal' ? '关联焦点' : 'Linked focus') : mode === 'internal' ? '当前页面' : 'Current page'}
+                {hasLinkedFocus ? '关联焦点' : '当前页面'}
               </span>
             </div>
           </div>

@@ -1,48 +1,49 @@
 import type { AgentStatus, ProjectStatus, RoomStatus, TaskStatus } from '../types'
+import { UI_TERMS } from './uiTerms'
 
-export function agentStatusLabel(status: AgentStatus, internal: boolean): string {
-  if (!internal) return status
+export function agentStatusLabel(status: AgentStatus, _internal: boolean): string {
+  void _internal
   const map: Record<AgentStatus, string> = {
-    active: '推进中',
-    idle: '空闲',
-    blocked: '有卡点',
+    active: UI_TERMS.doing,
+    idle: UI_TERMS.idle,
+    blocked: UI_TERMS.blocked,
   }
   return map[status] ?? status
 }
 
-export function projectStatusLabel(status: ProjectStatus, internal: boolean): string {
-  if (!internal) return status
+export function projectStatusLabel(status: ProjectStatus, _internal: boolean): string {
+  void _internal
   const map: Record<ProjectStatus, string> = {
-    active: '推进中',
+    active: UI_TERMS.doing,
     planning: '规划中',
-    blocked: '有卡点',
+    blocked: UI_TERMS.blocked,
   }
   return map[status] ?? status
 }
 
-export function roomStatusLabel(status: RoomStatus, internal: boolean): string {
-  if (!internal) return status
+export function roomStatusLabel(status: RoomStatus, _internal: boolean): string {
+  void _internal
   const map: Record<RoomStatus, string> = {
     active: '活跃',
     quiet: '安静',
-    blocked: '有卡点',
+    blocked: UI_TERMS.blocked,
   }
   return map[status] ?? status
 }
 
-export function taskStatusLabel(status: TaskStatus, internal: boolean): string {
-  if (!internal) return status
+export function taskStatusLabel(status: TaskStatus, _internal: boolean): string {
+  void _internal
   const map: Record<TaskStatus, string> = {
     todo: '待办',
-    doing: '推进中',
-    blocked: '有卡点',
-    done: '已完成',
+    doing: UI_TERMS.doing,
+    blocked: UI_TERMS.blocked,
+    done: UI_TERMS.done,
   }
   return map[status] ?? status
 }
 
-export function priorityLabel(priority: 'high' | 'medium' | 'low', internal: boolean): string {
-  if (!internal) return priority
+export function priorityLabel(priority: 'high' | 'medium' | 'low', _internal: boolean): string {
+  void _internal
   const map = { high: '高', medium: '中', low: '低' } as const
   return map[priority] ?? priority
 }
