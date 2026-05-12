@@ -58,8 +58,8 @@ const PATHNAME_BY_KIND: Record<FocusKind, string> = {
 
 const KIND_LABELS: Record<FocusKind, string> = {
   project: '项目',
-  agent: '协作者',
-  room: '频道',
+  agent: '同事',
+  room: '协作群',
   task: '任务',
 }
 

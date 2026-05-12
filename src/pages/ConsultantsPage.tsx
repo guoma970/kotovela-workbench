@@ -316,7 +316,7 @@ export function ConsultantsPage() {
     <section className="page consultant-settings-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{APP_MODE === 'internal' ? '角色配置' : 'Consultants'}</p>
+          <p className="eyebrow">顾问</p>
           <h2>{consultantSettingsConfig.pageTitle}</h2>
         </div>
         <p className="page-note">

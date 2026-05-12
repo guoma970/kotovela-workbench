@@ -7,7 +7,7 @@ export function AutoTasksPage() {
       <div className="page-header home-header">
         <div>
           <p className="eyebrow">{BRAND_NAME}</p>
-          <h2>执行中枢：先看结果</h2>
+          <h2>自动化：先看结果</h2>
         </div>
         <p className="page-note">第一屏先看正在推进什么、哪里卡住、下一步谁处理；原始记录和排障字段折叠到下层。</p>
       </div>

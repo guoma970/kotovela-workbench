@@ -4,6 +4,7 @@ import { EvidenceObjectLinks } from '../components/EvidenceObjectLinks'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { buildEvidenceParserFixtureDataset, buildEvidenceRow, summarizeFixtureDataset, type EvidenceBucketExample, type EvidenceDriftSummary, type EvidenceRow } from '../lib/evidenceAcceptance'
 import { formatReadableDetail, formatReadableKey, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../lib/readableText'
+import { UI_TERMS } from '../lib/uiTerms'
 import { useWorkbenchLinking } from '../lib/workbenchLinking'
 
 type BoardEntry = {
@@ -44,7 +45,7 @@ type AuditEntry = {
 const normalize = (value?: string) => String(value ?? '').trim()
 
 const DRIFT_BUCKET_DISPLAY = [
-  { key: 'signal_map_room', label: '频道线索匹配', description: '频道/来源维度仍需复核的未匹配样本。' },
+  { key: 'signal_map_room', label: '协作群线索匹配', description: '协作群/来源维度仍需复核的未匹配样本。' },
   { key: 'signal_map_content', label: '内容线索匹配', description: '内容维度仍需复核的未匹配样本。' },
 ] as const
 
@@ -59,7 +60,7 @@ const MATCH_SOURCE_LABELS: Record<string, string> = {
   direct_id: '编号直连',
   direct_name: '名称直连',
   signal_map_account: '账号线索',
-  signal_map_room: '频道线索',
+  signal_map_room: '协作群线索',
   signal_map_content: '内容线索',
   signal_map_only: '线索辅助',
 }
@@ -105,7 +106,7 @@ function displaySignalPart(value: string) {
 
   const keyLabels: Record<string, string> = {
     project_line: '项目线索',
-    source_line: '来源频道',
+    source_line: '来源协作群',
     account_line: '账号线索',
     content_line: '内容线索',
     consultant_id: '顾问编号',
@@ -286,13 +287,13 @@ export function EvidenceAcceptancePage() {
     <section className="page evidence-acceptance-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">执行验证</p>
-          <h2>{isInternal ? '证据识别验收' : 'Evidence acceptance'}</h2>
+          <p className="eyebrow">结果验收</p>
+          <h2>{UI_TERMS.evidence}</h2>
         </div>
         <p className="page-note">
           {isInternal
             ? '第一屏先看识别率、待补线索和波动提醒；样本、原始记录和对象关联放到下层排障。'
-            : 'Open source mode keeps this page isolated. No internal evidence payload is rendered.'}
+            : '开源版只展示隔离后的演示内容，不渲染内部结果记录。'}
         </p>
       </div>
 
@@ -318,7 +319,7 @@ export function EvidenceAcceptancePage() {
         <div className="cross-link-row top-gap">
           <Link className="inline-link-chip" to="/tasks">任务验证</Link>
           <Link className="inline-link-chip" to="/leads">待跟进验证</Link>
-          <Link className="inline-link-chip" to="/system-control">系统设置</Link>
+          <Link className="inline-link-chip" to="/system-control">总开关</Link>
         </div>
       </section>
 

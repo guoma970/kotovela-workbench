@@ -4,6 +4,7 @@ import { consultantSettingsConfig } from '../../../config/consultantSettings'
 import { useOfficeInstances } from '../../../data/useOfficeInstances'
 import { formatLastSyncedAt } from '../../../lib/formatSyncTime'
 import { formatReadableDetail, formatReadableOwner, formatReadableTaskTitle, formatReadableTime } from '../../../lib/readableText'
+import { UI_TERMS } from '../../../lib/uiTerms'
 import { useWorkbenchLinking } from '../../../lib/workbenchLinking'
 import type { Agent, Project, UpdateItem } from '../../../types'
 
@@ -51,9 +52,9 @@ export type ActionItem = {
 }
 
 const badgeLabel: Record<HomeStatus, string> = {
-  blocker: '有卡点',
-  active: '进行中',
-  idle: '待命',
+  blocker: UI_TERMS.blocked,
+  active: UI_TERMS.doing,
+  idle: UI_TERMS.idle,
 }
 
 const systemModeLabel: Record<SystemModeValue, string> = {
@@ -105,7 +106,7 @@ function formatConsultantRole(value: string) {
 function formatAuditAction(value: string) {
   return formatReadableDetail(value)
     .replace(/consultant_assigned/gi, '已完成分配')
-    .replace(/system_mode/gi, '系统设置调整')
+    .replace(/system_mode/gi, '总开关调整')
     .replace(/publish_mode/gi, '发布状态调整')
     .replace(/force_stop/gi, '紧急停止调整')
     .replace(/guardrails/gi, '安全规则调整')
@@ -401,12 +402,12 @@ export function InternalControlSummary({
 
   const healthLine =
     blocked > 0
-      ? `需关注：${blocked} 个协作者有卡点`
+      ? `需关注：${blocked} 个同事卡住`
       : active > 0
-        ? `推进中：${active} 个协作者 · 整体在推进`
+        ? `${UI_TERMS.doing}：${active} 个同事 · 整体在推进`
         : idle === agents.length && agents.length > 0
           ? '当前没有进行中的任务 · 一切顺利'
-          : '协作者数据加载中，请稍候。'
+          : '同事数据加载中，请稍候。'
 
   void pollingIntervalMs
   const { systemMode, publishMode, forceStop } = systemModeState
@@ -444,7 +445,7 @@ export function InternalControlSummary({
           <h2 className="control-summary-heading">中控总览</h2>
           <p className="control-summary-health">{healthLine}</p>
           <p className="control-summary-sub">
-            上方：各项目整体进度（卡点多的优先）；下方：按协作者看谁在推进，并汇总该协作者名下的任务完成情况。
+            上方：各项目整体进度（卡住的事优先）；下方：按同事看谁在推进，并汇总该同事名下的任务完成情况。
           </p>
         </div>
         <div className="control-summary-meta">
@@ -457,19 +458,19 @@ export function InternalControlSummary({
 
       <div className="control-summary-metrics" role="list">
         <div className="control-metric" role="listitem">
-          <span className="control-metric-label">协作者</span>
+          <span className="control-metric-label">{UI_TERMS.agent}</span>
           <strong className="control-metric-value">{agents.length}</strong>
         </div>
         <div className="control-metric is-blocked" role="listitem">
-          <span className="control-metric-label">有卡点</span>
+          <span className="control-metric-label">{UI_TERMS.blocker}</span>
           <strong className="control-metric-value">{blocked}</strong>
         </div>
         <div className="control-metric is-active" role="listitem">
-          <span className="control-metric-label">推进中</span>
+          <span className="control-metric-label">{UI_TERMS.doing}</span>
           <strong className="control-metric-value">{active}</strong>
         </div>
         <div className="control-metric is-idle" role="listitem">
-          <span className="control-metric-label">空闲</span>
+          <span className="control-metric-label">{UI_TERMS.idle}</span>
           <strong className="control-metric-value">{idle}</strong>
         </div>
         <div className="control-metric" role="listitem">
@@ -477,7 +478,7 @@ export function InternalControlSummary({
           <strong className="control-metric-value">{projects.length}</strong>
         </div>
         <div className={`control-metric ${projectsWithBlockers > 0 ? 'is-blocked' : ''}`} role="listitem">
-          <span className="control-metric-label">项目卡点</span>
+          <span className="control-metric-label">项目卡住数</span>
           <strong className="control-metric-value">{projectsWithBlockers}</strong>
         </div>
       </div>
@@ -485,8 +486,8 @@ export function InternalControlSummary({
       {topProjects.length > 0 ? (
         <div className="control-project-snapshot">
           <div className="control-project-snapshot-head">
-            <span className="control-project-snapshot-title">项目进度快照</span>
-            <span className="control-project-snapshot-hint">卡点优先排序 · 点击进项目板</span>
+            <span className="control-project-snapshot-title">项目进度一览</span>
+            <span className="control-project-snapshot-hint">卡住的事优先排序 · 点击进项目板</span>
           </div>
           <ul className="control-project-snapshot-list">
             {topProjects.map((project) => (
@@ -501,7 +502,7 @@ export function InternalControlSummary({
                   </span>
                   <span className="control-project-line-pct">{project.progress}%</span>
                   {project.blockers > 0 ? (
-                    <span className="control-project-line-badge">{project.blockers} 个卡点</span>
+                    <span className="control-project-line-badge">{project.blockers} 个卡住的事</span>
                   ) : (
                     <span className="control-project-line-ok">—</span>
                   )}
@@ -515,7 +516,7 @@ export function InternalControlSummary({
       {idle > 0 ? (
         <div className="control-summary-footer">
           <button type="button" className="control-idle-link" onClick={onOpenAgentsIdle}>
-            空闲协作者 {idle} 个 — 在协作者状态页查看全部
+            待命同事 {idle} 个 — 在同事页查看全部
           </button>
         </div>
       ) : null}
@@ -529,7 +530,7 @@ export function SectionList({
   emptyText,
   getActions,
   statusLabels,
-  updatedLabel = 'Updated',
+  updatedLabel = '更新于',
 }: {
   title: string
   items: HomeItem[]
@@ -577,8 +578,8 @@ export function SectionList({
 export function RecentUpdates({
   updates,
   onViewDetail,
-  title = 'Recent Updates',
-  emptyText = 'No recent updates.',
+  title = '最近动态',
+  emptyText = '暂无最近动态。',
   detailLabel = '查看详情',
 }: {
   updates: UpdateItem[]
