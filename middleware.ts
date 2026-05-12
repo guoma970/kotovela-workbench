@@ -183,20 +183,24 @@ export const config = {
 }
 
 export default async function middleware(request: Request) {
-  const url = new URL(request.url)
-  if (url.pathname === '/api/access') return undefined
-  if (isTaskScopedXiguoApi(url.pathname)) return undefined
+  try {
+    const url = new URL(request.url)
+    if (url.pathname === '/api/access') return undefined
+    if (isTaskScopedXiguoApi(url.pathname)) return undefined
 
-  const secret = normalizeSecret(process.env.KOTOVELA_ACCESS_SECRET)
-  if (!shouldProtect(secret)) return undefined
+    const secret = normalizeSecret(process.env.KOTOVELA_ACCESS_SECRET)
+    if (!shouldProtect(secret)) return undefined
 
-  if (!secret) {
-    return isApiRequest(url.pathname)
-      ? jsonResponse({ error: 'access_protection_not_configured' }, 503)
-      : loginPage(request, true)
+    if (!secret) {
+      return isApiRequest(url.pathname)
+        ? jsonResponse({ error: 'access_protection_not_configured' }, 503)
+        : loginPage(request, true)
+    }
+
+    if (await isAuthenticated(request, secret)) return undefined
+
+    return isApiRequest(url.pathname) ? jsonResponse({ error: 'unauthorized' }, 401) : loginPage(request)
+  } catch {
+    return jsonResponse({ error: 'middleware_failure' }, 500)
   }
-
-  if (await isAuthenticated(request, secret)) return undefined
-
-  return isApiRequest(url.pathname) ? jsonResponse({ error: 'unauthorized' }, 401) : loginPage(request)
 }

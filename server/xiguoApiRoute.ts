@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { handleInternalApiRoute } from './vercelInternalProxy.js'
-import { hasKotovelaAccess } from './kotovelaAccess.js'
+import { hasKotovelaAccessStrict } from './kotovelaAccess.js'
 import { verifyXiguoTaskLinkToken } from './xiguoTaskAccess.js'
 
 type XiguoRouteOptions = {
@@ -66,7 +66,7 @@ const getTaskScope = (req: VercelRequest) => {
 }
 
 const hasTaskScopedAccess = (req: VercelRequest) => {
-  if (hasKotovelaAccess(req)) return true
+  if (hasKotovelaAccessStrict(req)) return true
 
   const { taskId, projectId, token } = getTaskScope(req)
   if (!taskId || !token) return false
@@ -102,7 +102,7 @@ export async function handleXiguoApiRoute(req: VercelRequest, res: VercelRespons
     return res.status(405).json({ ok: false, error: 'method_not_allowed' })
   }
 
-  if (options.internalOnly ? !hasKotovelaAccess(req) : !hasTaskScopedAccess(req)) {
+  if (options.internalOnly ? !hasKotovelaAccessStrict(req) : !hasTaskScopedAccess(req)) {
     return res.status(401).json({ ok: false, error: 'unauthorized' })
   }
 

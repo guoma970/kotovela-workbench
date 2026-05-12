@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { z } from 'zod'
+import { parseSafeUpstreamUrl } from '../server/lib/safeUpstream.js'
 import { fetchModelUsagePayload } from '../server/modelUsage.js'
 
 const usageBucketSchema = z
@@ -56,40 +57,6 @@ const upstreamAllowedHosts = new Set(
     .filter(Boolean),
 )
 
-const isPrivateHostname = (hostname: string) => {
-  const normalized = hostname.toLowerCase()
-  if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(normalized)) return true
-  if (normalized.endsWith('.local') || normalized.endsWith('.internal')) return true
-  if (/^10\./.test(normalized)) return true
-  if (/^192\.168\./.test(normalized)) return true
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true
-  if (/^169\.254\./.test(normalized)) return true
-  return false
-}
-
-const parseSafeUpstreamUrl = (value: string) => {
-  let parsed: URL
-  try {
-    parsed = new URL(value)
-  } catch {
-    throw new Error('MODEL_USAGE_UPSTREAM_URL is not a valid URL')
-  }
-
-  if (parsed.protocol !== 'https:') {
-    throw new Error('MODEL_USAGE_UPSTREAM_URL must use https')
-  }
-
-  if (isPrivateHostname(parsed.hostname)) {
-    throw new Error('MODEL_USAGE_UPSTREAM_URL must not target localhost or private networks')
-  }
-
-  if (upstreamAllowedHosts.size > 0 && !upstreamAllowedHosts.has(parsed.hostname.toLowerCase())) {
-    throw new Error('MODEL_USAGE_UPSTREAM_URL host is not allowlisted')
-  }
-
-  return parsed.toString()
-}
-
 const isLocalHostHeader = (host: string) =>
   host.includes('localhost') ||
   host.startsWith('127.0.0.1') ||
@@ -125,7 +92,10 @@ const fetchUpstreamPayload = async () => {
     return null
   }
 
-  const response = await fetch(parseSafeUpstreamUrl(upstreamUrl), {
+  const response = await fetch(parseSafeUpstreamUrl(upstreamUrl, {
+    envName: 'MODEL_USAGE_UPSTREAM_URL',
+    allowedHosts: upstreamAllowedHosts,
+  }), {
     headers: upstreamToken ? { Authorization: `Bearer ${upstreamToken}` } : undefined,
     signal: AbortSignal.timeout(10_000),
   })
