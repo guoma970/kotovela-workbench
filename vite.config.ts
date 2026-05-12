@@ -3100,6 +3100,12 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       devApiPlugin({
+        consultants: {
+          taskBoardFile: TASK_BOARD_FILE,
+          readTaskBoard,
+          summarizeTaskBoard,
+          buildConsultantRecords,
+        },
         isInternal,
         leads: {
           taskBoardFile: TASK_BOARD_FILE,
@@ -3140,24 +3146,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/consultants', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-            try {
-              const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify({ consultants: buildConsultantRecords(payload.board) }))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'consultants fetch failed', message: error instanceof Error ? error.message : String(error) }))
-            }
-          })
-
           server.middlewares.use('/api/lead-update', async (req, res, next) => {
             if (req.method !== 'POST') {
               next()
