@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { devApiPlugin } from './server/devApi'
-import { fetchModelUsagePayload } from './server/modelUsage'
 import { inferTaskBoardEvidenceContext, type StableEvidenceRoutingHints } from './src/lib/evidenceContext'
 
 type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
@@ -3147,30 +3146,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/model-usage', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-
-            try {
-              const payload = await fetchModelUsagePayload()
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify(payload))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(
-                JSON.stringify({
-                  error: 'model-usage fetch failed',
-                  message: error instanceof Error ? error.message : String(error),
-                }),
-              )
-            }
-          })
-
           server.middlewares.use('/api/system-mode', async (req, res, next) => {
             const MODE_STATE_FILE = path.resolve(
               process.env.MODE_STATE_FILE ?? path.join(PROJECT_ROOT, 'server', 'data', `system-mode.${isInternal ? 'internal' : 'opensource'}.json`),
