@@ -4,6 +4,7 @@ import { createConsultantsHandler } from './consultants'
 import { createLeadStatsHandler } from './leadStats'
 import { createLeadUpdateHandler } from './leadUpdate'
 import { createLeadsHandler } from './leads'
+import { createMemoryHandler } from './memory'
 import modelUsageHandler from './modelUsage'
 import officeInstancesHandler from './officeInstances'
 import { createSystemModeHandler } from './systemMode'
@@ -15,10 +16,11 @@ type DevApiPluginOptions = {
   leadStats?: Record<string, unknown>
   leadUpdate?: Record<string, unknown>
   leads?: Record<string, unknown>
+  memory?: Record<string, unknown>
   tasksBoard?: Record<string, unknown>
 }
 
-export function devApiPlugin({ consultants, isInternal = false, leadStats, leadUpdate, leads, tasksBoard }: DevApiPluginOptions = {}): Plugin {
+export function devApiPlugin({ consultants, isInternal = false, leadStats, leadUpdate, leads, memory, tasksBoard }: DevApiPluginOptions = {}): Plugin {
   return {
     name: 'kotovela-dev-api',
     configureServer(server) {
@@ -40,6 +42,9 @@ export function devApiPlugin({ consultants, isInternal = false, leadStats, leadU
       }
       if (leadStats) {
         server.middlewares.use('/api/lead-stats', createLeadStatsHandler(leadStats))
+      }
+      if (memory) {
+        server.middlewares.use('/api/memory', createMemoryHandler(memory))
       }
     },
   }
