@@ -1,6 +1,0 @@
-{
-  "tasks_board": "dev67-tasks-board-api.json",
-  "leads": "dev67-leads-api.json",
-  "audit_log": "dev67-audit-log-api.json",
-  "mode_isolation": "mode-isolation-opensource.json"
-}

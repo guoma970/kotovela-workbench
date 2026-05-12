@@ -1,13 +1,0 @@
-
-> openclaw-workbench@0.0.0 build:opensource
-> tsc -b && vite build --mode opensource
-
-vite v8.0.3 building client environment for opensource...
-[2Ktransforming...✓ 55 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                   1.08 kB │ gzip:   0.47 kB
-dist/assets/index-Cg879uDf.css   60.41 kB │ gzip:  11.73 kB
-dist/assets/index-DK6sIHVI.js   430.97 kB │ gzip: 119.45 kB
-
-✓ built in 88ms
