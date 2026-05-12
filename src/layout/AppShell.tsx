@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FocusSummaryBar } from '../components/FocusSummaryBar'
+import { PageHelp } from '../components/PageHelp'
 import { createFocusSearch } from '../lib/workbenchLinking'
 import { UI_TERMS } from '../lib/uiTerms'
 import { useOfficeInstances } from '../data/useOfficeInstances'
@@ -36,6 +37,20 @@ const getNavItems = (isInternal: boolean) =>
         { group: '管理配置', to: '/evidence-acceptance', step: 10, label: UI_TERMS.evidence, note: '命中率 · 待补原因 · 回链结果' },
         { group: '同事', to: '/agents', step: 11, label: UI_TERMS.agent, note: '同事状态 · 分配去向' },
       ]
+
+const PAGE_HELP: Record<string, { title: string; helpText: string }> = {
+  '/': { title: '首页', helpText: '看同事在做什么、谁卡住了。' },
+  '/agents': { title: '同事', helpText: '看每位 AI 同事的角色和状态。' },
+  '/tasks': { title: '任务', helpText: '按卡住、进行中、完成看流转。' },
+  '/projects': { title: '项目', helpText: '看项目进度、负责人和卡点。' },
+  '/rooms': { title: '协作群', helpText: '看各群的最新动作和关联同事。' },
+  '/scheduler': { title: '自动化', helpText: '看自动安排和提醒的任务。' },
+  '/consultants': { title: '顾问', helpText: '看业务顾问的分配情况。' },
+  '/leads': { title: '线索', helpText: '看潜在客户与跟进进度。' },
+  '/model-usage': { title: UI_TERMS.modelUsage, helpText: '看模型额度、消耗和告警。' },
+  '/system-control': { title: UI_TERMS.systemControl, helpText: '切换系统模式与发布管控。' },
+  '/evidence-acceptance': { title: UI_TERMS.evidence, helpText: '审核 AI 结果是否合格。' },
+}
 
 const getSyncMetaLabel = (
   preferredDataSource: 'mock' | 'openclaw',
@@ -78,6 +93,7 @@ export function AppShell() {
   const syncMetaLabel = getSyncMetaLabel(preferredDataSource, isFallback, lastSyncedAtMs)
   const currentNavItem =
     navItems.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))) ?? navItems[0]
+  const currentPageHelp = PAGE_HELP[location.pathname] ?? PAGE_HELP['/']
   const focusSearchParams = new URLSearchParams(location.search)
   const hasLinkedFocus = Boolean(
     focusSearchParams.get('focusType') ||
@@ -294,6 +310,9 @@ export function AppShell() {
               </span>
             </div>
           </div>
+        </div>
+        <div className="app-help-slot" aria-label="当前页面说明">
+          <PageHelp title={currentPageHelp.title} helpText={currentPageHelp.helpText} />
         </div>
         <FocusSummaryBar
           pathname={location.pathname}

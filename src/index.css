@@ -2558,6 +2558,72 @@ button,
   gap: 20px;
 }
 
+.app-help-slot {
+  position: sticky;
+  top: 18px;
+  z-index: 78;
+  display: flex;
+  justify-content: flex-end;
+  min-height: 24px;
+  pointer-events: none;
+}
+
+.page-help {
+  position: relative;
+  pointer-events: auto;
+}
+
+.page-help-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(126, 163, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(15, 23, 43, 0.9);
+  color: #dce8ff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 22px rgba(4, 9, 22, 0.24);
+}
+
+.page-help-trigger:hover,
+.page-help-trigger:focus-visible,
+.page-help-trigger[aria-expanded='true'] {
+  border-color: rgba(126, 163, 255, 0.72);
+  background: rgba(91, 140, 255, 0.24);
+  outline: none;
+}
+
+.page-help-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 48px));
+  padding: 14px;
+  border: 1px solid rgba(126, 163, 255, 0.28);
+  border-radius: 16px;
+  background: rgba(15, 23, 43, 0.96);
+  color: var(--color-text-primary);
+  box-shadow: 0 18px 42px rgba(4, 9, 22, 0.38);
+  backdrop-filter: blur(16px);
+}
+
+.page-help-popover strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+}
+
+.page-help-popover p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .page {
   display: flex;
   flex-direction: column;
@@ -4360,6 +4426,11 @@ button.object-badge {
   .main-content {
     padding: 22px;
     gap: 16px;
+  }
+
+  .app-help-slot {
+    position: static;
+    min-height: 24px;
   }
 
   .page {
