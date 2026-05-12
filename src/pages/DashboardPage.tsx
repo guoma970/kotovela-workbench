@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOfficeInstances } from '../data/useOfficeInstances'
 import { createFocusSearch } from '../lib/workbenchLinking'
@@ -8,6 +8,47 @@ import { DashboardInternalView, DashboardPublicView } from './Dashboard/componen
 import { AutoTaskSystemSummaryCard } from './Dashboard/components/DashboardAutoTaskCards'
 import { useSystemMode } from './Dashboard/hooks/useSystemMode'
 import { buildHomeItems, formatAgentTaskLine } from './Dashboard/lib/homeItems'
+
+const DASHBOARD_EXPANDED_STORAGE_KEY = 'dashboard.expandedSections'
+const DASHBOARD_COLLAPSIBLE_SECTION_KEYS = ['overview', 'attention', 'decisions'] as const
+
+type DashboardExpandedSection = (typeof DASHBOARD_COLLAPSIBLE_SECTION_KEYS)[number]
+type DashboardExpandedSections = Record<DashboardExpandedSection, boolean>
+
+const defaultExpandedSections = (): DashboardExpandedSections => ({
+  overview: false,
+  attention: false,
+  decisions: false,
+})
+
+const readExpandedSections = (): DashboardExpandedSections => {
+  if (typeof window === 'undefined') return defaultExpandedSections()
+
+  try {
+    const raw = window.localStorage.getItem(DASHBOARD_EXPANDED_STORAGE_KEY)
+    if (!raw) return defaultExpandedSections()
+
+    const parsed = JSON.parse(raw) as unknown
+    const next = defaultExpandedSections()
+
+    if (Array.isArray(parsed)) {
+      for (const key of DASHBOARD_COLLAPSIBLE_SECTION_KEYS) {
+        next[key] = parsed.includes(key)
+      }
+      return next
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      for (const key of DASHBOARD_COLLAPSIBLE_SECTION_KEYS) {
+        next[key] = Boolean((parsed as Partial<Record<DashboardExpandedSection, boolean>>)[key])
+      }
+    }
+
+    return next
+  } catch {
+    return defaultExpandedSections()
+  }
+}
 
 export function DashboardPage() {
   const systemModeState = useSystemMode()
@@ -27,6 +68,15 @@ export function DashboardPage() {
   } = useOfficeInstances()
   const navigate = useNavigate()
   const [actionMessage, setActionMessage] = useState<string>('')
+  const [expandedSections, setExpandedSections] = useState<DashboardExpandedSections>(() => readExpandedSections())
+
+  useEffect(() => {
+    window.localStorage.setItem(DASHBOARD_EXPANDED_STORAGE_KEY, JSON.stringify(expandedSections))
+  }, [expandedSections])
+
+  const toggleExpandedSection = (key: DashboardExpandedSection) => {
+    setExpandedSections((current) => ({ ...current, [key]: !current[key] }))
+  }
 
   const items = useMemo(() => {
     const base = buildHomeItems(agents, projects, rooms, tasks)
@@ -187,6 +237,8 @@ export function DashboardPage() {
         pollingIntervalMs={pollingIntervalMs}
         systemModeState={systemModeState}
         autoTaskSummaryCard={<AutoTaskSystemSummaryCard />}
+        expandedSections={expandedSections}
+        onToggleSection={toggleExpandedSection}
       />
     )
   }
@@ -205,6 +257,8 @@ export function DashboardPage() {
       activeActions={activeActions}
       idleActions={idleActions}
       onViewUpdateDetail={viewUpdateDetail}
+      expandedSections={expandedSections}
+      onToggleSection={toggleExpandedSection}
     />
   )
 }
