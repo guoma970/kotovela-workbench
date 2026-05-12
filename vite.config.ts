@@ -3128,6 +3128,11 @@ export default defineConfig(({ mode }) => {
           mutateTaskBoard,
           ensureBusinessFields,
         },
+        memory: {
+          readMemoryStore,
+          writeMemoryStore,
+          upsertMemoryRecord,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3159,51 +3164,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/memory', async (req, res, next) => {
-            if (req.method === 'GET') {
-              try {
-                const userId = String(new URL(req.url ?? '', 'http://localhost').searchParams.get('user_id') ?? '').trim()
-                const records = await readMemoryStore()
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ user_id: userId, records: userId ? records.filter((record) => record.user_id === userId) : records }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'memory fetch failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            if (req.method === 'POST') {
-              try {
-                const chunks: Buffer[] = []
-                for await (const chunk of req) chunks.push(Buffer.from(chunk))
-                const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Partial<MemoryRecord>
-                if (!body.user_id || !body.memory_type || !body.key) {
-                  res.statusCode = 400
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'missing memory fields' }))
-                  return
-                }
-                const records = await readMemoryStore()
-                const nextRecord: MemoryRecord = { user_id: body.user_id, memory_type: body.memory_type, key: body.key, value: body.value, updated_at: new Date().toISOString() }
-                upsertMemoryRecord(records, nextRecord)
-                await writeMemoryStore(records)
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ ok: true, record: nextRecord }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'memory write failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            next()
-          })
-
           server.middlewares.use('/api/content-feedback', async (req, res, next) => {
             if (req.method === 'GET') {
               try {
