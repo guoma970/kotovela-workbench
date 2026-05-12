@@ -10,6 +10,7 @@ import modelUsageHandler from './modelUsage'
 import officeInstancesHandler from './officeInstances'
 import { createProfileHandler } from './profile'
 import { createSystemModeHandler } from './systemMode'
+import { createTaskNotificationActionsHandler } from './taskNotificationActions'
 import { createTasksBoardHandler } from './tasksBoard'
 
 type DevApiPluginOptions = {
@@ -21,10 +22,22 @@ type DevApiPluginOptions = {
   leads?: Record<string, unknown>
   memory?: Record<string, unknown>
   profile?: Record<string, unknown>
+  taskNotificationActions?: Record<string, unknown>
   tasksBoard?: Record<string, unknown>
 }
 
-export function devApiPlugin({ consultants, contentFeedback, isInternal = false, leadStats, leadUpdate, leads, memory, profile, tasksBoard }: DevApiPluginOptions = {}): Plugin {
+export function devApiPlugin({
+  consultants,
+  contentFeedback,
+  isInternal = false,
+  leadStats,
+  leadUpdate,
+  leads,
+  memory,
+  profile,
+  taskNotificationActions,
+  tasksBoard,
+}: DevApiPluginOptions = {}): Plugin {
   return {
     name: 'kotovela-dev-api',
     configureServer(server) {
@@ -55,6 +68,9 @@ export function devApiPlugin({ consultants, contentFeedback, isInternal = false,
       }
       if (profile) {
         server.middlewares.use('/api/profile', createProfileHandler(profile))
+      }
+      if (taskNotificationActions) {
+        server.middlewares.use('/api/task-notification-actions', createTaskNotificationActionsHandler(taskNotificationActions))
       }
     },
   }
