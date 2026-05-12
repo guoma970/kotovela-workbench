@@ -3152,6 +3152,9 @@ export default defineConfig(({ mode }) => {
           applyManualTaskAction,
           normalizeNotifyDomain,
         },
+        taskNotifications: {
+          readTaskNotifications,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3182,31 +3185,6 @@ export default defineConfig(({ mode }) => {
       },
       {
         name: 'workbench-dev-api-inline',
-        configureServer(server) {
-          server.middlewares.use('/api/task-notifications', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-
-            try {
-              const notifications = await readTaskNotifications()
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify({ notifications }))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(
-                JSON.stringify({
-                  error: 'task-notifications fetch failed',
-                  message: error instanceof Error ? error.message : String(error),
-                }),
-              )
-            }
-          })
-        },
       },
     ],
   }

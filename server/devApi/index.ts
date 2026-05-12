@@ -11,6 +11,7 @@ import officeInstancesHandler from './officeInstances'
 import { createProfileHandler } from './profile'
 import { createSystemModeHandler } from './systemMode'
 import { createTaskNotificationActionsHandler } from './taskNotificationActions'
+import { createTaskNotificationsHandler } from './taskNotifications'
 import { createTasksBoardHandler } from './tasksBoard'
 
 type DevApiPluginOptions = {
@@ -23,6 +24,7 @@ type DevApiPluginOptions = {
   memory?: Record<string, unknown>
   profile?: Record<string, unknown>
   taskNotificationActions?: Record<string, unknown>
+  taskNotifications?: Record<string, unknown>
   tasksBoard?: Record<string, unknown>
 }
 
@@ -36,6 +38,7 @@ export function devApiPlugin({
   memory,
   profile,
   taskNotificationActions,
+  taskNotifications,
   tasksBoard,
 }: DevApiPluginOptions = {}): Plugin {
   return {
@@ -71,6 +74,9 @@ export function devApiPlugin({
       }
       if (taskNotificationActions) {
         server.middlewares.use('/api/task-notification-actions', createTaskNotificationActionsHandler(taskNotificationActions))
+      }
+      if (taskNotifications) {
+        server.middlewares.use('/api/task-notifications', createTaskNotificationsHandler(taskNotifications))
       }
     },
   }
