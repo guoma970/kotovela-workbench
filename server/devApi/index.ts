@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite'
 import auditLogHandler from './auditLog'
 import { createConsultantsHandler } from './consultants'
+import { createLeadUpdateHandler } from './leadUpdate'
 import { createLeadsHandler } from './leads'
 import modelUsageHandler from './modelUsage'
 import officeInstancesHandler from './officeInstances'
@@ -10,11 +11,12 @@ import { createTasksBoardHandler } from './tasksBoard'
 type DevApiPluginOptions = {
   consultants?: Record<string, unknown>
   isInternal?: boolean
+  leadUpdate?: Record<string, unknown>
   leads?: Record<string, unknown>
   tasksBoard?: Record<string, unknown>
 }
 
-export function devApiPlugin({ consultants, isInternal = false, leads, tasksBoard }: DevApiPluginOptions = {}): Plugin {
+export function devApiPlugin({ consultants, isInternal = false, leadUpdate, leads, tasksBoard }: DevApiPluginOptions = {}): Plugin {
   return {
     name: 'kotovela-dev-api',
     configureServer(server) {
@@ -30,6 +32,9 @@ export function devApiPlugin({ consultants, isInternal = false, leads, tasksBoar
       }
       if (consultants) {
         server.middlewares.use('/api/consultants', createConsultantsHandler(consultants))
+      }
+      if (leadUpdate) {
+        server.middlewares.use('/api/lead-update', createLeadUpdateHandler(leadUpdate))
       }
     },
   }

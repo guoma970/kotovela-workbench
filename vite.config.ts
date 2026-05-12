@@ -3107,6 +3107,13 @@ export default defineConfig(({ mode }) => {
           buildConsultantRecords,
         },
         isInternal,
+        leadUpdate: {
+          taskBoardFile: TASK_BOARD_FILE,
+          consultantDirectory: CONSULTANT_DIRECTORY,
+          mutateTaskBoard,
+          appendAuditLog,
+          syncLeadAssignmentStatus,
+        },
         leads: {
           taskBoardFile: TASK_BOARD_FILE,
           readTaskBoard,
@@ -3146,57 +3153,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/lead-update', async (req, res, next) => {
-            if (req.method !== 'POST') {
-              next()
-              return
-            }
-            try {
-              const chunks: Buffer[] = []
-              for await (const chunk of req) chunks.push(Buffer.from(chunk))
-              const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>
-              const leadId = String(body.lead_id || '').trim()
-              if (!leadId) {
-                res.statusCode = 400
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'missing lead_id' }))
-                return
-              }
-              const { payload } = await mutateTaskBoard(TASK_BOARD_FILE, async (current) => {
-                const target = current.board.find((item) => item.lead_id === leadId)
-                if (!target) throw new Error('lead not found')
-                const now = new Date().toISOString()
-                const nextConsultant = String(body.consultant_id || '').trim()
-                const nextStatus = String(body.status || '').trim()
-                const reason = String(body.reassigned_reason || '').trim()
-                if (nextConsultant && nextConsultant !== target.consultant_id) {
-                  target.reassigned_to = nextConsultant
-                  target.reassigned_at = now
-                  target.reassigned_reason = reason || 'manual_reassign'
-                  target.consultant_id = nextConsultant
-                  target.consultant_owner = CONSULTANT_DIRECTORY.find((entry) => entry.consultant_id === nextConsultant)?.consultant_owner || nextConsultant
-                  target.assignment_mode = 'manual'
-                  await appendAuditLog({ action: 'consultant_reassigned', user: 'builder', time: now, target: leadId, result: `assigned to ${nextConsultant}` })
-                }
-                if (nextStatus) {
-                  target.status = nextStatus
-                  target.converted = nextStatus === 'done' || nextStatus === 'success' || nextStatus === 'converted'
-                  target.lost = nextStatus === 'failed' || nextStatus === 'cancelled' || nextStatus === 'lost'
-                }
-                syncLeadAssignmentStatus(target)
-                target.updated_at = now
-              })
-              const lead = payload.board.find((item) => item.lead_id === leadId)
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ ok: true, lead }))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'lead update failed', message: error instanceof Error ? error.message : String(error) }))
-            }
-          })
-
           server.middlewares.use('/api/lead-stats', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
