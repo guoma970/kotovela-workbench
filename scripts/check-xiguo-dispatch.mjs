@@ -67,6 +67,7 @@ try {
   process.env.XIGUO_API_KEY = 'test-xiguo-key'
   process.env.XIGUO_LINK_SECRET = 'test-link-secret'
   process.env.XIGUO_API_URL = `${baseUrl}/xiguo-ok`
+  process.env.FEISHU_STUDY_COLLAB_CHAT_ID = 'oc_family_collab'
   process.env.FEISHU_STUDY_TEST_WEBHOOK = `${baseUrl}/feishu`
 
   const readiness = getXiguoDispatchReadiness()
