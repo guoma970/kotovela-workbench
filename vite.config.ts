@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { devApiPlugin } from './server/devApi'
-import { appendAuditLog, readAuditLog } from './server/devApi/auditLogStore'
+import { appendAuditLog } from './server/devApi/auditLogStore'
 import { inferTaskBoardEvidenceContext, type StableEvidenceRoutingHints } from './src/lib/evidenceContext'
 
 type TaskNotifyEvent = 'task_queued' | 'task_done' | 'task_failed' | 'task_warning' | 'task_need_human'
@@ -3110,30 +3110,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/audit-log', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-
-            try {
-              const entries = await readAuditLog()
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.setHeader('Cache-Control', 'no-store')
-              res.end(JSON.stringify({ entries }))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(
-                JSON.stringify({
-                  error: 'audit-log fetch failed',
-                  message: error instanceof Error ? error.message : String(error),
-                }),
-              )
-            }
-          })
-
           server.middlewares.use('/api/tasks-board', async (req, res, next) => {
             const filePath = TASK_BOARD_FILE
 
