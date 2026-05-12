@@ -3138,6 +3138,10 @@ export default defineConfig(({ mode }) => {
           writeContentLearningStore,
           upsertLearningFeedback,
         },
+        profile: {
+          readMemoryStore,
+          deriveProfile,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3169,30 +3173,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/profile', async (req, res, next) => {
-            if (req.method !== 'GET') {
-              next()
-              return
-            }
-            try {
-              const userId = String(new URL(req.url ?? '', 'http://localhost').searchParams.get('user_id') ?? '').trim()
-              if (!userId) {
-                res.statusCode = 400
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'missing user_id' }))
-                return
-              }
-              const records = await readMemoryStore()
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify(deriveProfile(userId, records)))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'profile fetch failed', message: error instanceof Error ? error.message : String(error) }))
-            }
-          })
-
           server.middlewares.use('/api/task-notification-actions', async (req, res, next) => {
             if (req.method !== 'POST') {
               next()
