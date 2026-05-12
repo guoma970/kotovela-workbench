@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite'
 import auditLogHandler from './auditLog'
 import { createConsultantsHandler } from './consultants'
+import { createContentFeedbackHandler } from './contentFeedback'
 import { createLeadStatsHandler } from './leadStats'
 import { createLeadUpdateHandler } from './leadUpdate'
 import { createLeadsHandler } from './leads'
@@ -12,6 +13,7 @@ import { createTasksBoardHandler } from './tasksBoard'
 
 type DevApiPluginOptions = {
   consultants?: Record<string, unknown>
+  contentFeedback?: Record<string, unknown>
   isInternal?: boolean
   leadStats?: Record<string, unknown>
   leadUpdate?: Record<string, unknown>
@@ -20,7 +22,7 @@ type DevApiPluginOptions = {
   tasksBoard?: Record<string, unknown>
 }
 
-export function devApiPlugin({ consultants, isInternal = false, leadStats, leadUpdate, leads, memory, tasksBoard }: DevApiPluginOptions = {}): Plugin {
+export function devApiPlugin({ consultants, contentFeedback, isInternal = false, leadStats, leadUpdate, leads, memory, tasksBoard }: DevApiPluginOptions = {}): Plugin {
   return {
     name: 'kotovela-dev-api',
     configureServer(server) {
@@ -45,6 +47,9 @@ export function devApiPlugin({ consultants, isInternal = false, leadStats, leadU
       }
       if (memory) {
         server.middlewares.use('/api/memory', createMemoryHandler(memory))
+      }
+      if (contentFeedback) {
+        server.middlewares.use('/api/content-feedback', createContentFeedbackHandler(contentFeedback))
       }
     },
   }

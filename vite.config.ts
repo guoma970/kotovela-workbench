@@ -3133,6 +3133,11 @@ export default defineConfig(({ mode }) => {
           writeMemoryStore,
           upsertMemoryRecord,
         },
+        contentFeedback: {
+          readContentLearningStore,
+          writeContentLearningStore,
+          upsertLearningFeedback,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3164,64 +3169,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/content-feedback', async (req, res, next) => {
-            if (req.method === 'GET') {
-              try {
-                const records = await readContentLearningStore()
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.setHeader('Cache-Control', 'no-store')
-                res.end(JSON.stringify({ records: records.sort((a, b) => b.learning_score - a.learning_score) }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'content-feedback fetch failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            if (req.method === 'POST') {
-              try {
-                const chunks: Buffer[] = []
-                for await (const chunk of req) chunks.push(Buffer.from(chunk))
-                const bodyText = Buffer.concat(chunks).toString('utf8')
-                const body = bodyText ? JSON.parse(bodyText) : {}
-                const contentLine = String(body?.content_line || '').trim()
-                const accountLine = String(body?.account_line || '').trim()
-                const structureId = String(body?.structure_id || '').trim()
-                const structureType = String(body?.structure_type || 'short_content').trim()
-                const score = Number(body?.score ?? 0)
-                if (!contentLine || !accountLine || !structureId || !Number.isFinite(score) || score <= 0) {
-                  res.statusCode = 400
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'missing learning feedback fields' }))
-                  return
-                }
-                const records = await readContentLearningStore()
-                const record = upsertLearningFeedback(records, {
-                  content_line: contentLine,
-                  account_line: accountLine,
-                  structure_id: structureId,
-                  structure_type: structureType,
-                  score,
-                  sentiment: body?.sentiment,
-                  timestamp: new Date().toISOString(),
-                })
-                await writeContentLearningStore(records)
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ ok: true, record }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'content-feedback write failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            next()
-          })
-
           server.middlewares.use('/api/profile', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
