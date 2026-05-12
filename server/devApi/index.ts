@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import auditLogHandler from './auditLog'
 import modelUsageHandler from './modelUsage'
 import officeInstancesHandler from './officeInstances'
 import { createSystemModeHandler } from './systemMode'
@@ -14,6 +15,7 @@ export function devApiPlugin({ isInternal = false }: DevApiPluginOptions = {}): 
       server.middlewares.use('/api/office-instances', officeInstancesHandler)
       server.middlewares.use('/api/model-usage', modelUsageHandler)
       server.middlewares.use('/api/system-mode', createSystemModeHandler({ isInternal }))
+      server.middlewares.use('/api/audit-log', auditLogHandler)
     },
   }
 }
