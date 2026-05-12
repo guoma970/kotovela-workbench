@@ -17,6 +17,23 @@ const normalizeSecret = (value: unknown) =>
 const hashSecret = async (secret: string) =>
   toHex(await crypto.subtle.digest('SHA-256', textEncoder.encode(`${ACCESS_HASH_PREFIX}:${normalizeSecret(secret)}`)))
 
+const digestComparableValue = async (value: string) =>
+  new Uint8Array(await crypto.subtle.digest('SHA-256', textEncoder.encode(`${value.length}:${value}`)))
+
+const timingSafeStringEqual = async (left: string | undefined, right: string | undefined) => {
+  const [leftDigest, rightDigest] = await Promise.all([
+    digestComparableValue(String(left ?? '')),
+    digestComparableValue(String(right ?? '')),
+  ])
+
+  let difference = 0
+  for (let index = 0; index < leftDigest.length; index += 1) {
+    difference |= leftDigest[index] ^ rightDigest[index]
+  }
+
+  return difference === 0
+}
+
 const parseCookies = (cookieHeader: string | null) => {
   const cookies = new Map<string, string>()
   if (!cookieHeader) return cookies
@@ -50,7 +67,14 @@ const isAuthenticated = async (request: Request, secret: string) => {
   const authorization = normalizeSecret(request.headers.get('authorization'))
   const bearerToken = authorization.toLowerCase().startsWith('bearer ') ? normalizeSecret(authorization.slice(7)) : ''
 
-  return cookieValue === expected || automationToken === secret || directSecret === secret || bearerToken === secret
+  const [cookieMatches, automationMatches, directMatches, bearerMatches] = await Promise.all([
+    timingSafeStringEqual(cookieValue, expected),
+    timingSafeStringEqual(automationToken, secret),
+    timingSafeStringEqual(directSecret, secret),
+    timingSafeStringEqual(bearerToken, secret),
+  ])
+
+  return cookieMatches || automationMatches || directMatches || bearerMatches
 }
 
 const jsonResponse = (body: unknown, status: number) =>
