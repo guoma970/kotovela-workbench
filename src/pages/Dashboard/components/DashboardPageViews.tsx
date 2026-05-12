@@ -3,6 +3,7 @@ import type { Agent, Project, UpdateItem } from '../../../types'
 import { BRAND_NAME } from '../../../config/brand'
 import { brandAssets } from '../../../config/brandAssets'
 import { UI_TERMS } from '../../../lib/uiTerms'
+import { TodayBriefing } from './TodayBriefing'
 import {
   AuditLogPanel,
   ConsultantConfigSummaryCard,
@@ -13,8 +14,42 @@ import {
 import type { ActionItem, HomeItem, SystemModeState } from './DashboardOverviewSections'
 
 type ActionResolver = (item: HomeItem) => ActionItem[]
+type DashboardExpandedSection = 'overview' | 'attention' | 'decisions'
+type DashboardExpandedSections = Record<DashboardExpandedSection, boolean>
 
 const internalStatusLabels = { blocker: UI_TERMS.blocked, active: UI_TERMS.doing, idle: UI_TERMS.idle } as const
+
+function CollapsibleDashboardSection({
+  id,
+  title,
+  summary,
+  expanded,
+  onToggle,
+  children,
+}: {
+  id: DashboardExpandedSection
+  title: string
+  summary: string
+  expanded: boolean
+  onToggle: (id: DashboardExpandedSection) => void
+  children: ReactNode
+}) {
+  return (
+    <section className={`dashboard-collapsible-section panel strong-card ${expanded ? 'is-expanded' : ''}`}>
+      <div className="dashboard-collapsible-head">
+        <div>
+          <p className="eyebrow">可展开看板</p>
+          <h3>{title}</h3>
+          <p>{summary}</p>
+        </div>
+        <button type="button" className="ghost-button dashboard-collapsible-toggle" onClick={() => onToggle(id)}>
+          {expanded ? '收起' : '展开'}
+        </button>
+      </div>
+      {expanded ? <div className="dashboard-collapsible-body">{children}</div> : null}
+    </section>
+  )
+}
 
 type DashboardInternalViewProps = {
   actionMessage: string
@@ -36,6 +71,8 @@ type DashboardInternalViewProps = {
   pollingIntervalMs: number
   systemModeState: SystemModeState
   autoTaskSummaryCard: ReactNode
+  expandedSections: DashboardExpandedSections
+  onToggleSection: (id: DashboardExpandedSection) => void
 }
 
 export function DashboardInternalView({
@@ -58,6 +95,8 @@ export function DashboardInternalView({
   pollingIntervalMs,
   systemModeState,
   autoTaskSummaryCard,
+  expandedSections,
+  onToggleSection,
 }: DashboardInternalViewProps) {
   return (
     <section className="page home-page-v1 home-page--internal-control">
@@ -76,32 +115,50 @@ export function DashboardInternalView({
         </p>
       </div>
 
+      <TodayBriefing />
+
       {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}
 
-      <InternalControlSummary
-        livePayload={liveOpenClaw}
-        isLoading={isLoading}
-        activeDataSource={activeDataSource}
-        isFallback={isFallback}
-        agents={agents}
-        projects={projects}
-        onOpenProject={onOpenProject}
-        onOpenAgentsIdle={onOpenAgentsPage}
-        lastSyncedAtMs={lastSyncedAtMs}
-        pollingIntervalMs={pollingIntervalMs}
-        systemModeState={systemModeState}
-      />
+      <CollapsibleDashboardSection
+        id="overview"
+        title={UI_TERMS.officeBoard}
+        summary="项目进度、同事状态和当前运行方式都在这里；需要复盘全局时再展开。"
+        expanded={expandedSections.overview}
+        onToggle={onToggleSection}
+      >
+        <InternalControlSummary
+          livePayload={liveOpenClaw}
+          isLoading={isLoading}
+          activeDataSource={activeDataSource}
+          isFallback={isFallback}
+          agents={agents}
+          projects={projects}
+          onOpenProject={onOpenProject}
+          onOpenAgentsIdle={onOpenAgentsPage}
+          lastSyncedAtMs={lastSyncedAtMs}
+          pollingIntervalMs={pollingIntervalMs}
+          systemModeState={systemModeState}
+        />
+      </CollapsibleDashboardSection>
 
       <div className="home-v1-grid home-v1-grid--internal">
         <div className="home-internal-main-col">
-          <SectionList
-            title="需处理"
-            items={blockers}
-            emptyText="当前没有需要优先处理的事项。"
-            getActions={blockerActions}
-            statusLabels={internalStatusLabels}
-            updatedLabel="更新于"
-          />
+          <CollapsibleDashboardSection
+            id="attention"
+            title={UI_TERMS.blocker}
+            summary="只放最需要先处理的事项，默认收起，避免首页第一屏太重。"
+            expanded={expandedSections.attention}
+            onToggle={onToggleSection}
+          >
+            <SectionList
+              title="需处理"
+              items={blockers}
+              emptyText="当前没有需要优先处理的事项。"
+              getActions={blockerActions}
+              statusLabels={internalStatusLabels}
+              updatedLabel="更新于"
+            />
+          </CollapsibleDashboardSection>
           <SectionList
             title="进行中"
             items={actives}
@@ -110,7 +167,15 @@ export function DashboardInternalView({
             statusLabels={internalStatusLabels}
             updatedLabel="更新于"
           />
-          {autoTaskSummaryCard}
+          <CollapsibleDashboardSection
+            id="decisions"
+            title="待你拍板"
+            summary="自动化和需要人工确认的摘要入口；需要处理时展开查看。"
+            expanded={expandedSections.decisions}
+            onToggle={onToggleSection}
+          >
+            {autoTaskSummaryCard}
+          </CollapsibleDashboardSection>
           <ConsultantConfigSummaryCard />
           <AuditLogPanel />
         </div>
@@ -139,6 +204,8 @@ type DashboardPublicViewProps = {
   activeActions: ActionResolver
   idleActions: ActionResolver
   onViewUpdateDetail: (update: UpdateItem) => void
+  expandedSections: DashboardExpandedSections
+  onToggleSection: (id: DashboardExpandedSection) => void
 }
 
 export function DashboardPublicView({
@@ -154,6 +221,8 @@ export function DashboardPublicView({
   activeActions,
   idleActions,
   onViewUpdateDetail,
+  expandedSections,
+  onToggleSection,
 }: DashboardPublicViewProps) {
   return (
     <section className="page home-page-v1">
@@ -181,12 +250,38 @@ export function DashboardPublicView({
         {isFallback ? <span className="home-runtime-pill">当前使用演示数据</span> : null}
       </div>
 
+      <TodayBriefing />
+
       {actionMessage ? <div className="home-action-feedback">{actionMessage}</div> : null}
 
       <div className="home-v1-grid">
-        <SectionList title={UI_TERMS.blocker} items={blockers} emptyText="当前没有卡住的事。" getActions={blockerActions} />
-        <SectionList title={UI_TERMS.doing} items={actives} emptyText="当前没有正在做的事。" getActions={activeActions} />
-        <SectionList title={UI_TERMS.idle} items={idles} emptyText="当前没有待命事项。" getActions={idleActions} />
+        <CollapsibleDashboardSection
+          id="attention"
+          title={UI_TERMS.blocker}
+          summary="先看有没有卡住的事；没有时就可以继续往下看。"
+          expanded={expandedSections.attention}
+          onToggle={onToggleSection}
+        >
+          <SectionList title={UI_TERMS.blocker} items={blockers} emptyText="当前没有卡住的事。" getActions={blockerActions} />
+        </CollapsibleDashboardSection>
+        <CollapsibleDashboardSection
+          id="overview"
+          title={UI_TERMS.doing}
+          summary="正在推进的事项放在这里，展开后可继续跳转处理。"
+          expanded={expandedSections.overview}
+          onToggle={onToggleSection}
+        >
+          <SectionList title={UI_TERMS.doing} items={actives} emptyText="当前没有正在做的事。" getActions={activeActions} />
+        </CollapsibleDashboardSection>
+        <CollapsibleDashboardSection
+          id="decisions"
+          title={UI_TERMS.idle}
+          summary="暂时待命的同事和事项放在这里，避免占满首屏。"
+          expanded={expandedSections.decisions}
+          onToggle={onToggleSection}
+        >
+          <SectionList title={UI_TERMS.idle} items={idles} emptyText="当前没有待命事项。" getActions={idleActions} />
+        </CollapsibleDashboardSection>
         <RecentUpdates updates={recentUpdates} onViewDetail={onViewUpdateDetail} />
       </div>
     </section>
