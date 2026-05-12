@@ -3101,6 +3101,14 @@ export default defineConfig(({ mode }) => {
       react(),
       devApiPlugin({
         isInternal,
+        leads: {
+          taskBoardFile: TASK_BOARD_FILE,
+          readTaskBoard,
+          summarizeTaskBoard,
+          buildTextResult,
+          mutateTaskBoard,
+          ensureBusinessFields,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3132,97 +3140,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/leads', async (req, res, next) => {
-            if (req.method === 'GET') {
-              try {
-                const payload = summarizeTaskBoard(await readTaskBoard(TASK_BOARD_FILE))
-                const leads = payload.board
-                  .filter((item) => item.lead_id)
-                  .map((item) => ({
-                    lead_id: item.lead_id,
-                    task_name: item.task_name,
-                    source_line: item.source_line,
-                    account_line: item.account_line,
-                    content_line: item.content_line,
-                    consultant_id: item.consultant_id,
-                    consultant_owner: item.consultant_owner,
-                    assignment_mode: item.assignment_mode,
-                    assignment_status: item.assignment_status,
-                    reassigned_to: item.reassigned_to,
-                    reassigned_at: item.reassigned_at,
-                    reassigned_reason: item.reassigned_reason,
-                    converted: item.converted ?? false,
-                    lost: item.lost ?? false,
-                    attribution: item.attribution ?? null,
-                    status: item.status,
-                    domain: item.domain,
-                    updated_at: item.updated_at,
-                    decision_log: item.decision_log ?? [],
-                    projectId: item.projectId,
-                    agentId: item.agentId,
-                    roomId: item.roomId,
-                    taskId: item.taskId,
-                    routingHints: item.routingHints,
-                  }))
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.setHeader('Cache-Control', 'no-store')
-                res.end(JSON.stringify({ leads }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'leads fetch failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            if (req.method === 'POST') {
-              try {
-                const chunks: Buffer[] = []
-                for await (const chunk of req) chunks.push(Buffer.from(chunk))
-                const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Partial<TaskBoardItem>
-                const title = String(body.task_name || '').trim()
-                if (!title) {
-                  res.statusCode = 400
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'missing lead title' }))
-                  return
-                }
-                const now = new Date().toISOString()
-                const nextItem: TaskBoardItem = {
-                  task_name: title,
-                  agent: 'business',
-                  domain: 'business',
-                  subdomain: 'consulting',
-                  project_line: 'kotovela_official',
-                  priority: 1,
-                  type: 'business_task',
-                  status: 'queued',
-                  timestamp: now,
-                  queued_at: now,
-                  updated_at: now,
-                  result: buildTextResult(title),
-                  assignment_mode: 'auto',
-                  history: [{ action: 'create', operator: 'system', trigger_source: 'manual', timestamp: now, status_after: 'queued', priority_after: 1 }],
-                }
-                await mutateTaskBoard(TASK_BOARD_FILE, async (current) => {
-                  current.board.unshift(nextItem)
-                  await ensureBusinessFields(nextItem, now, current.board)
-                })
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ ok: true, lead: nextItem }))
-              } catch (error) {
-                res.statusCode = 500
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'lead create failed', message: error instanceof Error ? error.message : String(error) }))
-              }
-              return
-            }
-
-            next()
-          })
-
           server.middlewares.use('/api/consultants', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
