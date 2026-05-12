@@ -3142,6 +3142,16 @@ export default defineConfig(({ mode }) => {
           readMemoryStore,
           deriveProfile,
         },
+        taskNotificationActions: {
+          taskBoardFile: TASK_BOARD_FILE,
+          readTaskBoard,
+          writeTaskBoard,
+          readTaskNotifications,
+          writeTaskNotifications,
+          toTaskId,
+          applyManualTaskAction,
+          normalizeNotifyDomain,
+        },
         tasksBoard: {
           taskBoardFile: TASK_BOARD_FILE,
           scenarioTemplates: SCENARIO_TEMPLATES,
@@ -3173,105 +3183,6 @@ export default defineConfig(({ mode }) => {
       {
         name: 'workbench-dev-api-inline',
         configureServer(server) {
-          server.middlewares.use('/api/task-notification-actions', async (req, res, next) => {
-            if (req.method !== 'POST') {
-              next()
-              return
-            }
-
-            try {
-              const chunks: Buffer[] = []
-              for await (const chunk of req) chunks.push(Buffer.from(chunk))
-              const bodyText = Buffer.concat(chunks).toString('utf8')
-              const body = bodyText ? JSON.parse(bodyText) : {}
-              const groupAction = String(body?.group_action || body?.action || '').trim()
-              const taskId = String(body?.task_id || '').trim()
-              const taskName = String(body?.task_name || '').trim()
-              const domain = String(body?.domain || '').trim()
-              const assignedAgent = String(body?.assigned_agent || '').trim()
-              const humanOwner = String(body?.human_owner || body?.operator || assignedAgent || 'builder').trim()
-
-              const actionMap: Record<string, string> = {
-                done: 'manual_done',
-                processed: 'manual_done',
-                continue: 'manual_continue',
-                transfer: 'assign',
-                assign: 'assign',
-              }
-              const mappedAction = actionMap[groupAction]
-              if (!mappedAction) {
-                res.statusCode = 400
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'unsupported group_action' }))
-                return
-              }
-
-              const filePath = TASK_BOARD_FILE
-              const payload = await readTaskBoard(filePath)
-              const target = payload.board.find((item) => toTaskId(item.task_name) === taskId)
-                ?? payload.board.find((item) => item.task_name === taskName)
-                ?? payload.board.find((item) => (item.domain ?? '') === domain && (item.assigned_agent ?? item.agent ?? '') === assignedAgent)
-
-              if (!target) {
-                res.statusCode = 404
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: 'task not found' }))
-                return
-              }
-
-              const now = new Date().toISOString()
-              applyManualTaskAction(target, mappedAction, humanOwner, now)
-              target.updated_at = now
-              payload.generated_at = now
-              await writeTaskBoard(filePath, payload)
-
-              const notifications = await readTaskNotifications()
-              notifications.unshift({
-                id: `${now}-${toTaskId(target.task_name)}-${groupAction}`,
-                event_type: 'task_need_human',
-                task_id: toTaskId(target.task_name),
-                task_name: target.task_name,
-                domain: normalizeNotifyDomain(target.domain),
-                subdomain: target.subdomain ?? 'engineering',
-                project_line: target.project_line ?? 'builder_default',
-                notify_mode: target.notify_mode ?? 'need_human',
-                assigned_agent: target.assigned_agent ?? target.agent ?? 'builder',
-                status: target.status ?? '-',
-                summary: `群内动作已回写：${groupAction}`,
-                target_group: 'Mock Feishu 群动作',
-                target_group_id: target.target_group_id ?? 'mock_group_action',
-                target_channel: target.domain ?? 'builder',
-                scheduler_hint: '群动作已同步到 Scheduler',
-                created_at: now,
-                delivery: 'mock',
-                message: [
-                  '【群内动作已回写】',
-                  `task_id：${toTaskId(target.task_name)}`,
-                  `task_name：${target.task_name}`,
-                  `domain：${normalizeNotifyDomain(target.domain)}`,
-                  `assigned_agent：${target.assigned_agent ?? target.agent ?? 'builder'}`,
-                  `group_action：${groupAction}`,
-                  `human_owner：${humanOwner}`,
-                  `manual_decision：${target.manual_decision ?? '-'}`,
-                ].join('\n'),
-              })
-              await writeTaskNotifications(notifications.slice(0, 60))
-
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ ok: true, task_name: target.task_name, manual_decision: target.manual_decision }))
-            } catch (error) {
-              res.statusCode = 500
-              res.setHeader('Content-Type', 'application/json')
-              res.end(
-                JSON.stringify({
-                  error: 'task-notification-action failed',
-                  message: error instanceof Error ? error.message : String(error),
-                }),
-              )
-            }
-          })
-
           server.middlewares.use('/api/task-notifications', async (req, res, next) => {
             if (req.method !== 'GET') {
               next()
