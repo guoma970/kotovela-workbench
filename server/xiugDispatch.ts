@@ -6,6 +6,7 @@ import {
   buildKotovelaTaskApiUrl,
   isXiguoTaskLinkSecurityConfigured,
 } from './xiguoTaskAccess.js'
+import { parseSafeUpstreamUrl } from './lib/safeUpstream.js'
 
 export type XiguoSubject = 'math' | 'writing' | 'reading'
 export type FeishuStudyAudience = 'collab' | 'assign'
@@ -52,6 +53,13 @@ const FEISHU_STUDY_AUDIENCE_LABELS: Record<FeishuStudyAudience, string> = {
 
 const execFileAsync = promisify(execFile)
 const normalizeString = (value: unknown) => String(value ?? '').trim()
+const parseAllowedHosts = (value: unknown) =>
+  new Set(
+    normalizeString(value)
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  )
 
 const formatSubject = (subject: XiguoSubject): string => SUBJECT_LABELS[subject]
 
@@ -206,7 +214,11 @@ export async function dispatchToXiguo(payload: XiguoDispatchPayload): Promise<Xi
   if (!apiKey) return { ok: false, error: 'XIGUO_API_KEY not configured' }
 
   try {
-    const response = await fetch(apiUrl, {
+    const safeApiUrl = parseSafeUpstreamUrl(apiUrl, {
+      envName: 'XIGUO_API_URL',
+      allowedHosts: parseAllowedHosts(process.env.XIGUO_API_ALLOW_HOSTS),
+    })
+    const response = await fetch(safeApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -232,7 +244,9 @@ export async function dispatchToXiguo(payload: XiguoDispatchPayload): Promise<Xi
 
     return await parseXiguoResponse(response)
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('XIGUO_API_URL')) return { ok: false, error: `xiguo upstream rejected: ${message}` }
+    return { ok: false, error: message }
   }
 }
 

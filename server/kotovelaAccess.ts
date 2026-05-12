@@ -10,7 +10,7 @@ export const normalizeAccessSecret = (value: unknown) =>
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .trim()
 
-const hashSecret = (secret: string) =>
+export const hashSecret = (secret: string) =>
   createHash('sha256').update(`${ACCESS_HASH_PREFIX}:${normalizeAccessSecret(secret)}`).digest('hex')
 
 const parseCookies = (cookieHeader: string | undefined) => {
@@ -43,4 +43,11 @@ export const hasKotovelaAccess = (req: VercelRequest) => {
   const cookieValue = parseCookies(req.headers.cookie).get(ACCESS_COOKIE_NAME)
 
   return directSecret === secret || accessToken === secret || bearer === secret || cookieValue === hashSecret(secret)
+}
+
+export const hasKotovelaAccessStrict = (req: VercelRequest) => {
+  const secret = normalizeAccessSecret(process.env.KOTOVELA_ACCESS_SECRET)
+  if (!secret) return false
+
+  return hasKotovelaAccess(req)
 }
