@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "node scripts/run-stabilization-suite.mjs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "capture": "node scripts/capture-dev62.mjs",
     "capture:dev64": "node scripts/capture-dev64.mjs",
     "capture:ui-01": "node scripts/capture-dev-ui-01.mjs",
@@ -35,19 +38,21 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.59.0",
-    "@vercel/node": "^5.3.25",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.3.25",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "playwright": "^1.59.0",
+    "tsx": "^4.20.5",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
-    "tsx": "^4.20.5",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "vitest": "^4.1.6"
   }
 }
